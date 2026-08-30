@@ -98,11 +98,17 @@ class ApiClient {
     return null;
   }
 
-  Future<List<CatalogGame>> searchGames(String query) async {
+  Future<List<CatalogGame>> searchGames(
+    String query, {
+    String provider = 'igdb',
+  }) async {
     if (query.trim().isEmpty) return const [];
     final decoded = await _send(
       'GET',
-      _u('/api/catalog/search', {'q': query.trim()}),
+      _u('/api/catalog/search', {
+        'q': query.trim(),
+        'provider': provider,
+      }),
     );
     if (decoded is! List) return const [];
     return decoded
@@ -110,8 +116,13 @@ class ApiClient {
         .toList();
   }
 
-  Future<List<FeaturedRail>> getFeaturedRails() async {
-    final decoded = await _send('GET', _u('/api/catalog/featured'));
+  Future<List<FeaturedRail>> getFeaturedRails({
+    String provider = 'igdb',
+  }) async {
+    final decoded = await _send(
+      'GET',
+      _u('/api/catalog/featured', {'provider': provider}),
+    );
     if (decoded is! List) return const [];
     return decoded
         .map((e) => FeaturedRail.fromJson(e as Map<String, dynamic>))
