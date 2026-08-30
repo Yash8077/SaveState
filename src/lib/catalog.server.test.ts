@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  dedupeGames,
   refreshFeaturedWith,
   runSearchWith,
 } from "./catalog.server.ts";
@@ -104,6 +105,23 @@ describe("runSearch merge and fallback", () => {
     assert.deepEqual(
       result.map((g) => g.id),
       ["steam_620", "steam_400"],
+    );
+  });
+
+  it("collapses same-name parent/child rows, keeping the main game", () => {
+    const main = {
+      ...game("igdb_1", "Ghost of Yotei"),
+      gameType: 0,
+    };
+    const deluxe = {
+      ...game("igdb_2", "Ghost of Yotei"),
+      parentGameId: "igdb_1",
+      gameType: 3,
+    };
+    const out = dedupeGames([deluxe, main, deluxe]);
+    assert.deepEqual(
+      out.map((g) => g.id),
+      ["igdb_1"],
     );
   });
 });
