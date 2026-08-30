@@ -41,7 +41,8 @@ type EntryRow = {
 const ENTRY_SELECT = `
   id, catalog_id, title, cover_url, header_url, summary, release_date,
   platforms, genres, metacritic, developers, publishers, screenshots,
-  status, score, hours, favorite, notes, started_at, finished_at,
+  status, score, hours, favorite, notes,
+  started_at::text as started_at, finished_at::text as finished_at,
   created_at::text as created_at, updated_at::text as updated_at
 `;
 
@@ -56,6 +57,16 @@ function asStringArray(value: unknown): string[] {
     return value.filter((item): item is string => typeof item === "string");
   }
   return [];
+}
+
+function toIsoDate(value: unknown): string | null {
+  if (value == null || value === "") return null;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    return value.toISOString().slice(0, 10);
+  }
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(String(value));
+  return match?.[1] ?? null;
 }
 
 export function mapEntry(row: EntryRow): GameEntry {
@@ -81,8 +92,8 @@ export function mapEntry(row: EntryRow): GameEntry {
     hours: toHours(row.hours),
     favorite: Boolean(row.favorite),
     notes: row.notes,
-    startedAt: row.started_at,
-    finishedAt: row.finished_at,
+    startedAt: toIsoDate(row.started_at),
+    finishedAt: toIsoDate(row.finished_at),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -232,8 +243,8 @@ export async function updateEntryRow(
   if (data.hours !== undefined) push("hours = ?", data.hours);
   if (data.favorite !== undefined) push("favorite = ?", data.favorite);
   if (data.notes !== undefined) push("notes = ?", data.notes);
-  if (data.startedAt !== undefined) push("started_at = ?", data.startedAt);
-  if (data.finishedAt !== undefined) push("finished_at = ?", data.finishedAt);
+  if (data.startedAt !== undefined) push("started_at = ?", toIsoDate(data.startedAt));
+  if (data.finishedAt !== undefined) push("finished_at = ?", toIsoDate(data.finishedAt));
   params.push(data.id, userId);
   const idIdx = params.length - 1;
   const userIdx = params.length;
