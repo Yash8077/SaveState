@@ -98,6 +98,23 @@ describe("library CRUD against PGLite", () => {
     const b = await listLibraryPage(sql, "user-b", { limit: 50 });
     assert.ok(a.items.every((e) => e.title !== "B's copy"));
     assert.equal(b.items[0]?.title, "B's copy");
+    assert.equal(b.items[0]?.status, "playing");
+  });
+
+  it("saves start and end dates on first add", async () => {
+    const entry = await addToLibraryRow(sql, "user-dates", {
+      catalogId: "igdb_1942",
+      status: "playing",
+      snapshot,
+      startedAt: "2024-03-01",
+      finishedAt: "2024-03-20",
+      score: 9,
+      favorite: true,
+    });
+    assert.equal(entry.startedAt, "2024-03-01");
+    assert.equal(entry.finishedAt, "2024-03-20");
+    assert.equal(entry.score, 9);
+    assert.equal(entry.favorite, true);
   });
 
   it("updates, paginates with (updated_at, id) cursors, and deletes", async () => {
@@ -119,6 +136,14 @@ describe("library CRUD against PGLite", () => {
     assert.equal(patched.hours, 12);
     assert.equal(patched.favorite, true);
     assert.equal(patched.notes, "done");
+
+    const dated = await updateEntryRow(sql, "user-a", {
+      id: custom.id,
+      startedAt: "2024-01-15T00:00:00.000Z",
+      finishedAt: "2024-02-01",
+    });
+    assert.equal(dated.startedAt, "2024-01-15");
+    assert.equal(dated.finishedAt, "2024-02-01");
 
     await addCustomGameRow(sql, "user-a", { title: "Third" });
 
