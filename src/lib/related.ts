@@ -33,3 +33,30 @@ export function flattenRelated(rails: FeaturedRail[]): RelatedCard[] {
   }
   return out;
 }
+
+export function needsPrequelSequelFallback(rails: FeaturedRail[]): boolean {
+  const hasPrequel = rails.some((r) => r.id === "prequel" && r.games.length > 0);
+  const hasSequel = rails.some((r) => r.id === "sequel" && r.games.length > 0);
+  return !hasPrequel && !hasSequel;
+}
+
+export function prependPrequelSequel(
+  rails: FeaturedRail[],
+  prequel: CatalogGame | null,
+  sequel: CatalogGame | null,
+): FeaturedRail[] {
+  const extra: FeaturedRail[] = [];
+  if (prequel) extra.push({ id: "prequel", title: "Prequel", games: [prequel] });
+  if (sequel) extra.push({ id: "sequel", title: "Sequel", games: [sequel] });
+  if (!extra.length) return rails;
+  const claimed = new Set(
+    extra.flatMap((rail) => rail.games.map((game) => game.id)),
+  );
+  const rest: FeaturedRail[] = [];
+  for (const rail of rails) {
+    if (rail.id === "prequel" || rail.id === "sequel") continue;
+    const games = rail.games.filter((game) => !claimed.has(game.id));
+    if (games.length) rest.push({ ...rail, games });
+  }
+  return [...extra, ...rest];
+}
