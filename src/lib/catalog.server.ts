@@ -1,10 +1,8 @@
 import type { CatalogDetails, CatalogGame, FeaturedRail } from "./types.ts";
-import { seedRelated, slimCatalogGame } from "./catalog-seed.ts";
+import { FEATURED_SEED, playstationSeedRail, seedRelated, slimCatalogGame } from "./catalog-seed.ts";
 import {
-  fetchIgdbAnticipated,
   fetchIgdbDetails,
   fetchIgdbPlaystation,
-  fetchPopularityScores,
   igdbCatalogId,
   isIgdbReady,
   searchIgdb,
@@ -61,7 +59,7 @@ let featuredCache: { at: number; rails: FeaturedRail[] } | null = null;
 const FEATURED_TTL_MS = 30 * 60 * 1000;
 const SEARCH_TTL_MS = 10 * 60 * 1000;
 const DETAILS_TTL_MS = 2 * 60 * 1000;
-const DETAILS_CACHE_VER = "rel-8";
+const DETAILS_CACHE_VER = "rel-9";
 const FETCH_MS = 4000;
 const searchCache = new Map<string, { at: number; games: CatalogGame[] }>();
 const detailsCache = new Map<
@@ -152,6 +150,139 @@ function fromFeaturedItem(item: SteamFeaturedItem): CatalogGame | null {
     platforms: platformsFromFlags(item),
     metacritic: null,
   };
+}
+
+export type SteamSearchHit = {
+  steamId: number;
+  title: string;
+  released: string;
+};
+
+export function decodeSteamHtml(value: string): string {
+  return value
+    .replace(/&/g, "&")
+    .replace(/"/g, '"')
+    .replace(/&#39;|'/g, "'")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/&trade;/g, "™")
+    .replace(/&reg;/g, "®")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) =>
+      String.fromCharCode(parseInt(n, 16)),
+    )
+    .trim();
+}
+
+export function parseSteamSearchHtml(html: string): SteamSearchHit[] {
+  const out: SteamSearchHit[] = [];
+  const seen = new Set<number>();
+  const rowRe =
+    /<a[^>]*class="[^"]*search_result_row[^"]*"[^>]*>[\s\S]*?<\/a>/gi;
+  for (const match of html.matchAll(rowRe)) {
+    const row = match[0];
+    if (/store\.steampowered\.com\/(?:bundle|sub)\//i.test(row)) continue;
+    const idMatch = /data-ds-appid="(\d+)"/.exec(row);
+    const titleMatch = /<span class="title">([^<]+)<\/span>/.exec(row);
+    if (!idMatch || !titleMatch) continue;
+    const steamId = Number(idMatch[1]);
+    const title = decodeSteamHtml(titleMatch[1]);
+    if (!steamId || !title) continue;
+    if (seen.has(steamId)) continue;
+    if (/\b(soundtrack|ost|playtest|demo|bundle)\b/i.test(title)) continue;
+    seen.add(steamId);
+    const releasedMatch = /search_released[^>]*>\s*([^<]*)/.exec(row);
+    out.push({
+      steamId,
+      title,
+      released: decodeSteamHtml(releasedMatch?.[1] ?? ""),
+    });
+  }
+  return out;
+}
+
+export function steamReleaseKind(
+  released: string,
+  now = new Date(),
+): "upcoming" | "recent" | "old" | "unknown" {
+  const text = released.trim();
+  if (!text) return "unknown";
+  const lower = text.toLowerCase();
+  if (
+    lower.includes("announce") ||
+    lower.includes("coming soon") ||
+    lower === "tba" ||
+    lower.includes("to be")
+  ) {
+    return "upcoming";
+  }
+  if (/^20\d{2}$/.test(text)) {
+    const year = Number(text);
+    if (year > now.getFullYear()) return "upcoming";
+    if (year < now.getFullYear()) return "old";
+    return "unknown";
+  }
+  const at = Date.parse(text);
+  if (Number.isNaN(at)) return "unknown";
+  if (at > now.getTime()) return "upcoming";
+  const ageDays = (now.getTime() - at) / 86_400_000;
+  if (ageDays <= 150) return "recent";
+  return "old";
+}
+
+function filterSteamHits(
+  hits: SteamSearchHit[],
+  keep: "all" | "recent" | "upcoming",
+): SteamSearchHit[] {
+  if (keep === "all") return hits;
+  if (keep === "upcoming") {
+    return hits.filter((hit) => {
+      const kind = steamReleaseKind(hit.released);
+      return kind === "upcoming" || kind === "unknown";
+    });
+  }
+  const recent = hits.filter(
+    (hit) => steamReleaseKind(hit.released) === "recent",
+  );
+  return recent.length >= 4 ? recent : hits;
+}
+
+function hitsToGames(hits: SteamSearchHit[]): CatalogGame[] {
+  const games: CatalogGame[] = [];
+  for (const hit of hits) {
+    games.push({
+      id: steamCatalogId(hit.steamId),
+      steamId: hit.steamId,
+      title: hit.title,
+      coverUrl: portraitUrl(hit.steamId),
+      headerUrl: artUrl(hit.steamId),
+      capsuleUrl: null,
+      platforms: [],
+      metacritic: null,
+    });
+  }
+  return collapseEditions(dedupeGames(games)).slice(0, 12);
+}
+
+async function fetchSteamSearchHits(params: string): Promise<SteamSearchHit[]> {
+  const url = `https://store.steampowered.com/search/results/?query&start=0&count=24&infinite=1&cc=US&l=english&category1=998&${params}`;
+  const data = (await steamGet(url)) as { results_html?: string };
+  return parseSteamSearchHtml(
+    typeof data.results_html === "string" ? data.results_html : "",
+  );
+}
+
+async function fetchSteamSearchRail(
+  id: string,
+  title: string,
+  params: string,
+  keep: "all" | "recent" | "upcoming",
+): Promise<FeaturedRail | null> {
+  const games = hitsToGames(
+    filterSteamHits(await fetchSteamSearchHits(params), keep),
+  );
+  if (!games.length) return null;
+  return { id, title, games };
 }
 
 function trimCache<T>(cache: Map<string, T>, max: number) {
@@ -527,7 +658,7 @@ export async function fetchCatalogDetails(
   return run;
 }
 
-export async function fetchSteamFeatured(): Promise<FeaturedRail[]> {
+async function fetchSteamFeaturedCategories(): Promise<FeaturedRail[]> {
   const url =
     "https://store.steampowered.com/api/featuredcategories/?cc=us&l=english";
   const data = (await steamGet(url)) as Record<
@@ -548,7 +679,7 @@ export async function fetchSteamFeatured(): Promise<FeaturedRail[]> {
       const game = fromFeaturedItem(item);
       if (!game) continue;
       games.push(game);
-      if (games.length >= 24) break;
+      if (games.length >= 12) break;
     }
     const unique = collapseEditions(dedupeGames(games));
     if (!unique.length) continue;
@@ -559,6 +690,80 @@ export async function fetchSteamFeatured(): Promise<FeaturedRail[]> {
     });
   }
   return rails;
+}
+
+export async function fetchSteamFeatured(): Promise<FeaturedRail[]> {
+  const specs: {
+    id: string;
+    title: string;
+    params: string;
+    keep: "all" | "recent" | "upcoming";
+  }[] = [
+    {
+      id: "top_sellers",
+      title: "Trending",
+      params: "filter=globaltopsellers",
+      keep: "all",
+    },
+    {
+      id: "new_releases",
+      title: "New releases",
+      params: "filter=popularnew",
+      keep: "recent",
+    },
+    {
+      id: "coming_soon",
+      title: "Coming soon",
+      params: "filter=popularwishlist",
+      keep: "upcoming",
+    },
+    {
+      id: "specials",
+      title: "On sale",
+      params: "specials=1&filter=globaltopsellers",
+      keep: "all",
+    },
+  ];
+  const rows = await Promise.all(
+    specs.map(async (spec) => {
+      try {
+        return await fetchSteamSearchRail(
+          spec.id,
+          spec.title,
+          spec.params,
+          spec.keep,
+        );
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const rails = rows.filter((rail): rail is FeaturedRail => Boolean(rail));
+  if (rails.length) return rails;
+  return fetchSteamFeaturedCategories();
+}
+
+export async function fetchPlaystationRail(): Promise<FeaturedRail | null> {
+  try {
+    const rail = await fetchSteamSearchRail(
+      "playstation",
+      "PlayStation",
+      "term=playstation%20studios&filter=globaltopsellers",
+      "all",
+    );
+    if (rail?.games.length) return rail;
+  } catch {
+    /* try IGDB / seed */
+  }
+  if (isIgdbReady()) {
+    try {
+      const igdb = await fetchIgdbPlaystation();
+      if (igdb?.games.length) return igdb;
+    } catch {
+      /* seed last */
+    }
+  }
+  return playstationSeedRail();
 }
 
 export function rankRailGames(
@@ -624,52 +829,21 @@ export async function refreshFeaturedWith(
   } catch {
     rails = [];
   }
-  if (sources.igdbReady() && sources.fetchAnticipated) {
-    try {
-      const anticipated = await sources.fetchAnticipated();
-      if (anticipated.length) {
-        rails = rails.map((rail) => {
-          if (rail.id !== "coming_soon") return rail;
-          return {
-            ...rail,
-            games: mergeComingSoon(rail.games, anticipated),
-          };
-        });
-        if (!rails.some((rail) => rail.id === "coming_soon") && anticipated.length) {
-          rails = [
-            ...rails,
-            { id: "coming_soon", title: "Coming soon", games: anticipated },
-          ];
-        }
-      }
-    } catch {
-      /* anticipated list is extra */
+  try {
+    const playstation = await sources.fetchPlaystationRail();
+    if (playstation?.games.length) {
+      rails = [
+        ...rails.filter((rail) => rail.id !== "playstation"),
+        playstation,
+      ];
     }
+  } catch {
+    /* PlayStation rail is extra */
   }
-  if (sources.igdbReady()) {
-    try {
-      const playstation = await sources.fetchPlaystationRail();
-      if (playstation?.games.length) rails = [...rails, playstation];
-    } catch {
-      /* PlayStation rail is extra */
-    }
-  }
-  const allGames = rails.flatMap((rail) => rail.games);
-  let scores = new Map<string, number>();
-  if (sources.popularity && allGames.length) {
-    try {
-      scores = await sources.popularity(allGames);
-    } catch {
-      scores = new Map();
-    }
-  }
+  if (!rails.length) rails = FEATURED_SEED;
   rails = rails.map((rail) => ({
     ...rail,
-    games: rankRailGames(
-      collapseEditions(dedupeGames(rail.games)),
-      scores,
-      { dropUnknown: true, limit: 12 },
-    ),
+    games: collapseEditions(dedupeGames(rail.games)).slice(0, 12),
   }));
   rails = rails.filter((rail) => rail.games.length > 0);
   featuredCache = { at: Date.now(), rails };
@@ -682,9 +856,7 @@ export async function refreshFeatured(
   return refreshFeaturedWith({
     igdbReady: isIgdbReady,
     fetchSteamFeatured,
-    fetchPlaystationRail: fetchIgdbPlaystation,
-    fetchAnticipated: fetchIgdbAnticipated,
-    popularity: fetchPopularityScores,
+    fetchPlaystationRail,
   });
 }
 

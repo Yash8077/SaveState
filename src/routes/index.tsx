@@ -21,7 +21,7 @@ function Home() {
   const library = useLibrary();
   const { appearance, setDynamicAccent } = useAppearance();
   const featured = useQuery({
-    queryKey: ["featured", "rel-8"],
+    queryKey: ["featured", "rel-9"],
     queryFn: ({ signal }) => getFeaturedRails(signal),
     staleTime: 30 * 60_000,
     placeholderData: FEATURED_SEED,
@@ -140,7 +140,7 @@ function Home() {
       <div>
         <h2 className="text-lg font-medium tracking-tight">Browse</h2>
         <p className="text-xs text-faint">
-          Steam store rails ranked by popularity, plus PlayStation from IGDB.
+          Steam charts by popularity, plus PlayStation.
         </p>
       </div>
 

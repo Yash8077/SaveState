@@ -232,6 +232,16 @@ export const FEATURED_SEED: FeaturedRail[] = [
   },
 ];
 
+export function playstationSeedRail(): FeaturedRail {
+  return {
+    id: "playstation",
+    title: "PlayStation",
+    games: pick([
+      553850, 1593500, 2322010, 1888930, 2215430, 1817070, 1649240,
+    ]),
+  };
+}
+
 function norm(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }

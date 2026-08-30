@@ -4,9 +4,11 @@ import {
   collapseEditions,
   dedupeGames,
   mergeComingSoon,
+  parseSteamSearchHtml,
   rankRailGames,
   refreshFeaturedWith,
   runSearchWith,
+  steamReleaseKind,
 } from "./catalog.server.ts";
 import type { CatalogGame, FeaturedRail } from "./types.ts";
 
@@ -233,7 +235,7 @@ describe("refreshFeatured uses Steam plus a PlayStation rail", () => {
     );
   });
 
-  it("skips PlayStation when IGDB is not configured", async () => {
+  it("still loads a PlayStation rail when IGDB is not configured", async () => {
     let playstationStarted = false;
     const rails = await refreshFeaturedWith({
       igdbReady: () => false,
@@ -249,14 +251,14 @@ describe("refreshFeatured uses Steam plus a PlayStation rail", () => {
         return {
           id: "playstation",
           title: "PlayStation",
-          games: [game("igdb_167", "Astro Bot")],
+          games: [game("steam_1593500", "God of War")],
         };
       },
     });
-    assert.equal(playstationStarted, false);
+    assert.equal(playstationStarted, true);
     assert.deepEqual(
       rails.map((r) => r.id),
-      ["specials"],
+      ["specials", "playstation"],
     );
   });
 });
@@ -313,5 +315,30 @@ describe("mergeComingSoon", () => {
       out.map((g) => g.title),
       ["Grand Theft Auto VI", "Obscure Demo"],
     );
+  });
+});
+
+describe("Steam search ranking", () => {
+  it("parses ranked search rows and skips bundles", () => {
+    const html = `
+<a href="https://store.steampowered.com/app/1245620/ELDEN_RING/" class="search_result_row ds_collapse_flag" data-ds-appid="1245620">
+  <span class="title">ELDEN RING</span>
+  <div class="search_released responsive_secondrow">Feb 24, 2022</div>
+</a>
+<a href="https://store.steampowered.com/bundle/99/Fake/" class="search_result_row ds_collapse_flag" data-ds-bundleid="99">
+  <span class="title">Bundle Junk</span>
+</a>
+<a href="https://store.steampowered.com/app/2769570/Fable/" class="search_result_row ds_collapse_flag" data-ds-appid="2769570">
+  <span class="title">Fable</span>
+  <div class="search_released responsive_secondrow">To be announced</div>
+</a>`;
+    const hits = parseSteamSearchHtml(html);
+    assert.deepEqual(
+      hits.map((hit) => hit.title),
+      ["ELDEN RING", "Fable"],
+    );
+    assert.equal(steamReleaseKind("To be announced"), "upcoming");
+    assert.equal(steamReleaseKind("Feb 24, 2022"), "old");
+    assert.equal(steamReleaseKind("Aug 20, 2026", new Date("2026-08-30")), "recent");
   });
 });
