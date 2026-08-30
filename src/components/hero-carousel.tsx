@@ -1,20 +1,13 @@
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { GamePeek } from "@/components/game-peek";
 import { usePeek } from "@/hooks/use-peek";
-import { getCatalogGame } from "@/lib/api";
 import type { CatalogGame } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function loopGames(games: CatalogGame[]) {
   if (games.length < 2) return games;
   return [...games, ...games, ...games];
-}
-
-function centerChild(el: HTMLDivElement, child: HTMLElement) {
-  const left = child.offsetLeft - (el.clientWidth - child.clientWidth) / 2;
-  el.scrollTo({ left, behavior: "auto" });
 }
 
 function closestIndex(el: HTMLDivElement) {
@@ -34,21 +27,19 @@ function closestIndex(el: HTMLDivElement) {
   return best;
 }
 
+function targetLeft(el: HTMLDivElement, child: HTMLElement) {
+  return child.offsetLeft - (el.clientWidth - child.clientWidth) / 2;
+}
+
 function scoreLabel(score: number | null) {
   if (score == null) return null;
   return (score / 10).toFixed(1);
 }
 
-function TitleRow({
-  game,
-  className,
-}: {
-  game: CatalogGame;
-  className?: string;
-}) {
+function TitleRow({ game }: { game: CatalogGame }) {
   const score = scoreLabel(game.metacritic);
   return (
-    <div className={cn("mt-3 flex items-start justify-between gap-3", className)}>
+    <div className="mt-3 flex items-start justify-between gap-3">
       <h2 className="min-w-0 text-lg font-medium tracking-tight sm:text-xl">
         {game.title}
       </h2>
@@ -58,26 +49,6 @@ function TitleRow({
         </span>
       ) : null}
     </div>
-  );
-}
-
-function Synopsis({
-  text,
-  compact,
-}: {
-  text?: string | null;
-  compact?: boolean;
-}) {
-  if (!text) return null;
-  return (
-    <p
-      className={cn(
-        "mt-2 rounded-xl bg-elevated px-3 py-2 text-sm leading-snug text-muted",
-        compact ? "line-clamp-2" : "line-clamp-3",
-      )}
-    >
-      {text}
-    </p>
   );
 }
 
@@ -93,84 +64,114 @@ export function HeroCarousel({
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const peek = usePeek<CatalogGame & { catalogId: string }>();
-  const active = games[index] ?? games[0];
+  const jumping = useRef(false);
+  const settle = useRef(0);
   const n = games.length;
   const looped = loopGames(games);
   const origin = n > 1 ? n : 0;
-  const jumping = useRef(false);
+  const active = games[index] ?? games[0];
 
-  const details = useQuery({
-    queryKey: ["hero-summary", active?.id],
-    queryFn: ({ signal }) => getCatalogGame(active.id, signal),
-    enabled: Boolean(active?.id),
-    staleTime: 30 * 60_000,
-  });
-  const summary = details.data?.summary?.trim() || "";
+  function tracks() {
+    return [phone.current, wide.current].filter(
+      (el): el is HTMLDivElement => Boolean(el && el.clientWidth > 8),
+    );
+  }
+
+  function snapTo(el: HTMLDivElement, i: number, smooth: boolean) {
+    const child = el.children[i] as HTMLElement | undefined;
+    if (!child) return;
+    const left = targetLeft(el, child);
+    if (smooth) {
+      el.scrollTo({ left, behavior: "smooth" });
+      return;
+    }
+    jumping.current = true;
+    el.classList.add("hero-jumping");
+    el.scrollLeft = left;
+    requestAnimationFrame(() => {
+      el.scrollLeft = left;
+      requestAnimationFrame(() => {
+        el.classList.remove("hero-jumping");
+        jumping.current = false;
+      });
+    });
+  }
+
+  function wrapCopies(el: HTMLDivElement) {
+    if (jumping.current || n < 2) return;
+    const closest = closestIndex(el);
+    if (closest < n) snapTo(el, closest + n, false);
+    else if (closest >= n * 2) snapTo(el, closest - n, false);
+    setIndex(((closest % n) + n) % n);
+  }
 
   useEffect(() => {
-    const nodes = [phone.current, wide.current].filter(Boolean) as HTMLDivElement[];
-    nodes.forEach((el) => {
-      const start = el.children[origin] as HTMLElement | undefined;
-      if (start) centerChild(el, start);
-    });
+    let cancelled = false;
+    const cleanups: Array<() => void> = [];
 
-    const onScroll = (el: HTMLDivElement) => {
-      if (jumping.current || n < 2) return;
-      const closest = closestIndex(el);
-      setIndex(closest % n);
-      if (closest < n || closest >= n * 2) {
-        const target = origin + (closest % n);
-        const child = el.children[target] as HTMLElement | undefined;
-        if (!child) return;
-        jumping.current = true;
-        centerChild(el, child);
-        requestAnimationFrame(() => {
-          jumping.current = false;
-        });
+    const bind = () => {
+      if (cancelled) return;
+      const nodes = tracks();
+      if (!nodes.length) {
+        requestAnimationFrame(bind);
+        return;
       }
+      nodes.forEach((el) => snapTo(el, origin, false));
+      nodes.forEach((el) => {
+        const scroll = () => {
+          if (jumping.current || n < 2) return;
+          setIndex(closestIndex(el) % n);
+          window.clearTimeout(settle.current);
+          settle.current = window.setTimeout(() => wrapCopies(el), 140);
+        };
+        const end = () => {
+          window.clearTimeout(settle.current);
+          wrapCopies(el);
+        };
+        el.addEventListener("scroll", scroll, { passive: true });
+        el.addEventListener("scrollend", end);
+        cleanups.push(() => {
+          el.removeEventListener("scroll", scroll);
+          el.removeEventListener("scrollend", end);
+        });
+      });
     };
-    const cleanups = nodes.map((el) => {
-      const handler = () => onScroll(el);
-      el.addEventListener("scroll", handler, { passive: true });
-      return () => el.removeEventListener("scroll", handler);
-    });
-    return () => cleanups.forEach((fn) => fn());
-  }, [games.length, n, origin]);
+
+    bind();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(settle.current);
+      cleanups.forEach((fn) => fn());
+    };
+  }, [n, origin]);
 
   useEffect(() => {
     if (!autoplay || n < 2 || paused || peek.target) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) return;
     const id = window.setInterval(() => {
-      go(index + 1);
+      for (const el of tracks()) {
+        const next = closestIndex(el) + 1;
+        if (next < el.children.length) snapTo(el, next, true);
+      }
     }, 6000);
     return () => window.clearInterval(id);
-  }, [n, paused, peek.target, index, autoplay]);
+  }, [n, paused, peek.target, autoplay]);
 
   if (!games.length) return null;
 
-  function go(next: number) {
-    const real = ((next % n) + n) % n;
-    setIndex(real);
-    for (const el of [phone.current, wide.current]) {
-      if (!el) continue;
+  function go(real: number) {
+    const target = ((real % n) + n) % n;
+    setIndex(target);
+    for (const el of tracks()) {
       const closest = closestIndex(el);
-      let target = origin + real;
-      if (n > 1 && closest >= origin) {
-        const ahead = origin + n + real;
-        const behind = origin - n + real;
-        const options = [origin + real, ahead, behind].filter(
-          (i) => i >= 0 && i < el.children.length,
-        );
-        target = options.sort(
-          (a, b) => Math.abs(a - closest) - Math.abs(b - closest),
-        )[0] ?? target;
-      }
-      const child = el.children[target] as HTMLElement | undefined;
-      if (child) {
-        const left = child.offsetLeft - (el.clientWidth - child.clientWidth) / 2;
-        el.scrollTo({ left, behavior: "smooth" });
-      }
+      const copies = [target, target + n, target + 2 * n].filter(
+        (i) => i >= 0 && i < el.children.length,
+      );
+      const nearest = copies.sort(
+        (a, b) => Math.abs(a - closest) - Math.abs(b - closest),
+      )[0];
+      if (nearest != null) snapTo(el, nearest, true);
     }
   }
 
@@ -211,7 +212,7 @@ export function HeroCarousel({
                   <img
                     src={art}
                     alt=""
-                    loading={i < origin + 2 ? "eager" : "lazy"}
+                    loading={i >= origin && i < origin + 2 ? "eager" : "lazy"}
                     fetchPriority={i === origin ? "high" : "low"}
                     className="absolute inset-0 size-full object-cover object-center"
                   />
@@ -229,10 +230,9 @@ export function HeroCarousel({
             className="block px-0.5"
           >
             <TitleRow game={active} />
-            <Synopsis text={summary} />
           </Link>
         ) : null}
-        {games.length > 1 ? (
+        {n > 1 ? (
           <div className="mt-3 flex justify-center gap-1.5">
             {games.map((game, i) => (
               <button
@@ -250,22 +250,15 @@ export function HeroCarousel({
         ) : null}
       </div>
 
-      <div
-        ref={wide}
-        className="hero-wide-track"
-      >
+      <div ref={wide} className="hero-wide-track">
         {looped.map((game, i) => {
           const art = game.coverUrl || game.headerUrl;
-          const selected = i % n === index;
           return (
             <Link
               key={`${game.id}-wide-${i}`}
               to="/game/$catalogId"
               params={{ catalogId: game.id }}
-              className={cn(
-                "hero-wide-slide transition-transform duration-300 ease-[var(--ease-smooth-out)]",
-                selected ? "scale-100" : "scale-[0.94]",
-              )}
+              className="hero-wide-slide"
               {...bindPeek(game)}
             >
               <div className="hero-poster bg-elevated">
@@ -273,13 +266,12 @@ export function HeroCarousel({
                   <img
                     src={art}
                     alt=""
-                    loading={i < origin + 2 ? "eager" : "lazy"}
+                    loading={i >= origin && i < origin + 2 ? "eager" : "lazy"}
                     className="size-full object-cover"
                   />
                 ) : null}
               </div>
               <TitleRow game={game} />
-              {selected ? <Synopsis text={summary} compact /> : null}
             </Link>
           );
         })}

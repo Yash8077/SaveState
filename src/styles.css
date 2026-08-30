@@ -233,8 +233,10 @@ html.bloom .hero-bloom {
 
 .hero-track {
   display: flex;
+  gap: 0.75rem;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
+  scroll-behavior: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -265,8 +267,8 @@ html.bloom .hero-bloom {
   border-radius: 1.35rem;
 }
 
-.hero-track {
-  gap: 0.75rem;
+.hero-jumping {
+  scroll-snap-type: none !important;
 }
 
 @media (min-width: 800px) {
@@ -279,6 +281,7 @@ html.bloom .hero-bloom {
     gap: 1rem;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
+    scroll-behavior: auto;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
     padding: 0.25rem 0 0.75rem;
