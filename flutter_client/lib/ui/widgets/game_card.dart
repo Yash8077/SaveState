@@ -69,21 +69,45 @@ class GameCardWidget extends StatelessWidget {
                               ),
                             ),
                             errorWidget: (context, url, error) {
-                              final fallback = normalizeArtUrl(game.headerUrl);
-                              if (fallback != null && fallback != url) {
+                              final tried = <String>{url};
+                              final fallbacks = [
+                                normalizeArtUrl(game.headerUrl),
+                                normalizeArtUrl(game.capsuleUrl),
+                              ].whereType<String>().where((u) => !tried.contains(u));
+                              final next = fallbacks.isEmpty ? null : fallbacks.first;
+                              if (next != null) {
                                 return CachedNetworkImage(
-                                  imageUrl: fallback,
+                                  imageUrl: next,
                                   fit: BoxFit.cover,
-                                  errorWidget: (context, _, __) => Container(
-                                    color: colorScheme.surfaceContainerHighest,
-                                    child: Center(
-                                      child: Icon(
-                                        Icons.videogame_asset_outlined,
-                                        color: colorScheme.onSurfaceVariant,
-                                        size: 32,
+                                  errorWidget: (context, failed, __) {
+                                    final last = normalizeArtUrl(game.capsuleUrl);
+                                    if (last != null && last != failed && last != next) {
+                                      return CachedNetworkImage(
+                                        imageUrl: last,
+                                        fit: BoxFit.cover,
+                                        errorWidget: (context, _, ___) => Container(
+                                          color: colorScheme.surfaceContainerHighest,
+                                          child: Center(
+                                            child: Icon(
+                                              Icons.videogame_asset_outlined,
+                                              color: colorScheme.onSurfaceVariant,
+                                              size: 32,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    return Container(
+                                      color: colorScheme.surfaceContainerHighest,
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.videogame_asset_outlined,
+                                          color: colorScheme.onSurfaceVariant,
+                                          size: 32,
+                                        ),
                                       ),
-                                    ),
-                                  ),
+                                    );
+                                  },
                                 );
                               }
                               return Container(

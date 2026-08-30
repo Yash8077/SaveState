@@ -393,6 +393,7 @@ function RelatedRail({
             title={g.title}
             coverUrl={g.coverUrl}
             headerUrl={g.headerUrl}
+            capsuleUrl={g.capsuleUrl}
             badge={g.relation}
           />
         ))}

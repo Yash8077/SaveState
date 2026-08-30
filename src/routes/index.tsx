@@ -21,7 +21,7 @@ function Home() {
   const library = useLibrary();
   const { appearance, setDynamicAccent } = useAppearance();
   const featured = useQuery({
-    queryKey: ["featured", "rel-9"],
+    queryKey: ["featured", "rel-10"],
     queryFn: ({ signal }) => getFeaturedRails(signal),
     staleTime: 30 * 60_000,
     placeholderData: FEATURED_SEED,
@@ -140,7 +140,7 @@ function Home() {
       <div>
         <h2 className="text-lg font-medium tracking-tight">Browse</h2>
         <p className="text-xs text-faint">
-          Steam charts by popularity, plus PlayStation.
+          Steam charts by popularity, plus PlayStation 5.
         </p>
       </div>
 
@@ -153,6 +153,7 @@ function Home() {
               title={g.title}
               coverUrl={g.coverUrl}
               headerUrl={g.headerUrl}
+              capsuleUrl={g.capsuleUrl}
               priority={railIndex === 0 && i < 6}
             />
           ))}

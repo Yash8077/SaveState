@@ -100,6 +100,7 @@ function SearchPage() {
                   title={g.title}
                   coverUrl={g.coverUrl}
                   headerUrl={g.headerUrl}
+                  capsuleUrl={g.capsuleUrl}
                   status={entry?.status}
                   score={entry?.score}
                   size="grid"

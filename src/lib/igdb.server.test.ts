@@ -18,6 +18,7 @@ import {
   applyRelatedArt,
   dropCoverlessSimilar,
   relatedIdsMissingArt,
+  PLAYSTATION_PS5_ID,
   popularityValue,
 } from "./igdb.server.ts";
 
@@ -123,6 +124,10 @@ describe("IGDB field selection", () => {
     assert.doesNotMatch(CARD_FIELDS, /summary/);
     assert.doesNotMatch(CARD_FIELDS, /involved_companies/);
     assert.ok(DETAIL_FIELDS.startsWith(CARD_FIELDS));
+  });
+
+  it("targets PlayStation 5, not only Steam PC ports", () => {
+    assert.equal(PLAYSTATION_PS5_ID, 167);
   });
 });
 

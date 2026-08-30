@@ -5,25 +5,29 @@ export function Poster({
   title,
   coverUrl,
   headerUrl,
+  capsuleUrl,
   className,
   priority = false,
 }: {
   title: string;
   coverUrl?: string | null;
   headerUrl?: string | null;
+  capsuleUrl?: string | null;
   className?: string;
   sizes?: string;
   priority?: boolean;
 }) {
   const cover = normalizeArtUrl(coverUrl);
   const header = normalizeArtUrl(headerUrl);
-  const primary = cover || header || null;
-  const fallback = cover && header && cover !== header ? header : null;
-  const [src, setSrc] = useState<string | null>(primary);
+  const capsule = normalizeArtUrl(capsuleUrl);
+  const chain = [cover, header, capsule].filter(
+    (url, index, list): url is string => Boolean(url) && list.indexOf(url) === index,
+  );
+  const [src, setSrc] = useState<string | null>(chain[0] ?? null);
 
   useEffect(() => {
-    setSrc(primary);
-  }, [primary]);
+    setSrc(chain[0] ?? null);
+  }, [chain[0], chain[1], chain[2]]);
 
   return (
     <div className={cn("relative isolate overflow-hidden bg-subtle", className)}>
@@ -37,8 +41,8 @@ export function Poster({
           referrerPolicy="no-referrer"
           className="size-full object-cover object-center outline outline-1 -outline-offset-1 outline-white/10"
           onError={() => {
-            if (fallback && src !== fallback) setSrc(fallback);
-            else setSrc(null);
+            const idx = src ? chain.indexOf(src) : -1;
+            setSrc(chain[idx + 1] ?? null);
           }}
         />
       ) : (

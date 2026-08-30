@@ -59,7 +59,7 @@ let featuredCache: { at: number; rails: FeaturedRail[] } | null = null;
 const FEATURED_TTL_MS = 30 * 60 * 1000;
 const SEARCH_TTL_MS = 10 * 60 * 1000;
 const DETAILS_TTL_MS = 2 * 60 * 1000;
-const DETAILS_CACHE_VER = "rel-9";
+const DETAILS_CACHE_VER = "rel-10";
 const FETCH_MS = 4000;
 const searchCache = new Map<string, { at: number; games: CatalogGame[] }>();
 const detailsCache = new Map<
@@ -156,6 +156,7 @@ export type SteamSearchHit = {
   steamId: number;
   title: string;
   released: string;
+  capsule: string | null;
 };
 
 export function decodeSteamHtml(value: string): string {
@@ -192,10 +193,16 @@ export function parseSteamSearchHtml(html: string): SteamSearchHit[] {
     if (/\b(soundtrack|ost|playtest|demo|bundle)\b/i.test(title)) continue;
     seen.add(steamId);
     const releasedMatch = /search_released[^>]*>\s*([^<]*)/.exec(row);
+    const imgMatch =
+      /search_capsule[\s\S]*?<img[^>]+src="([^"]+)"/i.exec(row) ??
+      /<img[^>]+src="([^"]+)"/i.exec(row);
+    const capsuleRaw = imgMatch ? decodeSteamHtml(imgMatch[1]) : "";
+    const capsule = capsuleRaw.replace(/&/g, "&") || null;
     out.push({
       steamId,
       title,
       released: decodeSteamHtml(releasedMatch?.[1] ?? ""),
+      capsule,
     });
   }
   return out;
@@ -247,16 +254,24 @@ function filterSteamHits(
   return recent.length >= 4 ? recent : hits;
 }
 
+export function hashedSteamAsset(url: string | null | undefined): boolean {
+  return Boolean(url && /\/apps\/\d+\/[a-f0-9]{24,}\//i.test(url));
+}
+
 function hitsToGames(hits: SteamSearchHit[]): CatalogGame[] {
   const games: CatalogGame[] = [];
   for (const hit of hits) {
+    const portrait = portraitUrl(hit.steamId);
+    const header = artUrl(hit.steamId);
+    const capsule = hit.capsule;
+    const hashed = hashedSteamAsset(capsule);
     games.push({
       id: steamCatalogId(hit.steamId),
       steamId: hit.steamId,
       title: hit.title,
-      coverUrl: portraitUrl(hit.steamId),
-      headerUrl: artUrl(hit.steamId),
-      capsuleUrl: null,
+      coverUrl: hashed && capsule ? capsule : portrait,
+      headerUrl: hashed && capsule ? capsule : header,
+      capsuleUrl: capsule,
       platforms: [],
       metacritic: null,
     });
@@ -744,6 +759,14 @@ export async function fetchSteamFeatured(): Promise<FeaturedRail[]> {
 }
 
 export async function fetchPlaystationRail(): Promise<FeaturedRail | null> {
+  if (isIgdbReady()) {
+    try {
+      const igdb = await fetchIgdbPlaystation();
+      if (igdb?.games.length) return igdb;
+    } catch {
+      /* Steam Sony ports / seed still show a rail */
+    }
+  }
   try {
     const rail = await fetchSteamSearchRail(
       "playstation",
@@ -753,15 +776,7 @@ export async function fetchPlaystationRail(): Promise<FeaturedRail | null> {
     );
     if (rail?.games.length) return rail;
   } catch {
-    /* try IGDB / seed */
-  }
-  if (isIgdbReady()) {
-    try {
-      const igdb = await fetchIgdbPlaystation();
-      if (igdb?.games.length) return igdb;
-    } catch {
-      /* seed last */
-    }
+    /* seed last */
   }
   return playstationSeedRail();
 }

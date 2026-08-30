@@ -322,21 +322,25 @@ describe("Steam search ranking", () => {
   it("parses ranked search rows and skips bundles", () => {
     const html = `
 <a href="https://store.steampowered.com/app/1245620/ELDEN_RING/" class="search_result_row ds_collapse_flag" data-ds-appid="1245620">
+  <div class="search_capsule"><img src="https://cdn.example/apps/1245620/capsule_231x87.jpg" ></div>
   <span class="title">ELDEN RING</span>
   <div class="search_released responsive_secondrow">Feb 24, 2022</div>
 </a>
 <a href="https://store.steampowered.com/bundle/99/Fake/" class="search_result_row ds_collapse_flag" data-ds-bundleid="99">
   <span class="title">Bundle Junk</span>
 </a>
-<a href="https://store.steampowered.com/app/2769570/Fable/" class="search_result_row ds_collapse_flag" data-ds-appid="2769570">
-  <span class="title">Fable</span>
+<a href="https://store.steampowered.com/app/4001890/How_to_Fish/" class="search_result_row ds_collapse_flag" data-ds-appid="4001890">
+  <div class="search_capsule"><img src="https://cdn.example/apps/4001890/8f65bb2b78d37a9147aa79c970a51610e6955bf1/capsule_231x87.jpg?t=1" ></div>
+  <span class="title">How to Fish</span>
   <div class="search_released responsive_secondrow">To be announced</div>
 </a>`;
     const hits = parseSteamSearchHtml(html);
     assert.deepEqual(
       hits.map((hit) => hit.title),
-      ["ELDEN RING", "Fable"],
+      ["ELDEN RING", "How to Fish"],
     );
+    assert.equal(hits[0]?.capsule, "https://cdn.example/apps/1245620/capsule_231x87.jpg");
+    assert.match(hits[1]?.capsule ?? "", /8f65bb2b78d37a9147aa79c970a51610e6955bf1/);
     assert.equal(steamReleaseKind("To be announced"), "upcoming");
     assert.equal(steamReleaseKind("Feb 24, 2022"), "old");
     assert.equal(steamReleaseKind("Aug 20, 2026", new Date("2026-08-30")), "recent");

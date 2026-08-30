@@ -1002,22 +1002,41 @@ query games "top" {
 
 /** IGDB platform ids: PS5 = 167, PS4 = 48. */
 export const PLAYSTATION_PLATFORM_IDS = "167,48";
+export const PLAYSTATION_PS5_ID = 167;
 
 export async function fetchIgdbPlaystation(): Promise<FeaturedRail | null> {
-  const rows = await igdb<IgdbGame[]>(
-    "games",
-    `fields ${CARD_FIELDS};
-     where cover != null & version_parent = null & category = 0 & platforms = (${PLAYSTATION_PLATFORM_IDS}) & aggregated_rating_count > 40;
-     sort aggregated_rating_count desc;
-     limit 16;`,
-  );
+  const [rated, hyped] = await Promise.all([
+    igdb<IgdbGame[]>(
+      "games",
+      `fields ${CARD_FIELDS};
+       where cover != null & ${SEARCH_WHERE} & platforms = (${PLAYSTATION_PS5_ID});
+       sort aggregated_rating_count desc;
+       limit 24;`,
+    ),
+    igdb<IgdbGame[]>(
+      "games",
+      `fields ${CARD_FIELDS};
+       where cover != null & ${SEARCH_WHERE} & platforms = (${PLAYSTATION_PS5_ID}) & hypes > 5;
+       sort hypes desc;
+       limit 16;`,
+    ),
+  ]);
   const games: CatalogGame[] = [];
   const seen = new Set<string>();
-  for (const row of rows ?? []) {
+  const scored: { game: CatalogGame; score: number }[] = [];
+  for (const row of [...(hyped ?? []), ...(rated ?? [])]) {
     const mapped = toGame(row, "cover_big");
     if (!mapped?.coverUrl || seen.has(mapped.id)) continue;
     seen.add(mapped.id);
-    games.push(slimCatalogGame(mapped));
+    scored.push({
+      game: slimCatalogGame(mapped),
+      score: popularityValue(row.hypes, row.aggregated_rating_count),
+    });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  for (const row of scored) {
+    games.push(row.game);
+    if (games.length >= 12) break;
   }
   if (!games.length) return null;
   return { id: "playstation", title: "PlayStation", games };

@@ -36,6 +36,7 @@ function Discover() {
               title={g.title}
               coverUrl={g.coverUrl}
               headerUrl={g.headerUrl}
+              capsuleUrl={g.capsuleUrl}
               priority={railIndex === 0 && i < 6}
             />
           ))}

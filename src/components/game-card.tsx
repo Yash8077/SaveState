@@ -39,6 +39,7 @@ export function GameCard({
   title,
   coverUrl,
   headerUrl,
+  capsuleUrl,
   status,
   score,
   hours,
@@ -51,6 +52,7 @@ export function GameCard({
   title: string;
   coverUrl?: string | null;
   headerUrl?: string | null;
+  capsuleUrl?: string | null;
   status?: Status;
   score?: number | null;
   hours?: number | null;
@@ -68,6 +70,7 @@ export function GameCard({
       title,
       coverUrl: coverUrl ?? null,
       headerUrl: headerUrl ?? null,
+      capsuleUrl: capsuleUrl ?? null,
     });
     void qc.prefetchQuery({
       queryKey: catalogGameQueryKey(catalogId),
@@ -76,7 +79,7 @@ export function GameCard({
     });
   }
 
-  const peekGame = { catalogId, title, coverUrl, headerUrl };
+  const peekGame = { catalogId, title, coverUrl, headerUrl, capsuleUrl };
 
   return (
     <>
@@ -108,6 +111,7 @@ export function GameCard({
           title={title}
           coverUrl={coverUrl}
           headerUrl={headerUrl}
+          capsuleUrl={capsuleUrl}
           priority={priority}
           className="aspect-2/3 w-full rounded-lg"
         />
