@@ -23,8 +23,15 @@ describe("home layout", () => {
     );
     assert.equal(merged[0]?.id, "playstation");
     assert.equal(merged.find((row) => row.id === "playing")?.enabled, false);
-    assert.ok(merged.some((row) => row.id === "top_sellers"));
+    assert.ok(merged.some((row) => row.id === "popular"));
+    assert.equal(merged.some((row) => row.id === "top_sellers"), false);
     assert.equal(merged.at(-1)?.id, "mystery");
+  });
+
+  it("maps a saved Trending row onto Popular", () => {
+    const merged = mergeHomeLayout([{ id: "top_sellers", enabled: true }]);
+    assert.equal(merged.find((row) => row.id === "popular")?.enabled, true);
+    assert.equal(merged.some((row) => row.id === "top_sellers"), false);
   });
 
   it("moves and toggles sections", () => {

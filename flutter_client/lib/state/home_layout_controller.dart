@@ -22,7 +22,7 @@ const defaultHomeSections = <String>[
   'stats',
   'playing',
   'backlog',
-  'top_sellers',
+  'popular',
   'new_releases',
   'coming_soon',
   'specials',
@@ -34,7 +34,7 @@ const homeSectionTitles = <String, String>{
   'stats': 'Welcome stats',
   'playing': 'Continue playing',
   'backlog': 'Planning to play',
-  'top_sellers': 'Trending',
+  'popular': 'Popular',
   'new_releases': 'New releases',
   'coming_soon': 'Coming soon',
   'specials': 'On sale',
@@ -46,7 +46,7 @@ const homeSectionHints = <String, String>{
   'stats': 'Playing / beaten / backlog chips',
   'playing': 'Games you marked as playing',
   'backlog': 'Your backlog',
-  'top_sellers': 'Steam top sellers',
+  'popular': 'Loved old and new, ranked by reviews',
   'new_releases': 'Popular new Steam games',
   'coming_soon': 'Most wishlisted upcoming games',
   'specials': 'Steam specials',
@@ -54,7 +54,7 @@ const homeSectionHints = <String, String>{
 };
 
 const catalogSectionIds = {
-  'top_sellers',
+  'popular',
   'new_releases',
   'coming_soon',
   'specials',
@@ -83,12 +83,13 @@ class HomeLayoutController extends ChangeNotifier {
     }
 
     for (final row in sections) {
-      take(row.id, row.enabled);
+      take(row.id == 'top_sellers' ? 'popular' : row.id, row.enabled);
     }
     for (final id in defaultHomeSections) {
       take(id, true);
     }
     for (final id in extraIds) {
+      if (id == 'top_sellers') continue;
       take(id, true);
     }
     return out;

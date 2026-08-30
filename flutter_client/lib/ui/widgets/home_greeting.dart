@@ -31,9 +31,6 @@ class HomeGreeting extends StatelessWidget {
     final auth = context.watch<AuthController>();
     final user = auth.user;
     final name = user?.name.trim().split(RegExp(r'\s+')).first;
-    final label = (name != null && name.isNotEmpty)
-        ? '${hello()} $name'
-        : hello();
     final initial =
         (name != null && name.isNotEmpty) ? name[0].toUpperCase() : null;
 
@@ -42,13 +39,23 @@ class HomeGreeting extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              label,
+            child: Text.rich(
+              TextSpan(
+                text: hello(),
+                children: [
+                  if (name != null && name.isNotEmpty)
+                    TextSpan(
+                      text: ' $name',
+                      style: TextStyle(color: cs.primary),
+                    ),
+                ],
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium?.copyWith(
+              style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w800,
-                letterSpacing: -0.2,
+                letterSpacing: -0.4,
+                height: 1.15,
               ),
             ),
           ),

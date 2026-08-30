@@ -164,6 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }
           break;
         default:
+          if (section.id == 'top_sellers') break;
           final rail = railsById[section.id];
           if (rail == null || rail.games.isEmpty) break;
           if (!browseShown) {
@@ -218,7 +219,9 @@ class _HomeScreenState extends State<HomeScreen> {
     for (final game in _playing) {
       take(game);
     }
-    for (final rail in _featuredRails) {
+    final trending = _featuredRails.where((r) => r.id == 'top_sellers');
+    final rest = _featuredRails.where((r) => r.id != 'top_sellers');
+    for (final rail in [...trending, ...rest]) {
       for (final game in rail.games) {
         take(game);
       }

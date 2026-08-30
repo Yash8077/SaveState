@@ -3,7 +3,7 @@ export const HOME_SECTION_IDS = [
   "stats",
   "playing",
   "backlog",
-  "top_sellers",
+  "popular",
   "new_releases",
   "coming_soon",
   "specials",
@@ -25,7 +25,7 @@ export const HOME_SECTION_META: Record<
   stats: { title: "Welcome stats", hint: "Playing / beaten / backlog chips" },
   playing: { title: "Continue playing", hint: "Games you marked as playing" },
   backlog: { title: "Planning to play", hint: "Your backlog" },
-  top_sellers: { title: "Trending", hint: "Steam top sellers", catalog: true },
+  popular: { title: "Popular", hint: "Loved old and new, ranked by reviews", catalog: true },
   new_releases: { title: "New releases", hint: "Popular new Steam games", catalog: true },
   coming_soon: { title: "Coming soon", hint: "Most wishlisted upcoming games", catalog: true },
   specials: { title: "On sale", hint: "Steam specials", catalog: true },
@@ -62,10 +62,14 @@ export function mergeHomeLayout(
 
   for (const row of saved ?? []) {
     if (!row || typeof row.id !== "string") continue;
-    take(row.id, row.enabled !== false);
+    const id = row.id === "top_sellers" ? "popular" : row.id;
+    take(id, row.enabled !== false);
   }
   for (const id of HOME_SECTION_IDS) take(id, true);
-  for (const id of extraIds) take(id, true);
+  for (const id of extraIds) {
+    if (id === "top_sellers") continue;
+    take(id, true);
+  }
   return out;
 }
 

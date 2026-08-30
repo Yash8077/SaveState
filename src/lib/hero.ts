@@ -35,7 +35,9 @@ export function heroSlides(
     });
   }
 
-  for (const rail of rails) {
+  const trending = rails.find((rail) => rail.id === "top_sellers");
+  const rest = rails.filter((rail) => rail.id !== "top_sellers");
+  for (const rail of trending ? [trending, ...rest] : rest) {
     for (const game of rail.games) push(game);
     if (out.length >= limit) break;
   }

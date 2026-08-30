@@ -36,6 +36,16 @@ function scoreLabel(score: number | null) {
   return (score / 10).toFixed(1);
 }
 
+function ScoreBadge({ score }: { score: number | null }) {
+  const label = scoreLabel(score);
+  if (!label) return null;
+  return (
+    <span className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-semibold text-white">
+      ★ {label}
+    </span>
+  );
+}
+
 function TitleRow({ game }: { game: CatalogGame }) {
   const score = scoreLabel(game.metacritic);
   return (
@@ -219,6 +229,7 @@ export function HeroCarousel({
                 ) : (
                   <div className="absolute inset-0 bg-subtle" />
                 )}
+                <ScoreBadge score={game.metacritic} />
               </Link>
             );
           })}
@@ -253,15 +264,16 @@ export function HeroCarousel({
       <div ref={wide} className="hero-wide-track">
         {looped.map((game, i) => {
           const art = game.coverUrl || game.headerUrl;
+          const selected = n > 0 && i % n === index;
           return (
             <Link
               key={`${game.id}-wide-${i}`}
               to="/game/$catalogId"
               params={{ catalogId: game.id }}
-              className="hero-wide-slide"
+              className={cn("hero-wide-slide", selected && "is-active")}
               {...bindPeek(game)}
             >
-              <div className="hero-poster bg-elevated">
+              <div className="hero-poster relative bg-elevated">
                 {art ? (
                   <img
                     src={art}
@@ -270,6 +282,7 @@ export function HeroCarousel({
                     className="size-full object-cover"
                   />
                 ) : null}
+                <ScoreBadge score={game.metacritic} />
               </div>
               <TitleRow game={game} />
             </Link>

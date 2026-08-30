@@ -797,6 +797,12 @@ export async function fetchSteamFeatured(): Promise<FeaturedRail[]> {
     keep: "all" | "recent" | "upcoming";
   }[] = [
     {
+      id: "popular",
+      title: "Popular",
+      params: "sort_by=Reviews_DESC",
+      keep: "all",
+    },
+    {
       id: "top_sellers",
       title: "Trending",
       params: "filter=globaltopsellers",

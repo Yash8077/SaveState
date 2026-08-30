@@ -53,4 +53,19 @@ describe("heroSlides", () => {
       ["a", "b"],
     );
   });
+
+  it("fills from Trending before other rails so the carousel stays current", () => {
+    const slides = heroSlides(
+      [],
+      [
+        { id: "popular", title: "Popular", games: [game("old", "Old")] },
+        { id: "top_sellers", title: "Trending", games: [game("hot", "Hot")] },
+      ],
+      2,
+    );
+    assert.deepEqual(
+      slides.map((g) => g.id),
+      ["hot", "old"],
+    );
+  });
 });

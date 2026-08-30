@@ -30,7 +30,7 @@ function Home() {
   const { appearance, setDynamicAccent } = useAppearance();
   const layout = useHomeLayout();
   const featured = useQuery({
-    queryKey: ["featured", "rel-14"],
+    queryKey: ["featured", "rel-15"],
     queryFn: ({ signal }) => getFeaturedRails(signal),
     staleTime: 30 * 60_000,
     placeholderData: FEATURED_SEED,
@@ -273,8 +273,14 @@ function HomeHello({ name }: { name?: string }) {
   const initial = name?.charAt(0).toUpperCase() || "S";
   return (
     <div className="flex items-center gap-2">
-      <p className="min-w-0 flex-1 truncate text-lg font-medium tracking-tight">
-        {name ? `${hello} ${name}` : hello}
+      <p className="min-w-0 flex-1 truncate text-2xl font-medium tracking-tight">
+        {hello}
+        {name ? (
+          <>
+            {" "}
+            <span className="text-accent">{name}</span>
+          </>
+        ) : null}
       </p>
       <Link
         to="/search"

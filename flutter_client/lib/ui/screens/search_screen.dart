@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -106,7 +107,11 @@ class _SearchScreenState extends State<SearchScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 12.0),
-              child: SearchBar(
+              child: Align(
+                alignment: Alignment.center,
+                child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: SearchBar(
                 controller: _searchController,
                 hintText: 'Search games, franchises...',
                 hintStyle: WidgetStatePropertyAll(
@@ -150,6 +155,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   _performSearch(value.trim());
                 },
               ),
+              ),
+              ),
             ),
             Expanded(
               child: AnimatedSwitcher(
@@ -180,19 +187,24 @@ class _SearchScreenState extends State<SearchScreen> {
       return _buildEmptyResultsState(colorScheme);
     }
 
-    return GridView.builder(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 0.54,
-        crossAxisSpacing: 12.0,
-        mainAxisSpacing: 16.0,
-      ),
-      itemCount: _results.length,
-      itemBuilder: (context, index) {
-        final game = _results[index];
-        return _buildGameCard(game, colorScheme);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = math.max(3, (constraints.maxWidth / 148).floor());
+        return GridView.builder(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            childAspectRatio: 0.58,
+            crossAxisSpacing: 10.0,
+            mainAxisSpacing: 12.0,
+          ),
+          itemCount: _results.length,
+          itemBuilder: (context, index) {
+            final game = _results[index];
+            return _buildGameCard(game, colorScheme);
+          },
+        );
       },
     );
   }
@@ -511,14 +523,17 @@ class _SearchSkeletonGridState extends State<_SearchSkeletonGrid>
       builder: (context, child) {
         return Opacity(
           opacity: _opacityAnimation.value,
-          child: GridView.builder(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = math.max(3, (constraints.maxWidth / 148).floor());
+              return GridView.builder(
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              childAspectRatio: 0.54,
-              crossAxisSpacing: 12.0,
-              mainAxisSpacing: 16.0,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              childAspectRatio: 0.58,
+              crossAxisSpacing: 10.0,
+              mainAxisSpacing: 12.0,
             ),
             itemCount: 9,
             itemBuilder: (context, index) {
@@ -563,6 +578,8 @@ class _SearchSkeletonGridState extends State<_SearchSkeletonGrid>
                     ),
                   ],
                 ),
+              );
+            },
               );
             },
           ),

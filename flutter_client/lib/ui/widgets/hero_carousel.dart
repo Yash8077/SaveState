@@ -51,7 +51,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
     final size = MediaQuery.sizeOf(context);
     final wide = size.width >= 720;
     final contentW = wide ? (size.width - 84).clamp(320, 2000) : size.width;
-    final fraction = wide ? (168 / contentW).clamp(0.15, 0.28) : 0.86;
+    final fraction = wide ? (200 / contentW).clamp(0.16, 0.3) : 0.86;
     if (_wide != wide) {
       _attachController(wide, fraction);
     }
@@ -190,7 +190,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
         final cardW = constraints.maxWidth * controller.viewportFraction;
         final posterH = cardW * 3 / 2;
         return SizedBox(
-          height: posterH + 44,
+          height: posterH + 48,
           child: PageView.builder(
             controller: controller,
             padEnds: true,
@@ -205,7 +205,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
               final game = widget.games[i % _n];
               final selected = i % _n == _index;
               return AnimatedScale(
-                scale: selected ? 1 : 0.96,
+                scale: selected ? 1 : 0.9,
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeOutCubic,
                 child: Padding(
@@ -264,14 +264,25 @@ class _Art extends StatelessWidget {
       color: cs.surfaceContainerHighest,
       child: InkWell(
         onTap: onTap,
-        child: art == null
-            ? const SizedBox.expand()
-            : CachedNetworkImage(
-                imageUrl: art,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            art == null
+                ? const SizedBox.expand()
+                : CachedNetworkImage(
+                    imageUrl: art,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+            if (game.metacritic != null)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: _ScoreChip(score: game.metacritic!),
               ),
+          ],
+        ),
       ),
     );
   }
