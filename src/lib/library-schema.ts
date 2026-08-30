@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { STATUSES } from "./types";
+import { STATUSES } from "@/lib/types";
 
 export const statusSchema = z.enum(STATUSES);
 
