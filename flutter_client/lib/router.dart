@@ -10,6 +10,32 @@ import 'ui/screens/game_details_screen.dart';
 import 'ui/screens/settings_screen.dart';
 import 'ui/widgets/app_shell.dart';
 
+CustomTransitionPage<void> _fadeSlide(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 320),
+    reverseTransitionDuration: const Duration(milliseconds: 240),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return FadeTransition(
+        opacity: curved,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.05),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
 final router = GoRouter(
   initialLocation: '/',
   routes: [
@@ -20,33 +46,43 @@ final router = GoRouter(
       routes: [
         GoRoute(
           path: '/',
-          builder: (context, state) => const HomeScreen(),
+          pageBuilder: (context, state) =>
+              _fadeSlide(state, const HomeScreen()),
         ),
         GoRoute(
           path: '/search',
-          builder: (context, state) => SearchScreen(q: state.uri.queryParameters['q']),
+          pageBuilder: (context, state) => _fadeSlide(
+            state,
+            SearchScreen(q: state.uri.queryParameters['q']),
+          ),
         ),
         GoRoute(
           path: '/library',
-          builder: (context, state) => const LibraryScreen(),
+          pageBuilder: (context, state) =>
+              _fadeSlide(state, const LibraryScreen()),
         ),
         GoRoute(
           path: '/stats',
-          builder: (context, state) => const StatsScreen(),
+          pageBuilder: (context, state) =>
+              _fadeSlide(state, const StatsScreen()),
         ),
       ],
     ),
     GoRoute(
       path: '/login',
-      builder: (context, state) => const LoginScreen(),
+      pageBuilder: (context, state) => _fadeSlide(state, const LoginScreen()),
     ),
     GoRoute(
       path: '/settings',
-      builder: (context, state) => const SettingsScreen(),
+      pageBuilder: (context, state) =>
+          _fadeSlide(state, const SettingsScreen()),
     ),
     GoRoute(
       path: '/game/:id',
-      builder: (context, state) => GameDetailsScreen(id: state.pathParameters['id']!),
+      pageBuilder: (context, state) => _fadeSlide(
+        state,
+        GameDetailsScreen(id: state.pathParameters['id']!),
+      ),
     ),
   ],
 );

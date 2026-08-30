@@ -59,7 +59,7 @@ export function Poster({
               fetchPriority={priority ? "high" : "low"}
               decoding="async"
               referrerPolicy="no-referrer"
-              className="relative size-full object-contain"
+              className="relative size-full object-contain transition-transform duration-500 ease-[var(--ease-smooth-out)] group-hover:scale-[1.04]"
               onError={advance}
             />
           </>
@@ -71,7 +71,7 @@ export function Poster({
             fetchPriority={priority ? "high" : "low"}
             decoding="async"
             referrerPolicy="no-referrer"
-            className="size-full object-cover object-center outline outline-1 -outline-offset-1 outline-white/10"
+            className="size-full object-cover object-center outline outline-1 -outline-offset-1 outline-white/10 transition-transform duration-500 ease-[var(--ease-smooth-out)] group-hover:scale-[1.06]"
             onError={advance}
           />
         )

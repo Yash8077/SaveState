@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Heart, Plus, X } from "lucide-react";
-import { createPortal } from "react-dom";
+import { Check, Heart, Plus } from "lucide-react";
 import { Poster } from "@/components/poster";
 import { StatusBadge } from "@/components/status-badge";
 import { TrackerPanel } from "@/components/tracker-panel";
 import { ListEditor, type ListEditorValue } from "@/components/list-editor";
 import { GameCard, GameRail } from "@/components/game-card";
+import {
+  ScreenshotLightbox,
+  ScreenshotThumb,
+} from "@/components/screenshot-lightbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLibrary, useLibraryMutations } from "@/hooks/use-library";
 import {
@@ -155,7 +158,7 @@ function GamePage() {
   const busy = add.isPending || update.isPending || remove.isPending;
 
   return (
-    <article className="-mx-3 -mt-2 sm:-mx-5">
+    <article className="page-in -mx-3 -mt-2 sm:-mx-5">
       <div className="relative h-44 overflow-hidden bg-elevated hero-bloom min-[600px]:h-56 expanded:h-64 short:h-28">
         {banner ? (
           <img
@@ -311,20 +314,12 @@ function GamePage() {
             <h2 className="mb-3 text-base font-medium">Screenshots</h2>
             <div className="rail-scroll">
               {screenshots.map((src, i) => (
-                <button
+                <ScreenshotThumb
                   key={src}
-                  type="button"
-                  onClick={() => setShotIndex(i)}
-                  className="shrink-0 rounded-lg bg-transparent p-0"
-                  aria-label={`View screenshot ${i + 1}`}
-                >
-                  <img
-                    src={src}
-                    alt=""
-                    loading="lazy"
-                    className="h-36 snap-start rounded-lg object-cover sm:h-48"
-                  />
-                </button>
+                  src={src}
+                  index={i}
+                  onOpen={setShotIndex}
+                />
               ))}
             </div>
           </section>
@@ -339,7 +334,9 @@ function GamePage() {
 
       {shotIndex != null && screenshots[shotIndex] ? (
         <ScreenshotLightbox
-          src={screenshots[shotIndex]}
+          shots={screenshots}
+          index={shotIndex}
+          onIndex={setShotIndex}
           onClose={() => setShotIndex(null)}
         />
       ) : null}
@@ -415,48 +412,6 @@ function RelatedSkeleton({ title }: { title: string }) {
         ))}
       </div>
     </section>
-  );
-}
-
-function ScreenshotLightbox({
-  src,
-  onClose,
-}: {
-  src: string;
-  onClose: () => void;
-}) {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  if (typeof document === "undefined") return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-bg/90 p-4"
-      onClick={onClose}
-      role="presentation"
-    >
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close screenshot"
-        className="absolute top-3 right-3 grid size-11 place-items-center rounded-full bg-elevated text-fg"
-      >
-        <X className="size-5" />
-      </button>
-      <img
-        src={src}
-        alt=""
-        className="max-h-[90vh] max-w-[92vw] object-contain"
-        onClick={(event) => event.stopPropagation()}
-      />
-    </div>,
-    document.body,
   );
 }
 

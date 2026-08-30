@@ -267,6 +267,53 @@ html.bloom .hero-bloom {
   }
 }
 
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lightbox-backdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lightbox-frame {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.page-in {
+  animation: page-in 420ms var(--ease-smooth-out) both;
+}
+
+.lightbox-backdrop {
+  animation: lightbox-backdrop 220ms var(--ease-smooth-out) both;
+}
+
+.lightbox-frame {
+  animation: lightbox-frame 280ms var(--ease-smooth-out) both;
+}
+
+.lightbox-frame img {
+  animation: lightbox-frame 240ms var(--ease-smooth-out) both;
+}
+
 .rail-scroll,
 .chip-scroll {
   display: flex;

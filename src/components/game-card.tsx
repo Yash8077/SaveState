@@ -100,8 +100,9 @@ export function GameCard({
         }}
         className={cn(
           "group relative block shrink-0 snap-start outline-none",
-          "transition-transform duration-150 ease-[var(--ease-smooth-out)]",
-          "active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-accent/60",
+          "transition-transform duration-300 ease-[var(--ease-smooth-out)]",
+          "hover:-translate-y-1 hover:z-[1] active:scale-[0.98]",
+          "focus-visible:ring-2 focus-visible:ring-accent/60",
           size === "rail"
             ? "w-[7.25rem] sm:w-[8.25rem] expanded:w-[9rem]"
             : "w-full",

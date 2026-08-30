@@ -7,6 +7,7 @@ import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
 import '../../state/theme_controller.dart';
 import '../widgets/list_editor_sheet.dart';
+import '../widgets/screenshot_gallery.dart';
 
 class GameDetailsScreen extends StatefulWidget {
   final String id;
@@ -547,7 +548,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                           onTap: () =>
                               _openScreenshot(context, game.screenshots, i),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(14),
                             child: AspectRatio(
                               aspectRatio: 16 / 9,
                               child: CachedNetworkImage(
@@ -581,41 +582,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     BuildContext context,
     List<String> shots,
     int index,
-  ) async {
-    if (index < 0 || index >= shots.length) return;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.black87,
-      builder: (ctx) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(12),
-          child: Stack(
-            children: [
-              Center(
-                child: InteractiveViewer(
-                  minScale: 1,
-                  maxScale: 4,
-                  child: CachedNetworkImage(
-                    imageUrl: shots[index],
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 0,
-                right: 0,
-                child: IconButton.filledTonal(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  icon: const Icon(Icons.close),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+  ) {
+    return openScreenshotGallery(context, shots: shots, index: index);
   }
 
   Widget _quickAction(

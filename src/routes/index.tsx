@@ -47,7 +47,7 @@ function Home() {
   }, [appearance.dynamic, tintSource, setDynamicAccent]);
 
   return (
-    <div className="space-y-7">
+    <div className="page-in space-y-7">
       {slides.length ? <HeroCarousel games={slides} /> : null}
 
       {!signedIn && mounted ? (
