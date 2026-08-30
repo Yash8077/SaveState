@@ -14,6 +14,7 @@ import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as ApiLibraryRouteImport } from './routes/api/library'
 import { Route as GameCatalogIdRouteImport } from './routes/game.$catalogId'
@@ -46,6 +47,11 @@ const LoginRoute = LoginRouteImport.update({
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StatsRoute = StatsRouteImport.update({
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
   '/game/$catalogId': typeof GameCatalogIdRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
   '/game/$catalogId': typeof GameCatalogIdRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
   '/game/$catalogId': typeof GameCatalogIdRoute
@@ -143,6 +152,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/login'
     | '/search'
+    | '/settings'
     | '/stats'
     | '/api/library'
     | '/game/$catalogId'
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/login'
     | '/search'
+    | '/settings'
     | '/stats'
     | '/api/library'
     | '/game/$catalogId'
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/login'
     | '/search'
+    | '/settings'
     | '/stats'
     | '/api/library'
     | '/game/$catalogId'
@@ -189,6 +201,7 @@ export interface RootRouteChildren {
   LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
   SearchRoute: typeof SearchRoute
+  SettingsRoute: typeof SettingsRoute
   StatsRoute: typeof StatsRoute
   ApiLibraryRoute: typeof ApiLibraryRouteWithChildren
   GameCatalogIdRoute: typeof GameCatalogIdRoute
@@ -233,6 +246,13 @@ declare module '@tanstack/react-router' {
       path: '/search'
       fullPath: '/search'
       preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stats': {
@@ -312,6 +332,7 @@ const rootRouteChildren: RootRouteChildren = {
   LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,
   SearchRoute: SearchRoute,
+  SettingsRoute: SettingsRoute,
   StatsRoute: StatsRoute,
   ApiLibraryRoute: ApiLibraryRouteWithChildren,
   GameCatalogIdRoute: GameCatalogIdRoute,
