@@ -287,6 +287,7 @@ export async function fetchSteamDetails(
     publishers: app.publishers ?? [],
     screenshots,
     website: app.website ?? null,
+    related: [],
   };
 }
 
