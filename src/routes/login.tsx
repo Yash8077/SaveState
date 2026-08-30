@@ -94,89 +94,127 @@ function Login() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center bg-bg px-5 py-10 text-fg pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-      <Link
-        to="/"
-        className="grid size-14 place-items-center rounded-2xl bg-subtle"
-        aria-label="SaveState home"
-      >
-        <BrandMark className="size-10" title="SaveState" />
-      </Link>
-      <h1 className="mt-5 text-3xl font-medium tracking-tight">
-        {mode === "signin" ? "Sign in" : "Create account"}
-      </h1>
-      <p className="mt-2 text-sm text-muted">
-        Your library syncs with this account. No Steam or PSN login.
-      </p>
-
-      {authEnabled && googleOn ? (
-        <div className="mt-6">
-          <Button
-            variant="secondary"
-            className="w-full gap-2"
-            disabled={busy}
-            onClick={() => void onGoogle()}
+    <main className="min-h-dvh bg-bg text-fg">
+      <div className="grid min-h-dvh lg:grid-cols-2">
+        <section className="relative hidden flex-col justify-center bg-elevated px-12 py-16 lg:flex">
+          <Link
+            to="/"
+            className="absolute top-6 left-6 grid size-12 place-items-center rounded-2xl bg-subtle"
+            aria-label="SaveState home"
           >
-            <GoogleMark />
-            Continue with Google
-          </Button>
-        </div>
-      ) : null}
+            <BrandMark className="size-8" title="SaveState" />
+          </Link>
+          <div className="mx-auto max-w-sm">
+            <div className="grid size-20 place-items-center rounded-3xl bg-accent/20">
+              <BrandMark className="size-12" title="SaveState" />
+            </div>
+            <h1 className="mt-6 text-4xl font-medium tracking-tight">SaveState</h1>
+            <p className="mt-3 text-base text-muted">
+              {mode === "signin"
+                ? "Sign in to pick up the same library on every device."
+                : "Create an account. Your library syncs across phone, tablet, and web."}
+            </p>
+          </div>
+        </section>
 
-      <div className="my-5 flex items-center gap-3 text-xs text-faint">
-        <span className="h-px flex-1 bg-border" />
-        or email
-        <span className="h-px flex-1 bg-border" />
+        <section className="relative flex items-center justify-center px-5 py-10 pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+          <Link
+            to="/"
+            className="absolute top-4 left-4 grid size-11 place-items-center rounded-full text-fg hover:bg-subtle lg:hidden"
+            aria-label="Back"
+          >
+            <BrandMark className="size-7" title="SaveState" />
+          </Link>
+          <div className="w-full max-w-sm">
+            <div className="lg:hidden">
+              <div className="grid size-16 place-items-center rounded-3xl bg-accent/20">
+                <BrandMark className="size-10" title="SaveState" />
+              </div>
+              <h1 className="mt-5 text-3xl font-medium tracking-tight">
+                {mode === "signin" ? "Sign in" : "Create account"}
+              </h1>
+              <p className="mt-2 text-sm text-muted">
+                Your library syncs with this account. No Steam or PSN login.
+              </p>
+            </div>
+            <h1 className="hidden text-3xl font-medium tracking-tight lg:block">
+              {mode === "signin" ? "Welcome back" : "Create account"}
+            </h1>
+
+            {authEnabled && googleOn ? (
+              <div className="mt-6">
+                <Button
+                  variant="secondary"
+                  className="h-12 w-full gap-2 rounded-full"
+                  disabled={busy}
+                  onClick={() => void onGoogle()}
+                >
+                  <GoogleMark />
+                  Continue with Google
+                </Button>
+              </div>
+            ) : null}
+
+            <div className="my-5 flex items-center gap-3 text-xs text-faint">
+              <span className="h-px flex-1 bg-border" />
+              or email
+              <span className="h-px flex-1 bg-border" />
+            </div>
+
+            <form className="space-y-3" onSubmit={onEmail}>
+              {mode === "signup" ? (
+                <Input
+                  placeholder="Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                  className="h-12 rounded-2xl border-b-0 bg-elevated"
+                />
+              ) : null}
+              <Input
+                type="email"
+                required
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                className="h-12 rounded-2xl border-b-0 bg-elevated"
+              />
+              <Input
+                type="password"
+                required
+                minLength={8}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                className="h-12 rounded-2xl border-b-0 bg-elevated"
+              />
+              {error ? <p className="text-sm text-dropped">{error}</p> : null}
+              <Button type="submit" className="h-12 w-full" disabled={busy}>
+                {busy
+                  ? "Please wait…"
+                  : mode === "signin"
+                    ? "Sign in with email"
+                    : "Create account"}
+              </Button>
+            </form>
+
+            <button
+              type="button"
+              className="mt-4 min-h-12 text-sm text-muted hover:text-fg"
+              onClick={() => {
+                setMode(mode === "signin" ? "signup" : "signin");
+                setError(null);
+              }}
+            >
+              {mode === "signin"
+                ? "Need an account? Create one"
+                : "Already have an account? Sign in"}
+            </button>
+          </div>
+        </section>
       </div>
-
-      <form className="space-y-3" onSubmit={onEmail}>
-        {mode === "signup" ? (
-          <Input
-            placeholder="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoComplete="name"
-          />
-        ) : null}
-        <Input
-          type="email"
-          required
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
-        />
-        <Input
-          type="password"
-          required
-          minLength={8}
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete={mode === "signup" ? "new-password" : "current-password"}
-        />
-        {error ? <p className="text-sm text-dropped">{error}</p> : null}
-        <Button type="submit" className="w-full" disabled={busy}>
-          {busy
-            ? "Please wait…"
-            : mode === "signin"
-              ? "Sign in with email"
-              : "Create account"}
-        </Button>
-      </form>
-
-      <button
-        type="button"
-        className="mt-4 min-h-12 text-sm text-muted hover:text-fg"
-        onClick={() => {
-          setMode(mode === "signin" ? "signup" : "signin");
-          setError(null);
-        }}
-      >
-        {mode === "signin"
-          ? "Need an account? Create one"
-          : "Already have an account? Sign in"}
-      </button>
     </main>
   );
 }

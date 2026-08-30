@@ -13,6 +13,7 @@ class SaveStateMark extends StatelessWidget {
     return SizedBox.square(
       dimension: size,
       child: CustomPaint(
+        size: Size.square(size),
         painter: _SaveStateMarkPainter(
           back: Color.lerp(cs.surfaceContainerHighest, cs.primary, 0.18)!,
           mid: Color.lerp(cs.surfaceContainerHighest, cs.primary, 0.08)!,
