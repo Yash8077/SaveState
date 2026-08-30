@@ -308,6 +308,14 @@ class _HomeLayoutEditor extends StatelessWidget {
             child: const Text('Reset'),
           ),
         ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Auto-play carousel'),
+          subtitle: const Text('Rotate featured games on Home'),
+          value: layout.heroAutoplay,
+          onChanged: layout.setHeroAutoplay,
+        ),
+        const SizedBox(height: 8),
         ReorderableListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),

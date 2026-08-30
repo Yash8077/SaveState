@@ -88,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           child: _buildBody(colorScheme),
@@ -140,7 +141,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const HomeGreeting(),
-                    HeroCarousel(games: slides),
+                    HeroCarousel(
+                      games: slides,
+                      autoplay: layout.heroAutoplay,
+                    ),
                   ],
                 ),
               ),

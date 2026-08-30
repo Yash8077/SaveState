@@ -83,6 +83,7 @@ function Home() {
           slides,
           railsById,
           firstCatalogId,
+          autoplay: layout.autoplay,
         }),
       )}
       {signedIn &&
@@ -120,6 +121,7 @@ function renderHomeSection(
     slides: ReturnType<typeof heroSlides>;
     railsById: Map<string, FeaturedRail>;
     firstCatalogId: string | null;
+    autoplay: boolean;
   },
 ) {
   if (!section.enabled) return null;
@@ -128,7 +130,7 @@ function renderHomeSection(
       return ctx.slides.length ? (
         <div key="hero" className="space-y-3">
           <HomeHello name={ctx.name} />
-          <HeroCarousel games={ctx.slides} />
+          <HeroCarousel games={ctx.slides} autoplay={ctx.autoplay} />
         </div>
       ) : null;
     case "stats":

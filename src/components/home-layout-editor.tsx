@@ -7,7 +7,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export function HomeLayoutEditor() {
-  const { sections, move, toggle, reset } = useHomeLayout();
+  const { sections, move, toggle, reset, autoplay, setAutoplay } = useHomeLayout();
 
   return (
     <section className="rounded-xl bg-elevated p-4 sm:p-5">
@@ -29,6 +29,20 @@ export function HomeLayoutEditor() {
           Reset
         </button>
       </div>
+      <label className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-subtle px-3 py-2">
+        <span>
+          <span className="block text-sm font-medium">Auto-play carousel</span>
+          <span className="block text-xs text-faint">
+            Rotate featured games on Home
+          </span>
+        </span>
+        <input
+          type="checkbox"
+          checked={autoplay}
+          onChange={(event) => setAutoplay(event.target.checked)}
+          className="size-5 accent-[var(--color-accent)]"
+        />
+      </label>
       <ul className="mt-3 space-y-2">
         {sections.map((row, index) => (
           <li

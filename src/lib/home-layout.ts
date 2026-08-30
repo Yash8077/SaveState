@@ -21,7 +21,7 @@ export const HOME_SECTION_META: Record<
   string,
   { title: string; hint: string; catalog?: boolean }
 > = {
-  hero: { title: "Home banner", hint: "Wide featured carousel at the top" },
+  hero: { title: "Featured carousel", hint: "Featured games at the top of Home" },
   stats: { title: "Welcome stats", hint: "Playing / beaten / backlog chips" },
   playing: { title: "Continue playing", hint: "Games you marked as playing" },
   backlog: { title: "Planning to play", hint: "Your backlog" },
@@ -37,6 +37,7 @@ export const DEFAULT_HOME_SECTIONS: HomeSectionPref[] = HOME_SECTION_IDS.map(
 );
 
 const KEY = "savestate-home-layout";
+const AUTOPLAY_KEY = "savestate-hero-autoplay";
 
 export function isCatalogSection(id: string): boolean {
   return Boolean(HOME_SECTION_META[id]?.catalog);
@@ -141,4 +142,22 @@ export function homeSectionTitle(id: string): string {
 
 export function homeSectionHint(id: string): string {
   return HOME_SECTION_META[id]?.hint ?? "Catalog rail";
+}
+
+export function loadHeroAutoplay(): boolean {
+  try {
+    const raw = localStorage.getItem(AUTOPLAY_KEY);
+    if (raw == null) return true;
+    return raw !== "0" && raw !== "false";
+  } catch {
+    return true;
+  }
+}
+
+export function saveHeroAutoplay(on: boolean) {
+  try {
+    localStorage.setItem(AUTOPLAY_KEY, on ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
 }

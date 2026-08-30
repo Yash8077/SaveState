@@ -3,10 +3,12 @@ import { describe, it } from "node:test";
 import {
   DEFAULT_HOME_SECTIONS,
   isCatalogSection,
+  loadHeroAutoplay,
   mergeHomeLayout,
   moveHomeSection,
   parseHomeLayout,
   reorderHomeSection,
+  saveHeroAutoplay,
   toggleHomeSection,
 } from "./home-layout.ts";
 
@@ -40,5 +42,10 @@ describe("home layout", () => {
     assert.deepEqual(parseHomeLayout("nope"), DEFAULT_HOME_SECTIONS);
     assert.equal(isCatalogSection("playstation"), true);
     assert.equal(isCatalogSection("playing"), false);
+  });
+
+  it("defaults carousel autoplay on", () => {
+    assert.equal(loadHeroAutoplay(), true);
+    saveHeroAutoplay(false);
   });
 });

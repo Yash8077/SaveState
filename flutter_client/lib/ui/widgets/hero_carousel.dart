@@ -8,7 +8,12 @@ import '../open_game.dart';
 
 class HeroCarousel extends StatefulWidget {
   final List<CatalogGame> games;
-  const HeroCarousel({super.key, required this.games});
+  final bool autoplay;
+  const HeroCarousel({
+    super.key,
+    required this.games,
+    this.autoplay = true,
+  });
 
   @override
   State<HeroCarousel> createState() => _HeroCarouselState();
@@ -47,15 +52,18 @@ class _HeroCarouselState extends State<HeroCarousel> {
   @override
   void didUpdateWidget(covariant HeroCarousel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.games.length != widget.games.length) {
+    if (oldWidget.games.length != widget.games.length ||
+        oldWidget.autoplay != widget.autoplay) {
       _arm();
-      _hydrateAround(_index);
+      if (oldWidget.games.length != widget.games.length) {
+        _hydrateAround(_index);
+      }
     }
   }
 
   void _arm() {
     _timer?.cancel();
-    if (widget.games.length < 2) return;
+    if (!widget.autoplay || widget.games.length < 2) return;
     _timer = Timer.periodic(const Duration(seconds: 6), (_) {
       if (!mounted || _pages == null || !_pages!.hasClients) return;
       final next = (_index + 1) % widget.games.length;

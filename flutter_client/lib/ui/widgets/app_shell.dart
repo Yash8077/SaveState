@@ -2,7 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../state/auth_controller.dart';
+import 'pill_nav.dart';
 import 'save_state_mark.dart';
+
+const _destinations = [
+  PillDestination(
+    icon: Icons.home_outlined,
+    selectedIcon: Icons.home_rounded,
+    label: 'Home',
+  ),
+  PillDestination(
+    icon: Icons.search_rounded,
+    selectedIcon: Icons.search_rounded,
+    label: 'Search',
+  ),
+  PillDestination(
+    icon: Icons.library_books_outlined,
+    selectedIcon: Icons.library_books_rounded,
+    label: 'Library',
+  ),
+  PillDestination(
+    icon: Icons.bar_chart_outlined,
+    selectedIcon: Icons.bar_chart_rounded,
+    label: 'Stats',
+  ),
+];
 
 class AppShell extends StatelessWidget {
   final Widget child;
@@ -42,6 +66,16 @@ class AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final index = _calculateSelectedIndex(context);
+    final wide = MediaQuery.sizeOf(context).width >= 720;
+    final pad = MediaQuery.paddingOf(context);
+    final pill = PillNav(
+      axis: wide ? Axis.vertical : Axis.horizontal,
+      index: index,
+      destinations: _destinations,
+      onSelect: (i) => _onItemTapped(i, context),
+      onSettings: () => context.push('/settings'),
+    );
+
     return PopScope(
       canPop: index == 0,
       onPopInvokedWithResult: (didPop, _) {
@@ -49,93 +83,83 @@ class AppShell extends StatelessWidget {
         context.go('/');
       },
       child: Scaffold(
-      appBar: AppBar(
-        titleSpacing: 8,
-        title: const Row(
-          children: [
-            SaveStateMark(size: 28),
-            SizedBox(width: 10),
-            Text('SaveState'),
+        appBar: AppBar(
+          titleSpacing: 8,
+          title: const Row(
+            children: [
+              SaveStateMark(size: 28),
+              SizedBox(width: 10),
+              Text('SaveState'),
+            ],
+          ),
+          actions: [
+            if (!auth.ready)
+              const Padding(
+                padding: EdgeInsets.only(right: 12),
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else if (auth.isSignedIn)
+              IconButton(
+                tooltip: auth.user?.email ?? 'Account',
+                onPressed: () async {
+                  await auth.signOut();
+                },
+                icon: const Icon(Icons.logout),
+              )
+            else
+              TextButton(
+                onPressed: () => context.push('/login'),
+                child: const Text('Sign in'),
+              ),
           ],
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
-            icon: const Icon(Icons.settings_outlined),
-          ),
-          if (!auth.ready)
-            const Padding(
-              padding: EdgeInsets.only(right: 12),
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: wide ? 84 : 0,
+                  bottom: wide ? 0 : 84 + pad.bottom,
+                ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 280),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.035),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey(GoRouterState.of(context).uri.path),
+                    child: child,
+                  ),
+                ),
               ),
-            )
-          else if (auth.isSignedIn)
-            IconButton(
-              tooltip: auth.user?.email ?? 'Account',
-              onPressed: () async {
-                await auth.signOut();
-              },
-              icon: const Icon(Icons.logout),
-            )
-          else
-            TextButton(
-              onPressed: () => context.push('/login'),
-              child: const Text('Sign in'),
             ),
-        ],
-      ),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 280),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (child, animation) {
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.035),
-                end: Offset.zero,
-              ).animate(animation),
-              child: child,
+            Positioned(
+              left: wide ? 12 : 0,
+              right: wide ? null : 0,
+              top: wide ? 0 : null,
+              bottom: wide ? 0 : 10 + pad.bottom,
+              child: wide
+                  ? Center(child: pill)
+                  : Align(alignment: Alignment.bottomCenter, child: pill),
             ),
-          );
-        },
-        child: KeyedSubtree(
-          key: ValueKey(GoRouterState.of(context).uri.path),
-          child: child,
+          ],
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _calculateSelectedIndex(context),
-        onDestinationSelected: (index) => _onItemTapped(index, context),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.search_outlined),
-            selectedIcon: Icon(Icons.search),
-            label: 'Search',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.library_books_outlined),
-            selectedIcon: Icon(Icons.library_books),
-            label: 'Library',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: 'Stats',
-          ),
-        ],
-      ),
-    ),
     );
   }
 }

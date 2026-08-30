@@ -54,7 +54,13 @@ function Synopsis({
   );
 }
 
-export function HeroCarousel({ games }: { games: CatalogGame[] }) {
+export function HeroCarousel({
+  games,
+  autoplay = true,
+}: {
+  games: CatalogGame[];
+  autoplay?: boolean;
+}) {
   const phone = useRef<HTMLDivElement>(null);
   const wide = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
@@ -86,7 +92,7 @@ export function HeroCarousel({ games }: { games: CatalogGame[] }) {
   }, [games.length]);
 
   useEffect(() => {
-    if (games.length < 2 || paused || peek.target) return;
+    if (!autoplay || games.length < 2 || paused || peek.target) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) return;
     const id = window.setInterval(() => {
@@ -94,7 +100,7 @@ export function HeroCarousel({ games }: { games: CatalogGame[] }) {
       go(next);
     }, 6000);
     return () => window.clearInterval(id);
-  }, [games.length, paused, peek.target, index]);
+  }, [games.length, paused, peek.target, index, autoplay]);
 
   if (!games.length) return null;
 

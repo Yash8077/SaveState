@@ -30,7 +30,7 @@ const defaultHomeSections = <String>[
 ];
 
 const homeSectionTitles = <String, String>{
-  'hero': 'Home banner',
+  'hero': 'Featured carousel',
   'stats': 'Welcome stats',
   'playing': 'Continue playing',
   'backlog': 'Planning to play',
@@ -42,7 +42,7 @@ const homeSectionTitles = <String, String>{
 };
 
 const homeSectionHints = <String, String>{
-  'hero': 'Wide featured carousel at the top',
+  'hero': 'Featured games at the top of Home',
   'stats': 'Playing / beaten / backlog chips',
   'playing': 'Games you marked as playing',
   'backlog': 'Your backlog',
@@ -63,9 +63,11 @@ const catalogSectionIds = {
 
 class HomeLayoutController extends ChangeNotifier {
   static const _key = 'home_layout_v1';
+  static const _autoplayKey = 'hero_autoplay_v1';
   List<HomeSectionPref> sections = [
     for (final id in defaultHomeSections) HomeSectionPref(id: id),
   ];
+  bool heroAutoplay = true;
 
   bool enabled(String id) =>
       sections.any((row) => row.id == id && row.enabled);
@@ -110,6 +112,8 @@ class HomeLayoutController extends ChangeNotifier {
         /* keep defaults */
       }
     }
+    final auto = prefs.getBool(_autoplayKey);
+    if (auto != null) heroAutoplay = auto;
     notifyListeners();
   }
 
@@ -119,6 +123,14 @@ class HomeLayoutController extends ChangeNotifier {
       _key,
       jsonEncode([for (final row in sections) row.toJson()]),
     );
+  }
+
+  Future<void> setHeroAutoplay(bool value) async {
+    if (heroAutoplay == value) return;
+    heroAutoplay = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_autoplayKey, value);
   }
 
   Future<void> toggle(String id, bool enabled) async {
@@ -149,7 +161,10 @@ class HomeLayoutController extends ChangeNotifier {
 
   Future<void> reset() async {
     sections = [for (final id in defaultHomeSections) HomeSectionPref(id: id)];
+    heroAutoplay = true;
     notifyListeners();
     await _persist();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_autoplayKey, true);
   }
 }
