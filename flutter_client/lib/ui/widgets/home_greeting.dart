@@ -20,39 +20,64 @@ class HomeGreeting extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final theme = Theme.of(context);
-    final user = context.watch<AuthController>().user;
+    final auth = context.watch<AuthController>();
+    final user = auth.user;
     final name = user?.name.trim().split(RegExp(r'\s+')).first;
-    final label =
-        (name != null && name.isNotEmpty) ? '${hello()}, $name' : hello();
-    final initial = (name != null && name.isNotEmpty) ? name[0].toUpperCase() : null;
+    final title = (name != null && name.isNotEmpty) ? name : 'SaveState';
+    final initial =
+        (name != null && name.isNotEmpty) ? name[0].toUpperCase() : null;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 12, 4),
+      padding: const EdgeInsets.fromLTRB(16, 10, 12, 2),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: cs.primaryContainer,
-            child: initial == null
-                ? const SaveStateMark(size: 22)
-                : Text(
-                    initial,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: cs.onPrimaryContainer,
-                    ),
-                  ),
+          Material(
+            color: cs.primaryContainer,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () =>
+                  context.push(auth.isSignedIn ? '/settings' : '/login'),
+              child: SizedBox(
+                width: 42,
+                height: 42,
+                child: Center(
+                  child: initial == null
+                      ? const SaveStateMark(size: 22)
+                      : Text(
+                          initial,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: cs.onPrimaryContainer,
+                          ),
+                        ),
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.2,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                    height: 1.1,
+                  ),
+                ),
+                Text(
+                  hello(),
+                  maxLines: 1,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
           IconButton.filledTonal(

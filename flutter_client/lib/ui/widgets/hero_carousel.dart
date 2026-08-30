@@ -35,12 +35,12 @@ class _HeroCarouselState extends State<HeroCarousel> {
     return (_loop ~/ 2 ~/ _n) * _n + (real % _n);
   }
 
-  void _attachController(bool wide) {
+  void _attachController(bool wide, [double? fraction]) {
     _wide = wide;
     _pages?.dispose();
     _page = _originFor(_index);
     _pages = PageController(
-      viewportFraction: wide ? 0.34 : 0.86,
+      viewportFraction: fraction ?? (wide ? 0.2 : 0.86),
       initialPage: _page,
     );
   }
@@ -48,8 +48,13 @@ class _HeroCarouselState extends State<HeroCarousel> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final wide = MediaQuery.sizeOf(context).width >= 720;
-    if (_wide != wide) _attachController(wide);
+    final size = MediaQuery.sizeOf(context);
+    final wide = size.width >= 720;
+    final contentW = wide ? (size.width - 84).clamp(320, 2000) : size.width;
+    final fraction = wide ? (168 / contentW).clamp(0.15, 0.28) : 0.86;
+    if (_wide != wide) {
+      _attachController(wide, fraction);
+    }
   }
 
   @override
@@ -182,10 +187,10 @@ class _HeroCarouselState extends State<HeroCarousel> {
   Widget _buildWide(PageController controller) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final cardW = constraints.maxWidth * 0.34;
+        final cardW = constraints.maxWidth * controller.viewportFraction;
         final posterH = cardW * 3 / 2;
         return SizedBox(
-          height: posterH + 108,
+          height: posterH + 44,
           child: PageView.builder(
             controller: controller,
             padEnds: true,
@@ -195,25 +200,22 @@ class _HeroCarouselState extends State<HeroCarousel> {
                 _page = i;
                 _index = i % _n;
               });
-              _hydrateAround(_index);
             },
             itemBuilder: (context, i) {
               final game = widget.games[i % _n];
               final selected = i % _n == _index;
               return AnimatedScale(
-                scale: selected ? 1 : 0.94,
+                scale: selected ? 1 : 0.96,
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeOutCubic,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(22),
-                        child: SizedBox(
-                          height: posterH,
-                          width: double.infinity,
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
                           child: _Art(
                             game: game,
                             preferWide: false,
@@ -221,16 +223,15 @@ class _HeroCarouselState extends State<HeroCarousel> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      _TitleRow(game: game),
-                      if (selected && (_summaries[game.id] ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        _SynopsisCard(
-                          text: _summaries[game.id]!,
-                          onTap: () => openGame(context, game),
-                          compact: true,
+                      const SizedBox(height: 8),
+                      Text(
+                        game.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ),

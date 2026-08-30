@@ -292,7 +292,7 @@ html.bloom .hero-bloom {
   }
 
   .hero-wide-slide {
-    flex: 0 0 min(15.5rem, 30vw);
+    flex: 0 0 10.5rem;
     scroll-snap-align: center;
     user-select: none;
   }

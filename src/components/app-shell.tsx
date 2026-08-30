@@ -113,6 +113,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const qc = useQueryClient();
   const isDetails = pathname.startsWith("/game/");
+  const isHome = pathname === "/";
 
   useEffect(() => {
     void qc.prefetchQuery({
@@ -143,6 +144,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {!isHome ? (
         <header className="sticky top-0 z-30 flex min-h-14 shrink-0 items-center gap-1 bg-bg/92 px-1 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:min-h-16 sm:px-3">
           {isDetails ? (
             <button
@@ -180,6 +182,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <AuthSlot />
           </div>
         </header>
+        ) : (
+          <div className="h-[env(safe-area-inset-top)] shrink-0" />
+        )}
 
         <main className="mx-auto w-full max-w-[1400px] flex-1 px-3 pt-2 pb-[5.5rem] sm:px-5 sm:pt-3 min-[600px]:pb-6">
           {children}

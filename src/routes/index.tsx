@@ -260,11 +260,22 @@ function HomeHello({ name }: { name?: string }) {
         : hour < 17
           ? "Good afternoon"
           : "Good evening";
+  const initial = name?.charAt(0).toUpperCase() || "S";
   return (
-    <div className="flex items-center justify-between gap-3">
-      <p className="text-xl font-medium tracking-tight">
-        {name ? `${hello}, ${name}` : hello}
-      </p>
+    <div className="flex items-center gap-3">
+      <Link
+        to={name ? "/settings" : "/login"}
+        aria-label={name ? "Settings" : "Sign in"}
+        className="grid size-10 shrink-0 place-items-center rounded-full bg-accent/20 text-sm font-semibold text-accent"
+      >
+        {initial}
+      </Link>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-base font-medium tracking-tight">
+          {name || "SaveState"}
+        </p>
+        <p className="text-sm text-muted">{hello}</p>
+      </div>
       <Link
         to="/search"
         aria-label="Search"

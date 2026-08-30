@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
-import '../../state/auth_controller.dart';
 import 'pill_nav.dart';
-import 'save_state_mark.dart';
 
 const _destinations = [
   PillDestination(
@@ -64,7 +61,6 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthController>();
     final index = _calculateSelectedIndex(context);
     final wide = MediaQuery.sizeOf(context).width >= 720;
     final pad = MediaQuery.paddingOf(context);
@@ -83,40 +79,6 @@ class AppShell extends StatelessWidget {
         context.go('/');
       },
       child: Scaffold(
-        appBar: AppBar(
-          titleSpacing: 8,
-          title: const Row(
-            children: [
-              SaveStateMark(size: 28),
-              SizedBox(width: 10),
-              Text('SaveState'),
-            ],
-          ),
-          actions: [
-            if (!auth.ready)
-              const Padding(
-                padding: EdgeInsets.only(right: 12),
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              )
-            else if (auth.isSignedIn)
-              IconButton(
-                tooltip: auth.user?.email ?? 'Account',
-                onPressed: () async {
-                  await auth.signOut();
-                },
-                icon: const Icon(Icons.logout),
-              )
-            else
-              TextButton(
-                onPressed: () => context.push('/login'),
-                child: const Text('Sign in'),
-              ),
-          ],
-        ),
         body: Stack(
           children: [
             Positioned.fill(
