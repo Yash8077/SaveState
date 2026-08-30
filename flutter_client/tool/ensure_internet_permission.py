@@ -6,7 +6,6 @@ main/AndroidManifest.xml only — without this permission Android reports
 Failed host lookup errno=7 instead of a permission error.
 """
 from pathlib import Path
-import re
 import sys
 
 manifest = Path("android/app/src/main/AndroidManifest.xml")
@@ -20,9 +19,13 @@ perms = [
 ]
 changed = False
 for perm in perms:
-    if perm not in text:
-        text = re.sub(r"(<manifest\\b[^>]*>)", r"\\1\\n    " + perm, text, count=1)
-        changed = True
+    if perm in text:
+        continue
+    close = text.find(">")
+    if close < 0:
+        sys.exit("malformed AndroidManifest.xml")
+    text = text[: close + 1] + "\n    " + perm + text[close + 1 :]
+    changed = True
 
 manifest.write_text(text)
 print("updated" if changed else "already present", manifest)
