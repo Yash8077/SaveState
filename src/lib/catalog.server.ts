@@ -3,6 +3,7 @@ import { mergeFeaturedRails, searchSeed, seedRelated, slimCatalogGame } from "./
 import {
   fetchIgdbDetails,
   fetchIgdbFeatured,
+  GAME_TYPE,
   isIgdbReady,
   searchIgdb,
 } from "./igdb.server.ts";
@@ -144,7 +145,13 @@ function trimCache<T>(cache: Map<string, T>, max: number) {
   }
 }
 
-function dedupeGames(games: CatalogGame[]): CatalogGame[] {
+const PREFERRED_SEARCH_TYPES = new Set<number>([
+  GAME_TYPE.main_game,
+  GAME_TYPE.remake,
+  GAME_TYPE.remaster,
+]);
+
+export function dedupeGames(games: CatalogGame[]): CatalogGame[] {
   const seen = new Set<string>();
   const out: CatalogGame[] = [];
   for (const game of games) {
@@ -152,7 +159,36 @@ function dedupeGames(games: CatalogGame[]): CatalogGame[] {
     seen.add(game.id);
     out.push(slimCatalogGame(game));
   }
-  return out;
+
+  const dropped = new Set<string>();
+  const byName = new Map<string, CatalogGame[]>();
+  for (const game of out) {
+    const key = game.title.trim().toLowerCase();
+    const list = byName.get(key);
+    if (list) list.push(game);
+    else byName.set(key, [game]);
+  }
+  for (const group of byName.values()) {
+    if (group.length < 2) continue;
+    const ids = new Set(group.map((g) => g.id));
+    const linked = group.some((g) => g.parentGameId && ids.has(g.parentGameId));
+    if (!linked) continue;
+    for (const game of group) {
+      if (game.parentGameId && ids.has(game.parentGameId)) {
+        dropped.add(game.id);
+      }
+    }
+    const remaining = group.filter((g) => !dropped.has(g.id));
+    if (remaining.length <= 1) continue;
+    const preferred =
+      remaining.find((g) => g.gameType != null && PREFERRED_SEARCH_TYPES.has(g.gameType)) ??
+      remaining[0];
+    for (const game of remaining) {
+      if (game.id !== preferred?.id) dropped.add(game.id);
+    }
+  }
+  if (!dropped.size) return out;
+  return out.filter((game) => !dropped.has(game.id));
 }
 
 export async function searchSteam(query: string): Promise<CatalogGame[]> {
@@ -168,280 +204,4 @@ export async function searchSteam(query: string): Promise<CatalogGame[]> {
     if (games.length >= 18) break;
   }
   return dedupeGames(games);
-}
-
-export type SearchSources = {
-  igdbReady: () => boolean;
-  searchIgdb: (q: string) => Promise<CatalogGame[]>;
-  searchSteam: (q: string) => Promise<CatalogGame[]>;
-  searchSeed: (q: string) => CatalogGame[];
-};
-
-export async function runSearchWith(
-  query: string,
-  sources: SearchSources,
-): Promise<CatalogGame[]> {
-  const seed = () => dedupeGames(sources.searchSeed(query));
-  if (sources.igdbReady()) {
-    const steamP = sources.searchSteam(query).catch(() => [] as CatalogGame[]);
-    try {
-      const igdbGames = dedupeGames(await sources.searchIgdb(query));
-      if (igdbGames.length) return igdbGames;
-    } catch {
-      /* Steam already in flight */
-    }
-    const steamGames = dedupeGames(await steamP);
-    if (steamGames.length) return steamGames;
-    return seed();
-  }
-  try {
-    const steamGames = await sources.searchSteam(query);
-    if (steamGames.length) return dedupeGames(steamGames);
-  } catch {
-    /* seed */
-  }
-  return seed();
-}
-
-export async function runSearch(query: string): Promise<CatalogGame[]> {
-  return runSearchWith(query, {
-    igdbReady: isIgdbReady,
-    searchIgdb,
-    searchSteam,
-    searchSeed,
-  });
-}
-
-export async function searchCatalog(query: string): Promise<CatalogGame[]> {
-  const q = query.trim();
-  if (q.length < 2) return [];
-  const key = q.toLowerCase();
-  const now = Date.now();
-  const hit = searchCache.get(key);
-  if (hit && now - hit.at < SEARCH_TTL_MS) return hit.games;
-
-  const pending = searchInflight.get(key);
-  if (hit) {
-    if (!pending) {
-      const run = runSearch(q)
-        .then((games) => {
-          trimCache(searchCache, 200);
-          searchCache.set(key, { at: Date.now(), games });
-          return games;
-        })
-        .finally(() => {
-          searchInflight.delete(key);
-        });
-      searchInflight.set(key, run);
-    }
-    return hit.games;
-  }
-  if (pending) return pending;
-
-  const run = runSearch(q)
-    .then((games) => {
-      trimCache(searchCache, 200);
-      searchCache.set(key, { at: Date.now(), games });
-      return games;
-    })
-    .finally(() => {
-      searchInflight.delete(key);
-    });
-  searchInflight.set(key, run);
-  return run;
-}
-
-export async function fetchSteamDetails(
-  catalogId: string,
-): Promise<CatalogDetails | null> {
-  const steamId = parseSteamId(catalogId);
-  if (!steamId) return null;
-  const url = `https://store.steampowered.com/api/appdetails?appids=${steamId}&l=english&filters=basic,developers,publishers,genres,screenshots,metacritic`;
-  const data = (await steamGet(url)) as Record<
-    string,
-    { success?: boolean; data?: SteamAppData }
-  >;
-  const payload = data[String(steamId)];
-  if (!payload?.success || !payload.data) return null;
-  const app = payload.data;
-  const screenshots = (app.screenshots ?? [])
-    .map((shot) => shot.path_thumbnail ?? shot.path_full)
-    .filter((src): src is string => Boolean(src))
-    .slice(0, 6);
-  const art = artUrl(steamId, app.header_image);
-  return {
-    id: steamCatalogId(steamId),
-    steamId,
-    title: app.name ?? `App ${steamId}`,
-    coverUrl: art,
-    headerUrl: art,
-    capsuleUrl: app.header_image ?? null,
-    platforms: platformsFromFlags(app.platforms),
-    metacritic: app.metacritic?.score ?? null,
-    summary: app.short_description ?? "",
-    releaseDate: app.release_date?.date ?? null,
-    comingSoon: Boolean(app.release_date?.coming_soon),
-    genres: (app.genres ?? [])
-      .map((g) => g.description)
-      .filter((g): g is string => Boolean(g)),
-    developers: app.developers ?? [],
-    publishers: app.publishers ?? [],
-    screenshots,
-    website: app.website ?? null,
-    related: seedRelated(steamCatalogId(steamId)),
-  };
-}
-
-async function runDetails(catalogId: string): Promise<CatalogDetails | null> {
-  if (catalogId.startsWith("igdb_")) {
-    try {
-      return await fetchIgdbDetails(catalogId);
-    } catch {
-      return null;
-    }
-  }
-  return fetchSteamDetails(catalogId);
-}
-
-export async function fetchCatalogDetails(
-  catalogId: string,
-): Promise<CatalogDetails | null> {
-  const key = `${DETAILS_CACHE_VER}:${catalogId}`;
-  const hit = detailsCache.get(key);
-  const now = Date.now();
-  if (hit && now - hit.at < DETAILS_TTL_MS) return hit.data;
-
-  const pending = detailsInflight.get(key);
-  if (hit) {
-    if (!pending) {
-      const run = runDetails(catalogId)
-        .then((data) => {
-          trimCache(detailsCache, 200);
-          detailsCache.set(key, { at: Date.now(), data });
-          return data;
-        })
-        .finally(() => {
-          detailsInflight.delete(key);
-        });
-      detailsInflight.set(key, run);
-    }
-    return hit.data;
-  }
-  if (pending) return pending;
-
-  const run = runDetails(catalogId)
-    .then((data) => {
-      trimCache(detailsCache, 200);
-      detailsCache.set(key, { at: Date.now(), data });
-      return data;
-    })
-    .finally(() => {
-      detailsInflight.delete(key);
-    });
-  detailsInflight.set(key, run);
-  return run;
-}
-
-export async function fetchSteamFeatured(): Promise<FeaturedRail[]> {
-  const url =
-    "https://store.steampowered.com/api/featuredcategories/?cc=us&l=english";
-  const data = (await steamGet(url)) as Record<
-    string,
-    { id?: string; name?: string; items?: SteamFeaturedItem[] }
-  >;
-  const wanted: { key: string; fallback: string }[] = [
-    { key: "top_sellers", fallback: "Trending" },
-    { key: "new_releases", fallback: "New releases" },
-    { key: "coming_soon", fallback: "Coming soon" },
-    { key: "specials", fallback: "On sale" },
-  ];
-  const rails: FeaturedRail[] = [];
-  for (const { key, fallback } of wanted) {
-    const block = data[key];
-    const games: CatalogGame[] = [];
-    for (const item of block?.items ?? []) {
-      const game = fromFeaturedItem(item);
-      if (!game) continue;
-      games.push(game);
-      if (games.length >= 12) break;
-    }
-    const unique = dedupeGames(games);
-    if (!unique.length) continue;
-    rails.push({
-      id: key,
-      title: fallback,
-      games: unique,
-    });
-  }
-  return rails;
-}
-
-export type FeaturedSources = {
-  igdbReady: () => boolean;
-  fetchIgdbFeatured: () => Promise<FeaturedRail[]>;
-  fetchSteamFeatured: () => Promise<FeaturedRail[]>;
-};
-
-export async function refreshFeaturedWith(
-  sources: FeaturedSources,
-): Promise<FeaturedRail[]> {
-  let rails: FeaturedRail[] = [];
-  if (sources.igdbReady()) {
-    const steamP = sources.fetchSteamFeatured().catch(() => [] as FeaturedRail[]);
-    try {
-      const igdbRails = await sources.fetchIgdbFeatured();
-      if (igdbRails.length) rails = igdbRails;
-    } catch {
-      /* Steam already in flight */
-    }
-    if (!rails.length) rails = await steamP;
-  } else {
-    try {
-      rails = await sources.fetchSteamFeatured();
-    } catch {
-      rails = [];
-    }
-  }
-  rails = mergeFeaturedRails(rails);
-  featuredCache = { at: Date.now(), rails };
-  return rails;
-}
-
-export async function refreshFeatured(): Promise<FeaturedRail[]> {
-  return refreshFeaturedWith({
-    igdbReady: isIgdbReady,
-    fetchIgdbFeatured,
-    fetchSteamFeatured,
-  });
-}
-
-export async function fetchFeaturedRails(): Promise<FeaturedRail[]> {
-  const now = Date.now();
-  if (featuredCache && now - featuredCache.at < FEATURED_TTL_MS) {
-    return featuredCache.rails;
-  }
-  if (featuredCache) {
-    featuredInflight ??= refreshFeatured().finally(() => {
-      featuredInflight = null;
-    });
-    return featuredCache.rails;
-  }
-  if (featuredInflight) return featuredInflight;
-  featuredInflight = refreshFeatured().finally(() => {
-    featuredInflight = null;
-  });
-  return featuredInflight;
-}
-
-export function catalogJson(data: unknown, maxAgeSec: number): Response {
-  return new Response(JSON.stringify(data), {
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": `public, max-age=${maxAgeSec}, stale-while-revalidate=${maxAgeSec * 6}`,
-    },
-  });
-}
-
-if (!process.env.NODE_TEST_CONTEXT) {
-  void fetchFeaturedRails().catch(() => {});
 }
