@@ -15,7 +15,7 @@ import type {
   LibrarySnapshot,
 } from "@/lib/types";
 
-export const CATALOG_GAME_REL = "rel-5";
+export const CATALOG_GAME_REL = "rel-6";
 export const CATALOG_GAME_STALE_MS = 10 * 60_000;
 
 export function catalogGameQueryKey(catalogId: string) {
@@ -35,10 +35,9 @@ async function catalogGet<T>(url: string, signal?: AbortSignal): Promise<T> {
 export function searchGames(
   q: string,
   signal?: AbortSignal,
-  provider: "igdb" | "steam" = "igdb",
 ): Promise<CatalogGame[]> {
   return catalogGet<CatalogGame[]>(
-    `/api/catalog/search?q=${encodeURIComponent(q)}&provider=${provider}`,
+    `/api/catalog/search?q=${encodeURIComponent(q)}`,
     signal,
   );
 }
@@ -48,17 +47,16 @@ export function getCatalogGame(
   signal?: AbortSignal,
 ): Promise<CatalogDetails | null> {
   return catalogGet<CatalogDetails | null>(
-    `/api/catalog/game?id=${encodeURIComponent(id)}&rel=5`,
+    `/api/catalog/game?id=${encodeURIComponent(id)}&rel=6`,
     signal,
   );
 }
 
 export function getFeaturedRails(
   signal?: AbortSignal,
-  provider: "igdb" | "steam" = "igdb",
 ): Promise<FeaturedRail[]> {
   return catalogGet<FeaturedRail[]>(
-    `/api/catalog/featured?provider=${provider}`,
+    `/api/catalog/featured`,
     signal,
   );
 }
