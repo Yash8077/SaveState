@@ -15,6 +15,7 @@ type IgdbCompany = {
   company?: { name?: string };
 };
 type IgdbWebsite = { url?: string; category?: number };
+type IgdbGroup = { id?: number; name?: string; games?: IgdbGame[] };
 export type IgdbGame = {
   id?: number;
   name?: string;
@@ -22,6 +23,7 @@ export type IgdbGame = {
   summary?: string;
   first_release_date?: number;
   aggregated_rating?: number;
+  category?: number;
   url?: string;
   cover?: IgdbImage;
   genres?: { name?: string }[];
@@ -29,8 +31,10 @@ export type IgdbGame = {
   screenshots?: IgdbImage[];
   involved_companies?: IgdbCompany[];
   websites?: IgdbWebsite[];
-  collection?: { name?: string; games?: IgdbGame[] };
-  franchises?: { name?: string; games?: IgdbGame[] }[];
+  collection?: IgdbGroup | number;
+  collections?: Array<IgdbGroup | number>;
+  franchise?: IgdbGroup | number;
+  franchises?: Array<IgdbGroup | number>;
   similar_games?: IgdbGame[];
   parent_game?: IgdbGame;
   version_parent?: IgdbGame;
@@ -154,11 +158,92 @@ function mapRelatedList(
   return out;
 }
 
+function asGroup(value: unknown): IgdbGroup | null {
+  if (typeof value === "number" && Number.isFinite(value)) return { id: value };
+  if (!value || typeof value !== "object") return null;
+  const row = value as IgdbGroup;
+  return {
+    id: typeof row.id === "number" ? row.id : undefined,
+    name: row.name,
+    games: asGames(row.games),
+  };
+}
+
+function asGames(list: unknown): IgdbGame[] {
+  if (!Array.isArray(list)) return [];
+  const out: IgdbGame[] = [];
+  for (const item of list) {
+    if (typeof item === "number" && Number.isFinite(item)) {
+      out.push({ id: item });
+    } else if (item && typeof item === "object") {
+      out.push(item as IgdbGame);
+    }
+  }
+  return out;
+}
+
+function groupsOf(
+  single: IgdbGroup | number | undefined,
+  many: Array<IgdbGroup | number> | undefined,
+): IgdbGroup[] {
+  const out: IgdbGroup[] = [];
+  const first = asGroup(single);
+  if (first) out.push(first);
+  for (const item of many ?? []) {
+    const group = asGroup(item);
+    if (group) out.push(group);
+  }
+  return out;
+}
+
+function mergeGroups(groups: IgdbGroup[] | undefined): IgdbGame[] {
+  const out: IgdbGame[] = [];
+  const seen = new Set<number>();
+  for (const group of groups ?? []) {
+    for (const row of asGames(group.games)) {
+      if (!row.id || seen.has(row.id)) continue;
+      seen.add(row.id);
+      out.push(row);
+    }
+  }
+  return out;
+}
+
+function seriesSource(game: IgdbGame): { name: string | null; games: IgdbGame[] } {
+  const groups = groupsOf(game.collection, game.collections);
+  const named = groups.find((g) => g.name)?.name ?? null;
+  return { name: named, games: mergeGroups(groups) };
+}
+
+function franchiseGames(game: IgdbGame): IgdbGame[] {
+  return mergeGroups(groupsOf(game.franchise, game.franchises));
+}
+
+function splitByRelease(
+  rows: IgdbGame[],
+  self: number | undefined,
+  selfDate: number,
+): { prequels: IgdbGame[]; sequels: IgdbGame[]; rest: IgdbGame[] } {
+  const prequels: IgdbGame[] = [];
+  const sequels: IgdbGame[] = [];
+  const rest: IgdbGame[] = [];
+  const mains = rows.filter((row) => row.category == null || row.category === 0);
+  const pool = mains.length ? mains : rows;
+  for (const row of pool) {
+    if (self && row.id === self) continue;
+    const d = row.first_release_date ?? 0;
+    if (selfDate && d && d < selfDate) prequels.push(row);
+    else if (selfDate && d && d > selfDate) sequels.push(row);
+    else rest.push(row);
+  }
+  return { prequels, sequels, rest };
+}
+
 export function relatedRails(game: IgdbGame): FeaturedRail[] {
   const self = game.id;
   const selfDate =
     game.first_release_date ??
-    game.collection?.games?.find((g) => g.id === self)?.first_release_date ??
+    seriesSource(game).games.find((g) => g.id === self)?.first_release_date ??
     0;
   const rails: FeaturedRail[] = [];
   const seen = new Set<string>();
@@ -168,6 +253,22 @@ export function relatedRails(game: IgdbGame): FeaturedRail[] {
     for (const g of unique) seen.add(g.id);
     if (unique.length) rails.push({ id, title, games: unique });
   };
+
+  const series = seriesSource(game);
+  const { prequels, sequels, rest } = splitByRelease(series.games, self, selfDate);
+  push("prequel", "Prequel", mapRelatedList(prequels, self));
+  push("sequel", "Sequel", mapRelatedList(sequels, self));
+
+  const seriesTitle = series.name ? `In ${series.name}` : "Related games";
+  if (rest.length) {
+    push(
+      "series",
+      series.name ? `Also in ${series.name}` : "Related games",
+      mapRelatedList(rest, self),
+    );
+  } else if (!prequels.length && !sequels.length && series.games.length) {
+    push("series", seriesTitle, mapRelatedList(series.games, self));
+  }
 
   push(
     "original",
@@ -181,39 +282,7 @@ export function relatedRails(game: IgdbGame): FeaturedRail[] {
     ),
   );
 
-  const collection = game.collection?.games ?? [];
-  const prequels: IgdbGame[] = [];
-  const sequels: IgdbGame[] = [];
-  const rest: IgdbGame[] = [];
-  for (const row of collection) {
-    if (self && row.id === self) continue;
-    const d = row.first_release_date ?? 0;
-    if (selfDate && d && d < selfDate) prequels.push(row);
-    else if (selfDate && d && d > selfDate) sequels.push(row);
-    else rest.push(row);
-  }
-  push("prequel", "Prequel", mapRelatedList(prequels, self));
-  push("sequel", "Sequel", mapRelatedList(sequels, self));
-
-  const seriesTitle = game.collection?.name
-    ? `In ${game.collection.name}`
-    : "In this series";
-  if (rest.length) {
-    push(
-      "series",
-      game.collection?.name
-        ? `Also in ${game.collection.name}`
-        : "In this series",
-      mapRelatedList(rest, self),
-    );
-  } else if (!prequels.length && !sequels.length) {
-    push("series", seriesTitle, mapRelatedList(collection, self));
-  }
-
-  if (!rails.some((r) => r.id === "prequel" || r.id === "sequel" || r.id === "series")) {
-    const franchiseGames = (game.franchises ?? []).flatMap((f) => f.games ?? []);
-    push("franchise", "Franchise", mapRelatedList(franchiseGames, self));
-  }
+  push("franchise", "Franchise", mapRelatedList(franchiseGames(game), self));
 
   push(
     "dlc",
@@ -372,8 +441,57 @@ export const SEARCH_FIELDS = "name, cover.image_id";
 export const CARD_FIELDS =
   "name, cover.image_id, first_release_date, aggregated_rating";
 const REL_NEST =
-  "name, cover.image_id, first_release_date";
-export const DETAIL_FIELDS = `${CARD_FIELDS}, platforms.abbreviation, platforms.name, genres.name, slug, summary, url, screenshots.image_id, involved_companies.company.name, involved_companies.developer, involved_companies.publisher, websites.url, websites.category, collection.name, collection.games.${REL_NEST}, similar_games.${REL_NEST}, parent_game.${REL_NEST}, version_parent.${REL_NEST}, dlcs.${REL_NEST}, expansions.${REL_NEST}, expanded_games.${REL_NEST}, remakes.${REL_NEST}, remasters.${REL_NEST}, standalone_expansions.${REL_NEST}, franchises.name, franchises.games.${REL_NEST}`;
+  "name, cover.image_id, first_release_date, category";
+export const DETAIL_FIELDS = `${CARD_FIELDS}, platforms.abbreviation, platforms.name, genres.name, slug, summary, url, screenshots.image_id, involved_companies.company.name, involved_companies.developer, involved_companies.publisher, websites.url, websites.category, collection.id, collection.name, collections.id, collections.name, similar_games.${REL_NEST}, parent_game.${REL_NEST}, version_parent.${REL_NEST}, dlcs.${REL_NEST}, expansions.${REL_NEST}, expanded_games.${REL_NEST}, remakes.${REL_NEST}, remasters.${REL_NEST}, standalone_expansions.${REL_NEST}, franchise.name, franchise.games.${REL_NEST}, franchises.name, franchises.games.${REL_NEST}`;
+
+function collectionIds(game: IgdbGame): number[] {
+  const ids: number[] = [];
+  for (const group of groupsOf(game.collection, game.collections)) {
+    if (typeof group.id === "number") ids.push(group.id);
+  }
+  return [...new Set(ids)];
+}
+
+function namedSeriesGames(game: IgdbGame): boolean {
+  return seriesSource(game).games.some((row) => Boolean(row.name));
+}
+
+async function hydrateCollections(game: IgdbGame): Promise<IgdbGame> {
+  if (namedSeriesGames(game)) return game;
+  const ids = collectionIds(game);
+  if (!ids.length) return game;
+
+  try {
+    const groups = await igdb<IgdbGroup[]>(
+      "collections",
+      `fields name, games.name, games.cover.image_id, games.first_release_date, games.category;
+       where id = (${ids.join(",")}); limit 10;`,
+    );
+    if ((groups ?? []).some((group) => asGames(group.games).some((row) => row.name))) {
+      return { ...game, collections: groups };
+    }
+  } catch {
+    /* fall through to a games-by-collection query */
+  }
+
+  try {
+    const rows = await igdb<IgdbGame[]>(
+      "games",
+      `fields name, cover.image_id, first_release_date, category;
+       where (collections = (${ids.join(",")}) | collection = (${ids.join(",")})) & version_parent = null;
+       limit 50;
+       sort first_release_date asc;`,
+    );
+    if (!rows?.length) return game;
+    const name = seriesSource(game).name ?? undefined;
+    return {
+      ...game,
+      collections: [{ id: ids[0], name, games: rows }],
+    };
+  } catch {
+    return game;
+  }
+}
 
 export async function searchIgdb(query: string): Promise<CatalogGame[]> {
   const q = query.replace(/[\n\r]/g, " ").trim().slice(0, 80);
@@ -405,27 +523,28 @@ export async function fetchIgdbDetails(
   );
   const game = rows?.[0];
   if (!game) return null;
-  const base = toGame(game, "cover_big");
+  const filled = await hydrateCollections(game);
+  const base = toGame(filled, "cover_big");
   if (!base) return null;
-  const shots = (game.screenshots ?? [])
+  const shots = (filled.screenshots ?? [])
     .map((s) => img(s.image_id, "screenshot_med"))
     .filter((src): src is string => Boolean(src))
     .slice(0, 8);
   const site =
-    game.websites?.find((w) => w.category === 1)?.url || game.url || null;
-  const release = game.first_release_date ?? 0;
+    filled.websites?.find((w) => w.category === 1)?.url || filled.url || null;
+  const release = filled.first_release_date ?? 0;
   return {
     ...base,
-    summary: game.summary ?? "",
-    releaseDate: unixDate(game.first_release_date),
+    summary: filled.summary ?? "",
+    releaseDate: unixDate(filled.first_release_date),
     comingSoon: Boolean(release && release * 1000 > Date.now()),
-    genres: names(game.genres),
-    developers: companies(game.involved_companies, "developer"),
-    publishers: companies(game.involved_companies, "publisher"),
+    genres: names(filled.genres),
+    developers: companies(filled.involved_companies, "developer"),
+    publishers: companies(filled.involved_companies, "publisher"),
     screenshots: shots,
     website: site,
     headerUrl: shots[0] || base.headerUrl,
-    related: relatedRails(game),
+    related: relatedRails(filled),
   };
 }
 
