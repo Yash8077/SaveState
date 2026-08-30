@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/date-field";
 import { STATUSES, STATUS_LABEL, type Status } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -119,25 +119,17 @@ export function ListEditor({
           ))}
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <label className="block text-sm text-muted">
-            Start date
-            <Input
-              className="mt-1.5"
-              type="date"
-              value={startedAt}
-              onChange={(e) => setStartedAt(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm text-muted">
-            End date
-            <Input
-              className="mt-1.5"
-              type="date"
-              value={finishedAt}
-              onChange={(e) => setFinishedAt(e.target.value)}
-            />
-          </label>
+        <div className="mt-5 space-y-4">
+          <DateField
+            label="Start date"
+            value={startedAt}
+            onChange={setStartedAt}
+          />
+          <DateField
+            label="End date"
+            value={finishedAt}
+            onChange={setFinishedAt}
+          />
         </div>
 
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

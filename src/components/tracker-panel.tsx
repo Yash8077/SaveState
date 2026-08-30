@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
+import { DateField } from "@/components/date-field";
 import type { GameEntry } from "@/lib/types";
 
 function dateValue(raw: string | null | undefined): string {
@@ -55,33 +56,23 @@ export function TrackerPanel({
         />
       </label>
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <label className="block text-sm text-muted">
-          Start date
-          <Input
-            className="mt-1.5"
-            type="date"
-            value={startedAt}
-            onChange={(e) => {
-              const next = e.target.value;
-              setStartedAt(next);
-              void onSave({ startedAt: next || null });
-            }}
-          />
-        </label>
-        <label className="block text-sm text-muted">
-          End date
-          <Input
-            className="mt-1.5"
-            type="date"
-            value={finishedAt}
-            onChange={(e) => {
-              const next = e.target.value;
-              setFinishedAt(next);
-              void onSave({ finishedAt: next || null });
-            }}
-          />
-        </label>
+      <div className="mt-4 space-y-4">
+        <DateField
+          label="Start date"
+          value={startedAt}
+          onChange={(next) => {
+            setStartedAt(next);
+            void onSave({ startedAt: next || null });
+          }}
+        />
+        <DateField
+          label="End date"
+          value={finishedAt}
+          onChange={(next) => {
+            setFinishedAt(next);
+            void onSave({ finishedAt: next || null });
+          }}
+        />
       </div>
 
       <label className="mt-4 block text-sm text-muted">
