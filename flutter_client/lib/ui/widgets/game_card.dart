@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../models/types.dart';
+import '../open_game.dart';
 
 class GameCardWidget extends StatelessWidget {
   final CatalogGame game;
@@ -47,7 +47,7 @@ class GameCardWidget extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () => context.push('/game/${game.id}'),
+          onTap: () => openGame(context, game),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,

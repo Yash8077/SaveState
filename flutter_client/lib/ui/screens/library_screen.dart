@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../models/types.dart';
 import '../../services/api_client.dart';
+import '../open_game.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -500,7 +501,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: () => context.push('/game/${entry.catalogId}'),
+            onTap: () => openGameId(
+              context,
+              entry.catalogId,
+              title: entry.title,
+              coverUrl: entry.coverUrl,
+              headerUrl: entry.headerUrl,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

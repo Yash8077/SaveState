@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/types.dart';
 import '../../services/api_client.dart';
+import '../open_game.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? q;
@@ -201,7 +202,7 @@ class _SearchScreenState extends State<SearchScreen> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => context.push('/game/${game.id}'),
+        onTap: () => openGame(context, game),
         borderRadius: BorderRadius.circular(14.0),
         child: Container(
           decoration: BoxDecoration(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/types.dart';
@@ -22,6 +23,10 @@ class ApiClient {
 
   final http.Client _client;
   String? sessionToken;
+  final Map<String, CatalogDetails> _detailsCache = {};
+  final Map<String, Future<CatalogDetails?>> _detailsInflight = {};
+  List<GameEntry>? _libraryCache;
+  DateTime? _libraryAt;
 
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
 
@@ -124,29 +129,68 @@ class ApiClient {
   }
 
   Future<CatalogDetails?> getGameDetails(String catalogId) async {
-    final decoded = await _send(
-      'GET',
-      _u('/api/catalog/game', {'id': catalogId, 'rel': '14'}),
-    );
-    if (decoded is Map<String, dynamic>) {
-      return CatalogDetails.fromJson(decoded);
-    }
-    return null;
+    final cached = _detailsCache[catalogId];
+    if (cached != null) return cached;
+    final pending = _detailsInflight[catalogId];
+    if (pending != null) return pending;
+    final future = () async {
+      try {
+        final decoded = await _send(
+          'GET',
+          _u('/api/catalog/game', {'id': catalogId, 'rel': '14'}),
+        );
+        if (decoded is Map<String, dynamic>) {
+          final details = CatalogDetails.fromJson(decoded);
+          _detailsCache[catalogId] = details;
+          if (_detailsCache.length > 80) {
+            _detailsCache.remove(_detailsCache.keys.first);
+          }
+          return details;
+        }
+        return null;
+      } finally {
+        _detailsInflight.remove(catalogId);
+      }
+    }();
+    _detailsInflight[catalogId] = future;
+    return future;
   }
 
-  Future<List<GameEntry>> getLibrary() async {
+  void prefetchGameDetails(String catalogId) {
+    if (catalogId.isEmpty) return;
+    if (_detailsCache.containsKey(catalogId) ||
+        _detailsInflight.containsKey(catalogId)) {
+      return;
+    }
+    unawaited(getGameDetails(catalogId));
+  }
+
+  Future<List<GameEntry>> getLibrary({bool force = false}) async {
+    if (!force &&
+        _libraryCache != null &&
+        _libraryAt != null &&
+        DateTime.now().difference(_libraryAt!) < const Duration(seconds: 45)) {
+      return _libraryCache!;
+    }
     final decoded = await _send('GET', _u('/api/library'));
+    List<GameEntry> items = const [];
     if (decoded is List) {
-      return decoded
+      items = decoded
+          .map((e) => GameEntry.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } else if (decoded is Map && decoded['items'] is List) {
+      items = (decoded['items'] as List)
           .map((e) => GameEntry.fromJson(e as Map<String, dynamic>))
           .toList();
     }
-    if (decoded is Map && decoded['items'] is List) {
-      return (decoded['items'] as List)
-          .map((e) => GameEntry.fromJson(e as Map<String, dynamic>))
-          .toList();
-    }
-    return const [];
+    _libraryCache = items;
+    _libraryAt = DateTime.now();
+    return items;
+  }
+
+  void _invalidateLibrary() {
+    _libraryCache = null;
+    _libraryAt = null;
   }
 
   Future<GameEntry> addToLibrary(
@@ -196,6 +240,7 @@ class ApiClient {
         if (finishedAt != null) 'finishedAt': finishedAt,
       });
     }
+    _invalidateLibrary();
     return entry;
   }
 
@@ -206,11 +251,13 @@ class ApiClient {
       jsonBody: true,
       body: updates,
     );
+    _invalidateLibrary();
     return GameEntry.fromJson(decoded as Map<String, dynamic>);
   }
 
   Future<void> deleteEntry(int id) async {
     await _send('DELETE', _u('/api/library/$id'));
+    _invalidateLibrary();
   }
 
   Future<({AuthUser user, String token})> signInEmail(

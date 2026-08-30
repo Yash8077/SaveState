@@ -8,11 +8,13 @@ import '../../state/auth_controller.dart';
 import '../../state/theme_controller.dart';
 import '../widgets/list_editor_sheet.dart';
 import '../widgets/screenshot_gallery.dart';
+import '../open_game.dart';
 
 class GameDetailsScreen extends StatefulWidget {
   final String id;
+  final CatalogGame? preview;
 
-  const GameDetailsScreen({super.key, required this.id});
+  const GameDetailsScreen({super.key, required this.id, this.preview});
 
   @override
   State<GameDetailsScreen> createState() => _GameDetailsScreenState();
@@ -22,6 +24,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   CatalogDetails? _game;
   GameEntry? _entry;
   bool _isLoading = true;
+  bool _refreshing = false;
   String? _error;
   bool _synopsisOpen = false;
   bool _saving = false;
@@ -35,7 +38,15 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     super.initState();
     _hours = TextEditingController();
     _notes = TextEditingController();
-    _load();
+    final preview = widget.preview;
+    if (preview != null) {
+      _game = CatalogDetails.fromPreview(preview);
+      _isLoading = false;
+      _refreshing = true;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   @override
@@ -58,44 +69,56 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    if (_game == null) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    } else {
+      _refreshing = true;
+    }
     try {
       final api = context.read<ApiClient>();
-      final details = await api.getGameDetails(widget.id);
-      GameEntry? entry;
-      try {
-        final library = await api.getLibrary();
-        for (final e in library) {
-          if (e.catalogId == widget.id) {
-            entry = e;
-            break;
-          }
+      final detailsFuture = api.getGameDetails(widget.id);
+      final libraryFuture = () async {
+        try {
+          return await api.getLibrary();
+        } on ApiException catch (e) {
+          if (e.status != 401) rethrow;
+          return const <GameEntry>[];
         }
-      } on ApiException catch (e) {
-        if (e.status != 401) rethrow;
+      }();
+      final details = await detailsFuture;
+      final library = await libraryFuture;
+      GameEntry? entry;
+      for (final e in library) {
+        if (e.catalogId == widget.id) {
+          entry = e;
+          break;
+        }
       }
       if (!mounted) return;
-      if (details == null) {
+      if (details == null && _game == null) {
         setState(() {
           _error = 'Game details could not be found.';
           _isLoading = false;
+          _refreshing = false;
         });
         return;
       }
       _syncLogFields(entry);
       setState(() {
-        _game = details;
+        if (details != null) _game = details;
         _entry = entry;
         _isLoading = false;
+        _refreshing = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        if (_game == null) _error = e.toString();
         _isLoading = false;
+        _refreshing = false;
       });
     }
   }
@@ -448,6 +471,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               ),
             ),
           ),
+          if (_refreshing)
+            const SliverToBoxAdapter(
+              child: LinearProgressIndicator(minHeight: 2),
+            ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
@@ -949,7 +976,7 @@ class _RelationsRail extends StatelessWidget {
                 return SizedBox(
                   width: 108,
                   child: InkWell(
-                    onTap: () => context.push('/game/${item.game.id}'),
+                    onTap: () => openGame(context, item.game),
                     borderRadius: BorderRadius.circular(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

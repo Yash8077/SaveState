@@ -230,6 +230,19 @@ class CatalogDetails extends CatalogGame {
     );
   }
 
+  factory CatalogDetails.fromPreview(CatalogGame game) {
+    return CatalogDetails(
+      id: game.id,
+      steamId: game.steamId,
+      title: game.title,
+      coverUrl: game.coverUrl,
+      headerUrl: game.headerUrl,
+      capsuleUrl: game.capsuleUrl,
+      platforms: game.platforms,
+      metacritic: game.metacritic,
+    );
+  }
+
   @override
   Map<String, dynamic> toJson() {
     final map = super.toJson();

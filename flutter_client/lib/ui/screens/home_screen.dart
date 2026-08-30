@@ -4,7 +4,7 @@ import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../../state/home_layout_controller.dart';
 import '../widgets/game_rail.dart';
-import '../widgets/save_state_mark.dart';
+import '../widgets/hero_carousel.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -65,6 +65,10 @@ class _HomeScreenState extends State<HomeScreen> {
               .toList();
           _isLoading = false;
         });
+        final api = context.read<ApiClient>();
+        for (final game in _heroSlides().take(3)) {
+          api.prefetchGameDetails(game.id);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -126,13 +130,12 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!section.enabled) continue;
       switch (section.id) {
         case 'hero':
-        case 'stats':
-          if (!out.any((w) => w.key == const ValueKey('home-stats'))) {
-            out.add(KeyedSubtree(
-              key: const ValueKey('home-stats'),
-              child: _buildGreetingHeader(colorScheme),
-            ));
+          final slides = _heroSlides();
+          if (slides.isNotEmpty) {
+            out.add(HeroCarousel(key: const ValueKey('home-hero'), games: slides));
           }
+          break;
+        case 'stats':
           break;
         case 'playing':
           if (_playing.isNotEmpty) {
@@ -183,101 +186,29 @@ class _HomeScreenState extends State<HomeScreen> {
     return out;
   }
 
-  Widget _buildGreetingHeader(ColorScheme colorScheme) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
-      child: Container(
-        padding: const EdgeInsets.all(20.0),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(20.0),
-          border: Border.all(
-            color: colorScheme.outlineVariant.withOpacity(0.3),
-            width: 1.0,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 12.0,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8.0),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(14.0),
-                  ),
-                  child: SaveStateMark(size: 28),
-                ),
-                const SizedBox(width: 14.0),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'SaveState',
-                        style: TextStyle(
-                          fontSize: 24.0,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 2.0),
-                      Text(
-                        'Track & organize your gaming universe',
-                        style: TextStyle(
-                          fontSize: 13.0,
-                          fontWeight: FontWeight.w500,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16.0),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12.0,
-                vertical: 8.0,
-              ),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(12.0),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.auto_awesome_rounded,
-                    size: 16.0,
-                    color: colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8.0),
-                  Text(
-                    'Explore curated collections & top releases',
-                    style: TextStyle(
-                      fontSize: 12.0,
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  List<CatalogGame> _heroSlides() {
+    final out = <CatalogGame>[];
+    final seen = <String>{};
+    void take(CatalogGame game) {
+      if (game.id.isEmpty || seen.contains(game.id) || out.length >= 8) return;
+      if ((game.headerUrl == null || game.headerUrl!.isEmpty) &&
+          (game.coverUrl == null || game.coverUrl!.isEmpty)) {
+        return;
+      }
+      seen.add(game.id);
+      out.add(game);
+    }
+
+    for (final game in _playing) {
+      take(game);
+    }
+    for (final rail in _featuredRails) {
+      for (final game in rail.games) {
+        take(game);
+      }
+      if (out.length >= 8) break;
+    }
+    return out;
   }
 
   Widget _buildEmptyState(ColorScheme colorScheme) {

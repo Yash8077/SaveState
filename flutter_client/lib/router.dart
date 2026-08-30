@@ -9,6 +9,7 @@ import 'ui/screens/login_screen.dart';
 import 'ui/screens/game_details_screen.dart';
 import 'ui/screens/settings_screen.dart';
 import 'ui/widgets/app_shell.dart';
+import 'models/types.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 
@@ -67,8 +68,10 @@ final router = GoRouter(
     GoRoute(
       path: '/game/:id',
       parentNavigatorKey: _rootKey,
-      builder: (context, state) =>
-          GameDetailsScreen(id: state.pathParameters['id']!),
+      builder: (context, state) => GameDetailsScreen(
+        id: state.pathParameters['id']!,
+        preview: state.extra is CatalogGame ? state.extra as CatalogGame : null,
+      ),
     ),
   ],
 );
