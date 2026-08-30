@@ -21,7 +21,7 @@ function Home() {
   const library = useLibrary();
   const { appearance, setDynamicAccent } = useAppearance();
   const featured = useQuery({
-    queryKey: ["featured", "rel-11"],
+    queryKey: ["featured", "rel-12"],
     queryFn: ({ signal }) => getFeaturedRails(signal),
     staleTime: 30 * 60_000,
     placeholderData: FEATURED_SEED,

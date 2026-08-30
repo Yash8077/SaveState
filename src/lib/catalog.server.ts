@@ -14,6 +14,8 @@ import {
 import { GAME_TYPE } from "./game-type.ts";
 import type { CatalogProvider } from "./catalog-provider.ts";
 import { upgradeSteamCapsule } from "./utils.ts";
+import { withSteamLibraryArt } from "./steam-assets.server.ts";
+import { fetchWikiDetails, searchWikipedia } from "./wikipedia.server.ts";
 
 const UA =
   "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0.0.0 Mobile Safari/537.36";
@@ -60,7 +62,7 @@ let featuredCache: { at: number; rails: FeaturedRail[] } | null = null;
 const FEATURED_TTL_MS = 30 * 60 * 1000;
 const SEARCH_TTL_MS = 10 * 60 * 1000;
 const DETAILS_TTL_MS = 2 * 60 * 1000;
-const DETAILS_CACHE_VER = "rel-11";
+const DETAILS_CACHE_VER = "rel-12";
 const FETCH_MS = 4000;
 const searchCache = new Map<string, { at: number; games: CatalogGame[] }>();
 const detailsCache = new Map<
@@ -308,6 +310,15 @@ async function fetchSteamSearchRail(
   return { id, title, games };
 }
 
+async function applyArtToRails(rails: FeaturedRail[]): Promise<FeaturedRail[]> {
+  const painted = await withSteamLibraryArt(rails.flatMap((rail) => rail.games));
+  const byId = new Map(painted.map((game) => [game.id, game]));
+  return rails.map((rail) => ({
+    ...rail,
+    games: rail.games.map((game) => byId.get(game.id) ?? game),
+  }));
+}
+
 function trimCache<T>(cache: Map<string, T>, max: number) {
   while (cache.size > max) {
     const first = cache.keys().next().value;
@@ -418,6 +429,7 @@ export function mergeSearchResults(
   igdbGames: CatalogGame[],
   steamGames: CatalogGame[],
   query = "",
+  wikiGames: CatalogGame[] = [],
 ): CatalogGame[] {
   const needle = titleKey(query);
   const byTitle = new Map<string, CatalogGame>();
@@ -437,13 +449,14 @@ export function mergeSearchResults(
 
   for (const game of igdbGames) take(game);
   for (const game of steamGames) take(game);
+  for (const game of wikiGames) take(game);
 
   out.sort((a, b) => {
     const rank = rankTitle(titleKey(a.title), needle) - rankTitle(titleKey(b.title), needle);
     if (rank !== 0) return rank;
-    const ap = a.id.startsWith("igdb_") ? 0 : 1;
-    const bp = b.id.startsWith("igdb_") ? 0 : 1;
-    return ap - bp;
+    const sourceRank = (id: string) =>
+      id.startsWith("igdb_") ? 0 : id.startsWith("wiki_") ? 1 : 2;
+    return sourceRank(a.id) - sourceRank(b.id);
   });
 
   return finishSearch(out).slice(0, 24);
@@ -461,13 +474,14 @@ export async function searchSteam(query: string): Promise<CatalogGame[]> {
     games.push(game);
     if (games.length >= 18) break;
   }
-  return finishSearch(games);
+  return withSteamLibraryArt(finishSearch(games));
 }
 
 export type SearchSources = {
   igdbReady: () => boolean;
   searchIgdb: (q: string) => Promise<CatalogGame[]>;
   searchSteam: (q: string) => Promise<CatalogGame[]>;
+  searchWiki?: (q: string) => Promise<CatalogGame[]>;
 };
 
 export async function runSearchWith(
@@ -479,8 +493,15 @@ export async function runSearchWith(
     ? sources.searchIgdb(query).catch(() => [] as CatalogGame[])
     : Promise.resolve([] as CatalogGame[]);
   const steamHits = sources.searchSteam(query).catch(() => [] as CatalogGame[]);
-  const [igdbGames, steamGames] = await Promise.all([igdbHits, steamHits]);
-  return mergeSearchResults(igdbGames, steamGames, query);
+  const wikiHits = sources.searchWiki
+    ? sources.searchWiki(query).catch(() => [] as CatalogGame[])
+    : Promise.resolve([] as CatalogGame[]);
+  const [igdbGames, steamGames, wikiGames] = await Promise.all([
+    igdbHits,
+    steamHits,
+    wikiHits,
+  ]);
+  return mergeSearchResults(igdbGames, steamGames, query, wikiGames);
 }
 
 export async function runSearch(
@@ -493,6 +514,7 @@ export async function runSearch(
       igdbReady: isIgdbReady,
       searchIgdb,
       searchSteam,
+      searchWiki: searchWikipedia,
     },
     provider,
   );
@@ -608,15 +630,22 @@ export async function fetchSteamDetails(
     title: app.name ?? "",
     dlcIds,
   });
+  const painted = (
+    await withSteamLibraryArt([
+      {
+        id: steamCatalogId(steamId),
+        steamId,
+        title: app.name ?? `App ${steamId}`,
+        coverUrl: portraitUrl(steamId),
+        headerUrl: art,
+        capsuleUrl: app.header_image ?? null,
+        platforms: platformsFromFlags(app.platforms),
+        metacritic: app.metacritic?.score ?? null,
+      },
+    ])
+  )[0]!;
   return {
-    id: steamCatalogId(steamId),
-    steamId,
-    title: app.name ?? `App ${steamId}`,
-    coverUrl: portraitUrl(steamId),
-    headerUrl: art,
-    capsuleUrl: app.header_image ?? null,
-    platforms: platformsFromFlags(app.platforms),
-    metacritic: app.metacritic?.score ?? null,
+    ...painted,
     summary: app.short_description ?? "",
     releaseDate: app.release_date?.date ?? null,
     comingSoon: Boolean(app.release_date?.coming_soon),
@@ -635,6 +664,13 @@ async function runDetails(catalogId: string): Promise<CatalogDetails | null> {
   if (catalogId.startsWith("igdb_")) {
     try {
       return await fetchIgdbDetails(catalogId);
+    } catch {
+      return null;
+    }
+  }
+  if (catalogId.startsWith("wiki_")) {
+    try {
+      return await fetchWikiDetails(catalogId);
     } catch {
       return null;
     }
@@ -762,8 +798,8 @@ export async function fetchSteamFeatured(): Promise<FeaturedRail[]> {
     }),
   );
   const rails = rows.filter((rail): rail is FeaturedRail => Boolean(rail));
-  if (rails.length) return rails;
-  return fetchSteamFeaturedCategories();
+  if (rails.length) return applyArtToRails(rails);
+  return applyArtToRails(await fetchSteamFeaturedCategories());
 }
 
 export async function fetchPlaystationRail(): Promise<FeaturedRail | null> {
@@ -782,7 +818,10 @@ export async function fetchPlaystationRail(): Promise<FeaturedRail | null> {
       "term=playstation%20studios&filter=globaltopsellers",
       "all",
     );
-    if (rail?.games.length) return rail;
+    if (rail?.games.length) {
+      const [painted] = await applyArtToRails([rail]);
+      return painted ?? rail;
+    }
   } catch {
     /* seed last */
   }

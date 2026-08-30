@@ -34,7 +34,10 @@ export function normalizeArtUrl(url: string | null | undefined): string | null {
 /** Steam capsules/headers/heroes are landscape; library covers are 2:3 portraits. */
 export function isLandscapeArt(url: string | null | undefined): boolean {
   if (!url) return false;
-  return /(?:header|capsule|library_hero|hero_capsule)/i.test(url);
+  if (/library_capsule|library_600x900|cover_big|cover_art/i.test(url)) return false;
+  return /(?:header(?:_2x)?\.jpg|capsule_231|capsule_616|capsule_184|library_hero|hero_capsule)/i.test(
+    url,
+  );
 }
 
 export function upgradeSteamCapsule(url: string | null | undefined): string | null {

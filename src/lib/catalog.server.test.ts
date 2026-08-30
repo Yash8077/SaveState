@@ -59,6 +59,21 @@ describe("runSearch merges IGDB and Steam", () => {
     );
   });
 
+  it("fills PlayStation exclusives from Wikipedia when IGDB is down", async () => {
+    const result = await runSearchWith("astro bot", {
+      igdbReady: () => false,
+      searchIgdb: async () => [],
+      searchSteam: async () => [
+        game("steam_2232520", "Sackboy: A Big Adventure - ASTRO BOT Costume"),
+      ],
+      searchWiki: async () => [game("wiki_Astro_Bot", "Astro Bot")],
+    });
+    assert.deepEqual(
+      result.map((g) => g.id),
+      ["wiki_Astro_Bot", "steam_2232520"],
+    );
+  });
+
   it("still returns Steam when IGDB throws", async () => {
     const result = await runSearchWith("elden", {
       igdbReady: () => true,

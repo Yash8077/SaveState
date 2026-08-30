@@ -130,8 +130,16 @@ String? normalizeArtUrl(String? url) {
 bool isLandscapeArt(String? url) {
   if (url == null) return false;
   final lower = url.toLowerCase();
-  return lower.contains('header') ||
-      lower.contains('capsule') ||
+  if (lower.contains('library_capsule') ||
+      lower.contains('library_600x900') ||
+      lower.contains('cover_big') ||
+      lower.contains('cover_art')) {
+    return false;
+  }
+  return lower.contains('header.jpg') ||
+      lower.contains('header_2x.jpg') ||
+      lower.contains('capsule_231') ||
+      lower.contains('capsule_616') ||
       lower.contains('library_hero') ||
       lower.contains('hero_capsule');
 }
