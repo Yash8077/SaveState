@@ -110,11 +110,7 @@ class GameCardWidget extends StatelessWidget {
                             ),
                           ),
                         if (game.metacritic != null)
-                          Positioned(
-                            top: 6,
-                            right: 6,
-                            child: MetacriticBadge(score: game.metacritic!),
-                          ),
+                          RatingBadge(score: game.metacritic!),
                       ],
                     ),
                   ),
@@ -138,38 +134,54 @@ class GameCardWidget extends StatelessWidget {
   }
 }
 
-class MetacriticBadge extends StatelessWidget {
+class RatingBadge extends StatelessWidget {
   final int score;
-  const MetacriticBadge({super.key, required this.score});
+  const RatingBadge({super.key, required this.score});
 
-  static Color colorFor(int score) {
-    if (score >= 75) return const Color(0xFF22C55E);
-    if (score >= 50) return const Color(0xFFEAB308);
-    return const Color(0xFFEF4444);
+  static String labelFor(int score) {
+    final ten = score > 10 ? score / 10.0 : score.toDouble();
+    return ten.toStringAsFixed(1);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: colorFor(score),
-        borderRadius: BorderRadius.circular(6),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.5),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
+    final cs = Theme.of(context).colorScheme;
+    return Positioned(
+      right: 0,
+      bottom: 0,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomRight,
+            end: Alignment.topLeft,
+            colors: [
+              Colors.black.withOpacity(0.78),
+              Colors.black.withOpacity(0.0),
+            ],
           ),
-        ],
-      ),
-      child: Text(
-        '$score',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          height: 1.1,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(18),
+            bottomRight: Radius.circular(12),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.star_rounded, size: 14, color: cs.primary),
+              const SizedBox(width: 3),
+              Text(
+                labelFor(score),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

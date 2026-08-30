@@ -276,12 +276,7 @@ class _Art extends StatelessWidget {
                     width: double.infinity,
                     height: double.infinity,
                   ),
-            if (game.metacritic != null)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: MetacriticBadge(score: game.metacritic!),
-              ),
+            if (game.metacritic != null) RatingBadge(score: game.metacritic!),
           ],
         ),
       ),
@@ -296,59 +291,14 @@ class _TitleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final score = game.metacritic;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Text(
-            game.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.2,
-              height: 1.15,
-            ),
-          ),
-        ),
-        if (score != null) ...[
-          const SizedBox(width: 10),
-          _ScoreChip(score: score),
-        ],
-      ],
-    );
-  }
-}
-
-class _ScoreChip extends StatelessWidget {
-  final int score;
-  const _ScoreChip({required this.score});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tens = (score / 10).toStringAsFixed(1);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: cs.primaryContainer,
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.star_rounded, size: 14, color: cs.onPrimaryContainer),
-          const SizedBox(width: 2),
-          Text(
-            tens,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: cs.onPrimaryContainer,
-            ),
-          ),
-        ],
+    return Text(
+      game.title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.2,
+        height: 1.15,
       ),
     );
   }

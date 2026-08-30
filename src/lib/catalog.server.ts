@@ -3,6 +3,8 @@ import { FEATURED_SEED, playstationSeedRail, seedRelated, slimCatalogGame } from
 import {
   fetchIgdbDetails,
   fetchIgdbPlaystation,
+  fetchIgdbRatings,
+  applyIgdbRatings,
   igdbCatalogId,
   isIgdbReady,
   lookupIgdbByTitles,
@@ -500,6 +502,7 @@ export type SearchSources = {
   searchSteam: (q: string) => Promise<CatalogGame[]>;
   searchWiki?: (q: string) => Promise<CatalogGame[]>;
   lookupIgdbByTitles?: (titles: string[]) => Promise<CatalogGame[]>;
+  fetchRatings?: (games: CatalogGame[]) => Promise<Map<string, number>>;
 };
 
 export async function runSearchWith(
@@ -529,7 +532,13 @@ export async function runSearchWith(
       resolvedWiki = wikiGames;
     }
   }
-  return mergeSearchResults(igdbGames, steamGames, query, resolvedWiki);
+  const merged = mergeSearchResults(igdbGames, steamGames, query, resolvedWiki);
+  if (!sources.fetchRatings) return merged;
+  try {
+    return applyIgdbRatings(merged, await sources.fetchRatings(merged));
+  } catch {
+    return merged;
+  }
 }
 
 export async function runSearch(
@@ -544,6 +553,7 @@ export async function runSearch(
       searchSteam,
       searchWiki: searchWikipedia,
       lookupIgdbByTitles,
+      fetchRatings: fetchIgdbRatings,
     },
     provider,
   );
@@ -929,6 +939,7 @@ export type FeaturedSources = {
   fetchPlaystationRail: () => Promise<FeaturedRail | null>;
   fetchAnticipated?: () => Promise<CatalogGame[]>;
   popularity?: (games: CatalogGame[]) => Promise<Map<string, number>>;
+  fetchRatings?: (games: CatalogGame[]) => Promise<Map<string, number>>;
 };
 
 export async function refreshFeaturedWith(
@@ -961,6 +972,17 @@ export async function refreshFeaturedWith(
     games: collapseEditions(dedupeGames(rail.games)).slice(0, 12),
   }));
   rails = rails.filter((rail) => rail.games.length > 0);
+  if (sources.fetchRatings) {
+    try {
+      const ratings = await sources.fetchRatings(rails.flatMap((rail) => rail.games));
+      rails = rails.map((rail) => ({
+        ...rail,
+        games: applyIgdbRatings(rail.games, ratings),
+      }));
+    } catch {
+      /* ratings are extra */
+    }
+  }
   featuredCache = { at: Date.now(), rails };
   return rails;
 }
@@ -972,6 +994,7 @@ export async function refreshFeatured(
     igdbReady: isIgdbReady,
     fetchSteamFeatured,
     fetchPlaystationRail,
+    fetchRatings: fetchIgdbRatings,
   });
 }
 

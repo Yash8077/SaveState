@@ -8,6 +8,7 @@ import '../../state/auth_controller.dart';
 import '../../state/theme_controller.dart';
 import '../widgets/list_editor_sheet.dart';
 import '../widgets/screenshot_gallery.dart';
+import '../widgets/game_card.dart';
 import '../open_game.dart';
 import '../../date_format.dart';
 
@@ -452,8 +453,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                                     _chip(game.releaseDate!, Colors.white70),
                                   if (game.metacritic != null)
                                     _chip(
-                                      'Meta ${game.metacritic}',
-                                      Colors.white70,
+                                      '★ ${RatingBadge.labelFor(game.metacritic!)}',
+                                      cs.primary,
                                     ),
                                   if (_entry?.score != null)
                                     _chip(

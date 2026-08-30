@@ -27,7 +27,7 @@ import {
   SEQUEL_DLC_RAIL_IDS,
 } from "@/lib/related";
 import { STATUS_LABEL, type Status } from "@/lib/types";
-import { cn, pickPortraitCover } from "@/lib/utils";
+import { cn, pickPortraitCover, ratingLabel } from "@/lib/utils";
 
 export const Route = createFileRoute("/game/$catalogId")({
   component: GamePage,
@@ -208,7 +208,9 @@ function GamePage() {
               {entry ? <StatusBadge status={entry.status} /> : null}
               {releaseDate ? <span>{releaseDate}</span> : null}
               {metacritic ? (
-                <span className="tabular-nums">Metacritic {metacritic}</span>
+                <span className="inline-flex items-center gap-1 tabular-nums text-accent">
+                  ★ {ratingLabel(metacritic)}
+                </span>
               ) : null}
               {entry?.score ? (
                 <span className="tabular-nums">Your score {entry.score}</span>

@@ -12,6 +12,13 @@ export function formatHours(hours: number | null | undefined): string {
   return `${Math.round(hours)}h`;
 }
 
+/** IGDB 0–100 critic/user mix as Saikou-style 7.7 */
+export function ratingLabel(score: number | null | undefined): string | null {
+  if (score == null || !Number.isFinite(score) || score <= 0) return null;
+  const ten = score > 10 ? score / 10 : score;
+  return ten.toFixed(1);
+}
+
 const STEAM_IMG =
   "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps";
 

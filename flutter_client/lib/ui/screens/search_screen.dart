@@ -277,11 +277,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             ),
                     ),
                     if (game.metacritic != null)
-                      Positioned(
-                        top: 6.0,
-                        right: 6.0,
-                        child: MetacriticBadge(score: game.metacritic!),
-                      ),
+                      RatingBadge(score: game.metacritic!),
                   ],
                 ),
               ),

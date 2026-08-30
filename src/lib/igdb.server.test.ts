@@ -23,6 +23,8 @@ import {
   mixPlaystationGames,
   playstationFreshBody,
   playstationPopularBody,
+  applyIgdbRatings,
+  igdbRating100,
   popularityValue,
 } from "./igdb.server.ts";
 
@@ -59,6 +61,23 @@ describe("toGame mapping", () => {
       "https://images.igdb.com/igdb/image/upload/t_screenshot_med/shot1.jpg",
     );
     assert.deepEqual(game.platforms, ["PC", "PS5"]);
+  });
+
+  it("prefers IGDB total_rating over critic-only aggregated_rating", () => {
+    const game = toGame({
+      id: 7,
+      name: "Celeste",
+      total_rating: 77.2,
+      aggregated_rating: 91,
+      cover: { image_id: "celeste" },
+    });
+    assert.equal(game?.metacritic, 77);
+    assert.equal(igdbRating100({ rating: 82 }), 82);
+    const painted = applyIgdbRatings(
+      [game!],
+      new Map([[game!.id, 88]]),
+    );
+    assert.equal(painted[0]?.metacritic, 88);
   });
 
   it("honors an alternate cover size and skips rating when missing", () => {

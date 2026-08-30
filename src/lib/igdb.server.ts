@@ -33,6 +33,8 @@ export type IgdbGame = {
   first_release_date?: number;
   aggregated_rating?: number;
   aggregated_rating_count?: number;
+  total_rating?: number;
+  rating?: number;
   total_rating_count?: number;
   hypes?: number;
   category?: number;
@@ -193,6 +195,28 @@ export function mapSearchHits(rows: IgdbGame[] | null | undefined): CatalogGame[
   return games;
 }
 
+export function igdbRating100(game: {
+  total_rating?: number;
+  aggregated_rating?: number;
+  rating?: number;
+}): number | null {
+  const n = game.total_rating ?? game.aggregated_rating ?? game.rating;
+  if (typeof n !== "number" || !Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n);
+}
+
+export function applyIgdbRatings<T extends CatalogGame>(
+  games: T[],
+  ratings: Map<string, number>,
+): T[] {
+  if (!ratings.size) return games;
+  return games.map((game) => {
+    const score = ratings.get(game.id);
+    if (score == null) return game;
+    return { ...game, metacritic: score };
+  });
+}
+
 export function toGame(
   game: IgdbGame,
   coverSize = "cover_big_2x",
@@ -201,7 +225,7 @@ export function toGame(
   const cover = img(coverImageId(game.cover), coverSize);
   const header =
     img(game.screenshots?.[0]?.image_id, "screenshot_med") || cover;
-  const rating = game.aggregated_rating;
+  const rating = igdbRating100(game);
   return {
     id: igdbCatalogId(game.id),
     steamId: null,
@@ -210,10 +234,7 @@ export function toGame(
     headerUrl: header,
     capsuleUrl: cover,
     platforms: names(game.platforms).slice(0, 6),
-    metacritic:
-      typeof rating === "number" && Number.isFinite(rating)
-        ? Math.round(rating)
-        : null,
+    metacritic: rating,
     parentGameId: parentCatalogId(game.parent_game),
     gameType: gameKind(game),
   };
@@ -750,9 +771,9 @@ async function igdb<T>(path: string, body: string): Promise<T> {
   throw lastError ?? new Error("IGDB request failed");
 }
 
-export const SEARCH_FIELDS = "name, cover.image_id, game_type, category, parent_game";
+export const SEARCH_FIELDS = "name, cover.image_id, game_type, category, parent_game, total_rating, aggregated_rating, rating";
 export const CARD_FIELDS =
-  "name, cover.image_id, first_release_date, aggregated_rating, aggregated_rating_count, hypes";
+  "name, cover.image_id, first_release_date, total_rating, aggregated_rating, rating, aggregated_rating_count, hypes";
 const REL_NEST =
   "name, cover.image_id, first_release_date, category";
 export const DETAIL_FIELDS = `${CARD_FIELDS}, platforms.abbreviation, platforms.name, genres.name, slug, summary, url, screenshots.image_id, involved_companies.company.name, involved_companies.developer, involved_companies.publisher, websites.url, websites.category, collection.id, collection.name, collections.id, collections.name, similar_games.${REL_NEST}, parent_game.${REL_NEST}, version_parent.${REL_NEST}, dlcs.${REL_NEST}, expansions.${REL_NEST}, expanded_games.${REL_NEST}, remakes.${REL_NEST}, remasters.${REL_NEST}, standalone_expansions.${REL_NEST}, franchise.name, franchise.games.${REL_NEST}, franchises.name, franchises.games.${REL_NEST}`;
@@ -1244,4 +1265,84 @@ export async function fetchPopularityScores(
   }
 
   return scores;
+}
+
+export async function fetchIgdbRatings(
+  games: CatalogGame[],
+): Promise<Map<string, number>> {
+  const ratings = new Map<string, number>();
+  const igdbIds: number[] = [];
+  const steamIds: number[] = [];
+  const steamToCatalog = new Map<number, string>();
+  for (const game of games) {
+    if (game.metacritic && game.metacritic > 0 && game.id.startsWith("igdb_")) {
+      ratings.set(game.id, game.metacritic);
+    }
+    const igdbId = parseIgdbId(game.id);
+    if (igdbId) igdbIds.push(igdbId);
+    if (game.steamId) {
+      steamIds.push(game.steamId);
+      steamToCatalog.set(game.steamId, game.id);
+    }
+  }
+  const uniqueIgdb = [...new Set(igdbIds)].slice(0, 50);
+  const uniqueSteam = [...new Set(steamIds)].slice(0, 50);
+
+  if (uniqueIgdb.length) {
+    try {
+      const rows = await igdb<IgdbGame[]>(
+        "games",
+        `fields total_rating, aggregated_rating, rating;
+         where id = (${uniqueIgdb.join(",")});
+         limit ${uniqueIgdb.length};`,
+      );
+      for (const row of rows ?? []) {
+        if (!row.id) continue;
+        const score = igdbRating100(row);
+        if (score) ratings.set(igdbCatalogId(row.id), score);
+      }
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  if (uniqueSteam.length) {
+    try {
+      const uids = uniqueSteam.map((id) => quote(String(id))).join(",");
+      const ext = await igdb<ExternalGame[]>(
+        "external_games",
+        `fields uid, game;
+         where uid = (${uids}) & category = ${IGDB_STEAM_CATEGORY};
+         limit 50;`,
+      );
+      const gameIdToSteam = new Map<number, number>();
+      for (const row of ext ?? []) {
+        const gid = steamGameId(row);
+        const uid = row.uid ? Number(row.uid) : NaN;
+        if (gid && Number.isFinite(uid)) gameIdToSteam.set(gid, uid);
+      }
+      const gids = [...gameIdToSteam.keys()];
+      if (gids.length) {
+        const rows = await igdb<IgdbGame[]>(
+          "games",
+          `fields total_rating, aggregated_rating, rating;
+           where id = (${gids.join(",")});
+           limit ${Math.min(50, gids.length)};`,
+        );
+        for (const row of rows ?? []) {
+          if (!row.id) continue;
+          const score = igdbRating100(row);
+          if (!score) continue;
+          const steamId = gameIdToSteam.get(row.id);
+          const catalogId =
+            steamId != null ? steamToCatalog.get(steamId) : undefined;
+          if (catalogId) ratings.set(catalogId, score);
+        }
+      }
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  return ratings;
 }

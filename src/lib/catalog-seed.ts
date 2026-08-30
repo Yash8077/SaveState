@@ -139,30 +139,6 @@ const RAW: ReadonlyArray<readonly [number, string]> = [
   [2669320, "EA SPORTS FC 25"],
 ];
 
-const SCORES: Record<number, number> = {
-  1245620: 94,
-  1086940: 96,
-  1091500: 86,
-  292030: 92,
-  1174180: 97,
-  271590: 96,
-  2358720: 81,
-  553850: 82,
-  1145360: 93,
-  2379780: 90,
-  814380: 90,
-  374320: 89,
-  367520: 87,
-  413150: 89,
-  504230: 92,
-  620: 95,
-  1593500: 94,
-  1817070: 87,
-  2215430: 85,
-  1888930: 88,
-  1145350: 94,
-};
-
 function toGame(id: number, title: string): CatalogGame {
   const header = `${STEAM_IMG}/${id}/header.jpg`;
   const cover = `${STEAM_IMG}/${id}/library_600x900.jpg`;
@@ -174,7 +150,7 @@ function toGame(id: number, title: string): CatalogGame {
     headerUrl: header,
     capsuleUrl: header,
     platforms: [],
-    metacritic: SCORES[id] ?? null,
+    metacritic: null,
   };
 }
 

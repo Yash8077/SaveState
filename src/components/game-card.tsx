@@ -12,32 +12,29 @@ import {
   getCatalogGame,
 } from "@/lib/api";
 import type { Status } from "@/lib/types";
-import { cn, formatHours } from "@/lib/utils";
+import { cn, formatHours, ratingLabel } from "@/lib/utils";
 
-export function metacriticColor(score: number) {
-  if (score >= 75) return "bg-[#22c55e]";
-  if (score >= 50) return "bg-[#eab308]";
-  return "bg-[#ef4444]";
-}
-
-export function MetacriticBadge({
+export function RatingBadge({
   score,
   className,
 }: {
   score?: number | null;
   className?: string;
 }) {
-  if (score == null || score <= 0) return null;
+  const label = ratingLabel(score);
+  if (!label) return null;
   return (
-    <span
+    <div
       className={cn(
-        "absolute top-1.5 right-1.5 z-10 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-white shadow-md",
-        metacriticColor(score),
+        "pointer-events-none absolute right-0 bottom-0 z-10 flex items-end justify-end rounded-br-lg bg-gradient-to-tl from-black/80 via-black/45 to-transparent pt-8 pl-8 pr-1.5 pb-1.5",
         className,
       )}
     >
-      {score}
-    </span>
+      <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-white drop-shadow">
+        <Star className="size-3 fill-accent text-accent" />
+        {label}
+      </span>
+    </div>
   );
 }
 
@@ -137,7 +134,7 @@ export function GameCard({
             : "w-full",
         )}
       >
-        <div className="relative">
+        <div className="relative overflow-hidden rounded-lg">
           <Poster
             title={title}
             coverUrl={coverUrl}
@@ -161,7 +158,7 @@ export function GameCard({
               <Star className="size-3.5 fill-current" />
             </span>
           ) : null}
-          <MetacriticBadge score={metacritic} />
+          <RatingBadge score={metacritic} />
         </div>
         <p className="mt-1.5 line-clamp-2 text-xs font-medium leading-snug text-fg">
           {title}

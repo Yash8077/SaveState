@@ -619,7 +619,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       if (entry.favorite)
                         Positioned(
                           top: 8,
-                          right: entry.metacritic != null ? 44 : 8,
+                          right: 8,
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
@@ -638,16 +638,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           ),
                         ),
                       if (entry.metacritic != null)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: MetacriticBadge(score: entry.metacritic!),
-                        ),
+                        RatingBadge(score: entry.metacritic!),
                       // Score pill if present
                       if (entry.score != null && entry.score! > 0)
                         Positioned(
                           bottom: 8,
-                          right: 8,
+                          left: 8,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
