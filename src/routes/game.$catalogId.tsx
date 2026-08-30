@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, Heart, Plus } from "lucide-react";
 import { Poster } from "@/components/poster";
 import { StatusBadge } from "@/components/status-badge";
 import { TrackerPanel } from "@/components/tracker-panel";
-import { Button } from "@/components/ui/button";
+import { ListEditor, type ListEditorValue } from "@/components/list-editor";
+import { GameCard, GameRail } from "@/components/game-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLibrary, useLibraryMutations } from "@/hooks/use-library";
 import { getCatalogGame, snapshotFromDetails } from "@/lib/api";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { STATUSES, STATUS_LABEL, type Status } from "@/lib/types";
+import { STATUS_LABEL, type Status } from "@/lib/types";
 import { cn, steamPortraitUrl } from "@/lib/utils";
 
 export const Route = createFileRoute("/game/$catalogId")({
@@ -30,6 +32,8 @@ function GamePage() {
     coverUrl?: string | null;
     headerUrl?: string | null;
   }>(["catalog-preview", catalogId]);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [favoriteHint, setFavoriteHint] = useState(false);
 
   const details = useQuery({
     queryKey: ["catalog-game", catalogId],
@@ -54,6 +58,7 @@ function GamePage() {
   const screenshots =
     (entry?.screenshots?.length ? entry.screenshots : catalog?.screenshots) ??
     [];
+  const related = catalog?.related ?? [];
   const releaseDate = entry?.releaseDate ?? catalog?.releaseDate;
   const metacritic = entry?.metacritic ?? catalog?.metacritic;
   const banner = headerUrl || coverUrl;
@@ -77,8 +82,8 @@ function GamePage() {
     );
   }
 
-  async function addWith(status: Status) {
-    const snap = snapshotFromDetails({
+  function snapshot() {
+    return snapshotFromDetails({
       title: title ?? "Untitled",
       coverUrl: coverUrl ?? null,
       headerUrl: headerUrl ?? null,
@@ -91,8 +96,47 @@ function GamePage() {
       publishers,
       screenshots,
     });
-    await add.mutateAsync({ catalogId, status, snapshot: snap });
   }
+
+  function openEditor(opts?: { favorite?: boolean }) {
+    setFavoriteHint(Boolean(opts?.favorite));
+    setEditorOpen(true);
+  }
+
+  async function saveEditor(value: ListEditorValue) {
+    if (entry) {
+      await update.mutateAsync({
+        id: entry.id,
+        status: value.status,
+        score: value.score,
+        favorite: value.favorite,
+      });
+    } else {
+      const created = await add.mutateAsync({
+        catalogId,
+        status: value.status,
+        snapshot: snapshot(),
+      });
+      if (created && (value.score != null || value.favorite)) {
+        await update.mutateAsync({
+          id: created.id,
+          score: value.score,
+          favorite: value.favorite,
+        });
+      }
+    }
+    setEditorOpen(false);
+  }
+
+  async function toggleFavorite() {
+    if (entry) {
+      await update.mutateAsync({ id: entry.id, favorite: !entry.favorite });
+      return;
+    }
+    openEditor({ favorite: true });
+  }
+
+  const busy = add.isPending || update.isPending || remove.isPending;
 
   return (
     <article className="-mx-3 -mt-2 sm:-mx-5">
@@ -154,36 +198,58 @@ function GamePage() {
                 ))}
               </div>
             ) : null}
-
-            {!user && !isPending ? (
-              <p className="mt-4 text-sm text-muted">
-                <Link to="/login" className="font-medium text-accent">
-                  Sign in
-                </Link>{" "}
-                to add this to your synced library.
-              </p>
-            ) : null}
-
-            {user && !entry ? (
-              <div className="mt-4">
-                <p className="mb-2 text-sm text-muted">Add to library</p>
-                <div className="flex flex-wrap justify-center gap-1.5 min-[600px]:justify-start">
-                  {STATUSES.map((status) => (
-                    <Button
-                      key={status}
-                      size="sm"
-                      variant={status === "playing" ? "primary" : "secondary"}
-                      disabled={add.isPending}
-                      onClick={() => void addWith(status)}
-                    >
-                      {STATUS_LABEL[status]}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
           </div>
         </div>
+
+        {!user && !isPending ? (
+          <p className="mt-5 text-center text-sm text-muted min-[600px]:text-left">
+            <Link to="/login" className="font-medium text-accent">
+              Sign in
+            </Link>{" "}
+            to add this to your synced library.
+          </p>
+        ) : null}
+
+        {user ? (
+          <div className="mt-5 flex h-12 overflow-hidden rounded-2xl">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => openEditor()}
+              className="flex min-w-0 flex-[3] items-center justify-center gap-2 bg-accent/15 text-accent"
+            >
+              {entry ? (
+                <Check className="size-4 shrink-0" />
+              ) : (
+                <Plus className="size-4 shrink-0" />
+              )}
+              <span className="truncate text-xs font-semibold uppercase tracking-[0.08em]">
+                {entry
+                  ? STATUS_LABEL[entry.status as Status]
+                  : "Add to library"}
+              </span>
+            </button>
+            <div className="w-1 shrink-0 bg-bg" />
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void toggleFavorite()}
+              className={cn(
+                "flex min-w-0 flex-[2] items-center justify-center gap-2",
+                entry?.favorite
+                  ? "bg-accent/15 text-accent"
+                  : "bg-subtle text-fg",
+              )}
+            >
+              <Heart
+                className={cn("size-4 shrink-0", entry?.favorite && "fill-current")}
+              />
+              <span className="truncate text-xs font-semibold uppercase tracking-[0.08em]">
+                {entry?.favorite ? "Favorited" : "Favorite"}
+              </span>
+            </button>
+          </div>
+        ) : null}
 
         <div className="mt-6 grid gap-4 pb-4 expanded:grid-cols-[minmax(0,1fr)_22rem] expanded:items-start">
           <div className="space-y-4">
@@ -233,7 +299,48 @@ function GamePage() {
             </div>
           </section>
         ) : null}
+
+        {related.map((rail) =>
+          rail.games.length ? (
+            <div key={rail.id} className="pb-5">
+              <GameRail title={rail.title}>
+                {rail.games.map((g) => (
+                  <GameCard
+                    key={g.id}
+                    catalogId={g.id}
+                    title={g.title}
+                    coverUrl={g.coverUrl}
+                    headerUrl={g.headerUrl}
+                  />
+                ))}
+              </GameRail>
+            </div>
+          ) : null,
+        )}
       </div>
+
+      {editorOpen ? (
+        <ListEditor
+          key={entry ? `edit-${entry.id}` : `add-${favoriteHint}`}
+          title={title ?? "Game"}
+          initial={
+            entry
+              ? { status: entry.status, score: entry.score, favorite: entry.favorite }
+              : { status: "playing", favorite: favoriteHint }
+          }
+          saving={busy}
+          onClose={() => setEditorOpen(false)}
+          onSave={saveEditor}
+          onRemove={
+            entry
+              ? async () => {
+                  await remove.mutateAsync(entry.id);
+                  setEditorOpen(false);
+                }
+              : undefined
+          }
+        />
+      ) : null}
     </article>
   );
 }
@@ -278,10 +385,10 @@ function plainText(html: string | null | undefined): string {
   return html
     .replace(/<br\s*\/?>/gi, " ")
     .replace(/<[^>]+>/g, " ")
-    .replace(/&/g, "&")
-    .replace(/</g, "<")
-    .replace(/>/g, ">")
-    .replace(/"/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")
