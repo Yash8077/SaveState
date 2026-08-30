@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum AppThemeMode { system, dark, oled }
+enum AppThemeMode { system, light, dark }
 
 class ThemeController extends ChangeNotifier {
   static const _modeKey = 'theme_mode';
+  static const _modeV2Key = 'theme_mode_v2';
   static const _dynamicKey = 'dynamic_color';
   static const _accentKey = 'accent_index';
+  static const _oledKey = 'oled';
+  static const _grainKey = 'grain';
+  static const _grainIntensityKey = 'grain_intensity';
+  static const _bloomKey = 'bloom';
 
   static const accents = <Color>[
     Color(0xFF4FD8C4),
@@ -26,6 +31,10 @@ class ThemeController extends ChangeNotifier {
 
   AppThemeMode mode = AppThemeMode.dark;
   bool useDynamicColor = true;
+  bool oled = false;
+  bool grain = false;
+  int grainIntensity = 1;
+  bool bloom = true;
   int accentIndex = 0;
 
   Color get accent =>
@@ -33,9 +42,25 @@ class ThemeController extends ChangeNotifier {
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
-    final modeIndex = prefs.getInt(_modeKey) ?? AppThemeMode.dark.index;
-    mode = AppThemeMode.values[modeIndex.clamp(0, AppThemeMode.values.length - 1)];
+    final stored = prefs.getInt(_modeKey) ?? 2;
+    if (prefs.getBool(_modeV2Key) == true) {
+      mode = AppThemeMode.values[stored.clamp(0, AppThemeMode.values.length - 1)];
+      oled = prefs.getBool(_oledKey) ?? false;
+    } else {
+      if (stored == 0) {
+        mode = AppThemeMode.system;
+      } else {
+        mode = AppThemeMode.dark;
+        oled = stored == 2;
+      }
+      await prefs.setBool(_modeV2Key, true);
+      await prefs.setInt(_modeKey, mode.index);
+      await prefs.setBool(_oledKey, oled);
+    }
     useDynamicColor = prefs.getBool(_dynamicKey) ?? true;
+    grain = prefs.getBool(_grainKey) ?? false;
+    grainIntensity = (prefs.getInt(_grainIntensityKey) ?? 1).clamp(0, 2);
+    bloom = prefs.getBool(_bloomKey) ?? true;
     accentIndex = (prefs.getInt(_accentKey) ?? 0).clamp(0, accents.length - 1);
     notifyListeners();
   }
@@ -44,6 +69,7 @@ class ThemeController extends ChangeNotifier {
     mode = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_modeKey, value.index);
+    await prefs.setBool(_modeV2Key, true);
     notifyListeners();
   }
 
@@ -51,6 +77,34 @@ class ThemeController extends ChangeNotifier {
     useDynamicColor = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_dynamicKey, value);
+    notifyListeners();
+  }
+
+  Future<void> setOled(bool value) async {
+    oled = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_oledKey, value);
+    notifyListeners();
+  }
+
+  Future<void> setGrain(bool value) async {
+    grain = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_grainKey, value);
+    notifyListeners();
+  }
+
+  Future<void> setGrainIntensity(int value) async {
+    grainIntensity = value.clamp(0, 2);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_grainIntensityKey, grainIntensity);
+    notifyListeners();
+  }
+
+  Future<void> setBloom(bool value) async {
+    bloom = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_bloomKey, value);
     notifyListeners();
   }
 
@@ -65,8 +119,9 @@ class ThemeController extends ChangeNotifier {
     switch (mode) {
       case AppThemeMode.system:
         return ThemeMode.system;
+      case AppThemeMode.light:
+        return ThemeMode.light;
       case AppThemeMode.dark:
-      case AppThemeMode.oled:
         return ThemeMode.dark;
     }
   }
@@ -78,7 +133,7 @@ class ThemeController extends ChangeNotifier {
             seedColor: accent,
             brightness: Brightness.dark,
           );
-    if (mode != AppThemeMode.oled) return base;
+    if (!oled) return base;
     return base.copyWith(
       surface: Colors.black,
       surfaceContainer: const Color(0xFF0C1012),

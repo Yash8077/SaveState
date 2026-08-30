@@ -60,6 +60,24 @@ class _SaveStateAppState extends State<SaveStateApp> {
             colorScheme: darkColorScheme,
             scaffoldBackgroundColor: darkColorScheme.surface,
           ),
+          builder: (context, child) {
+            final page = child ?? const SizedBox.shrink();
+            if (!theme.grain) return page;
+            final opacity = [0.04, 0.08, 0.14][theme.grainIntensity.clamp(0, 2)];
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                page,
+                IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(255, 255, 255, opacity),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
           routerConfig: router,
         );
       },
