@@ -16,14 +16,28 @@ export const RELATION_BADGE: Record<string, string> = {
   similar: "Similar",
 };
 
+export const SEQUEL_DLC_RAIL_IDS = ["dlc", "prequel", "sequel"] as const;
+export const RELATED_RAIL_IDS = [
+  "series",
+  "original",
+  "franchise",
+  "remakes",
+  "similar",
+] as const;
+
 export function relationBadge(railId: string, railTitle: string): string {
   return RELATION_BADGE[railId] ?? railTitle;
 }
 
-export function flattenRelated(rails: FeaturedRail[]): RelatedCard[] {
+export function flattenRelated(
+  rails: FeaturedRail[],
+  ids?: readonly string[],
+): RelatedCard[] {
+  const allow = ids ? new Set(ids) : null;
   const out: RelatedCard[] = [];
   const seen = new Set<string>();
   for (const rail of rails) {
+    if (allow && !allow.has(rail.id)) continue;
     const badge = relationBadge(rail.id, rail.title);
     for (const game of rail.games) {
       if (seen.has(game.id)) continue;

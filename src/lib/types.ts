@@ -27,6 +27,8 @@ export type CatalogGame = {
   capsuleUrl: string | null;
   platforms: string[];
   metacritic: number | null;
+  parentGameId?: string | null;
+  gameType?: number | null;
 };
 
 export type FeaturedRail = {
