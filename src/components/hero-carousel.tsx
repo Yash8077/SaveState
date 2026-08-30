@@ -49,12 +49,12 @@ function ScoreBadge({ score }: { score: number | null }) {
 function TitleRow({ game }: { game: CatalogGame }) {
   const score = scoreLabel(game.metacritic);
   return (
-    <div className="mt-3 flex items-start justify-between gap-3">
-      <h2 className="min-w-0 text-lg font-medium tracking-tight sm:text-xl">
+    <div className="mt-2 flex h-7 items-center justify-between gap-2">
+      <h2 className="min-w-0 truncate text-sm font-medium tracking-tight sm:text-base">
         {game.title}
       </h2>
       {score ? (
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/20 px-2 py-0.5 text-xs font-semibold text-accent">
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/20 px-2 py-0.5 text-[11px] font-semibold text-accent">
           ★ {score}
         </span>
       ) : null}

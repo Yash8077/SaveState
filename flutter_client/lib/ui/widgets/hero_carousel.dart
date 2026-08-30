@@ -302,7 +302,7 @@ class _TitleRow extends StatelessWidget {
         Expanded(
           child: Text(
             game.title,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w800,
