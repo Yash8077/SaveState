@@ -16,8 +16,10 @@ class GameRailWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     if (games.isEmpty) return const SizedBox.shrink();
 
+    final theme = Theme.of(context);
+
     return Padding(
-      padding: const EdgeInsets.only(top: 24.0),
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -25,15 +27,15 @@ class GameRailWidget extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
               title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                letterSpacing: -0.3,
               ),
             ),
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 180,
+            height: 220,
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               scrollDirection: Axis.horizontal,

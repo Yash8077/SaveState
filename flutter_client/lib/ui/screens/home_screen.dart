@@ -13,9 +13,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
+  String? _errorMessage;
   List<FeaturedRail> _featuredRails = [];
-  List<GameEntry> _libraryEntries = [];
-  
+
   @override
   void initState() {
     super.initState();
@@ -23,92 +23,416 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     try {
       final apiClient = context.read<ApiClient>();
       final rails = await apiClient.getFeaturedRails();
-      final library = await apiClient.getLibrary();
-      
+
       if (mounted) {
         setState(() {
           _featuredRails = rails;
-          _libraryEntries = library;
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
+          _errorMessage = e.toString();
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: $e')),
-        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    final playing = _libraryEntries.where((e) => e.status == GameStatus.playing).toList();
-    final backlog = _libraryEntries.where((e) => e.status == GameStatus.backlog).toList();
-    final beaten = _libraryEntries.where((e) => e.status == GameStatus.beaten).toList();
-    
-    // For now assuming not signed in logic to match the default empty state
-    final bool signedIn = false; 
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 24.0),
-          children: [
-            if (!signedIn)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Your games',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: -0.5),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Log what you play. Syncs across phones and tablets.',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[400]),
-                    ),
-                  ],
-                ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: _buildBody(colorScheme),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(ColorScheme colorScheme) {
+    if (_isLoading) {
+      return const _HomeScreenSkeleton();
+    }
+
+    if (_errorMessage != null) {
+      return _buildErrorView(colorScheme);
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      color: colorScheme.primary,
+      backgroundColor: colorScheme.surfaceContainerHigh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.only(bottom: 32.0),
+        children: [
+          _buildGreetingHeader(colorScheme),
+          if (_featuredRails.isEmpty)
+            _buildEmptyState(colorScheme)
+          else
+            ..._featuredRails.map(
+              (rail) => GameRailWidget(
+                title: rail.title,
+                games: rail.games,
               ),
-              
-            if (playing.isNotEmpty)
-              GameRailWidget(title: 'Continue playing', games: playing.map((e) => _entryToCatalogGame(e)).toList()),
-              
-            if (backlog.isNotEmpty)
-              GameRailWidget(title: 'Backlog', games: backlog.take(16).map((e) => _entryToCatalogGame(e)).toList()),
-              
-            if (beaten.isNotEmpty)
-              GameRailWidget(title: 'Recently beaten', games: beaten.take(12).map((e) => _entryToCatalogGame(e)).toList()),
-              
-            ..._featuredRails.map((rail) => GameRailWidget(title: rail.title, games: rail.games)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGreetingHeader(ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+      child: Container(
+        padding: const EdgeInsets.all(20.0),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(20.0),
+          border: Border.all(
+            color: colorScheme.outlineVariant.withOpacity(0.3),
+            width: 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 12.0,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10.0),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(14.0),
+                  ),
+                  child: Icon(
+                    Icons.sports_esports_rounded,
+                    color: colorScheme.onPrimaryContainer,
+                    size: 24.0,
+                  ),
+                ),
+                const SizedBox(width: 14.0),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'SaveState',
+                        style: TextStyle(
+                          fontSize: 24.0,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2.0),
+                      Text(
+                        'Track & organize your gaming universe',
+                        style: TextStyle(
+                          fontSize: 13.0,
+                          fontWeight: FontWeight.w500,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16.0),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 8.0,
+              ),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 16.0,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8.0),
+                  Text(
+                    'Explore curated collections & top releases',
+                    style: TextStyle(
+                      fontSize: 12.0,
+                      fontWeight: FontWeight.w500,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
-  
-  CatalogGame _entryToCatalogGame(GameEntry entry) {
-    return CatalogGame(
-      id: entry.catalogId,
-      title: entry.title,
-      coverUrl: entry.coverUrl,
-      headerUrl: entry.headerUrl,
-      platforms: [], // Populate if needed
+
+  Widget _buildEmptyState(ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.all(40.0),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.sports_esports_outlined,
+              size: 56.0,
+              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16.0),
+            Text(
+              'No featured games available',
+              style: TextStyle(
+                fontSize: 16.0,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8.0),
+            Text(
+              'Pull down to refresh and check for updates.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13.0,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorView(ColorScheme colorScheme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Container(
+          padding: const EdgeInsets.all(24.0),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(20.0),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withOpacity(0.3),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: colorScheme.errorContainer.withOpacity(0.4),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.cloud_off_rounded,
+                  size: 40.0,
+                  color: colorScheme.error,
+                ),
+              ),
+              const SizedBox(height: 16.0),
+              Text(
+                'Failed to load games',
+                style: TextStyle(
+                  fontSize: 18.0,
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8.0),
+              Text(
+                _errorMessage ?? 'An unexpected error occurred while fetching featured games.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13.0,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 20.0),
+              FilledButton.icon(
+                onPressed: _loadData,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Try Again'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 12.0,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14.0),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeScreenSkeleton extends StatefulWidget {
+  const _HomeScreenSkeleton();
+
+  @override
+  State<_HomeScreenSkeleton> createState() => _HomeScreenSkeletonState();
+}
+
+class _HomeScreenSkeletonState extends State<_HomeScreenSkeleton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _opacityAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    _opacityAnimation = Tween<double>(begin: 0.3, end: 0.7).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return AnimatedBuilder(
+      animation: _opacityAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _opacityAnimation.value,
+          child: ListView(
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 24.0),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+                child: Container(
+                  height: 110.0,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(20.0),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16.0),
+              _buildSkeletonRail(colorScheme),
+              _buildSkeletonRail(colorScheme),
+              _buildSkeletonRail(colorScheme),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSkeletonRail(ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Container(
+              width: 140.0,
+              height: 20.0,
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(6.0),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12.0),
+          SizedBox(
+            height: 180.0,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              scrollDirection: Axis.horizontal,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: 4,
+              separatorBuilder: (context, index) => const SizedBox(width: 12.0),
+              itemBuilder: (context, index) {
+                return SizedBox(
+                  width: 120.0,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12.0),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8.0),
+                      Container(
+                        width: 90.0,
+                        height: 12.0,
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(4.0),
+                        ),
+                      ),
+                      const SizedBox(height: 4.0),
+                      Container(
+                        width: 60.0,
+                        height: 10.0,
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(4.0),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
