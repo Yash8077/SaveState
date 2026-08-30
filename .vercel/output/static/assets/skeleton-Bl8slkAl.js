@@ -1,0 +1,1 @@
+import{s as e,t}from"./utils-B8jBRHCx.js";var n=e();function r({className:e}){return(0,n.jsx)(`div`,{className:t(`animate-pulse rounded-md bg-subtle`,e),"aria-hidden":!0})}export{r as t};

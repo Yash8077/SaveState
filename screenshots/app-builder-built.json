@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "SaveState",
+      "hasCanvas": false,
+      "bodyTextLen": 870,
+      "bodyTextHash": "3a7689493bd54cc9694e2636444a758ecf4a925a94aecdbbc3849a90718d68e2",
+      "bodyTextPrefix": "S Home Discover Browse Library Stats Home Sign in Your games Log",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "SaveState",
+      "hasCanvas": false,
+      "bodyTextLen": 868,
+      "bodyTextHash": "969cfe0a58aad21c295201f2f4f4d48ea53d2fa4aa4399e964f67c567a66f088",
+      "bodyTextPrefix": "Home Sign in Your games Log what you play. Syncs across phones a",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}
