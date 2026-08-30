@@ -10,6 +10,9 @@ on:
       - '.github/workflows/flutter_apk.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build APK
@@ -22,6 +25,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -49,11 +54,53 @@ jobs:
         run: python3 tool/apply_brand_icons.py
 
       - name: Build APK
-        run: flutter build apk --release
+        run: >
+          flutter build apk --release
+          --build-name "1.0.${{ github.run_number }}"
+          --build-number "${{ github.run_number }}"
+
+      - name: Package APK
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            "dist/SaveState-1.0.${{ github.run_number }}.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: flutter_client/build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 7
+          name: SaveState-apk
+          path: flutter_client/dist/SaveState-1.0.${{ github.run_number }}.apk
+          retention-days: 14
+
+      - name: Write release notes
+        working-directory: .
+        run: |
+          set -euo pipefail
+          git fetch --tags --force origin || true
+          PREV_N="$(git tag -l 'apk-*' | sed 's/^apk-//' | grep -E '^[0-9]+$' | sort -n | tail -n 1 || true)"
+          {
+            echo "Android build **1.0.${{ github.run_number }}** from \`${GITHUB_SHA::7}\` on \`${GITHUB_REF_NAME}\`."
+            echo
+            echo "## What's new"
+            echo
+            if [ -n "$PREV_N" ]; then
+              git log "apk-${PREV_N}..HEAD" --pretty=format:'- %s (%h)' --no-merges
+            else
+              git log -20 --pretty=format:'- %s (%h)' --no-merges
+            fi
+            echo
+            echo
+            echo "Sideload \`SaveState-1.0.${{ github.run_number }}.apk\`. Android will treat this as an upgrade over earlier SaveState builds from this workflow."
+          } > /tmp/savestate-notes.md
+          cat /tmp/savestate-notes.md
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: SaveState 1.0.${{ github.run_number }}
+          body_path: /tmp/savestate-notes.md
+          files: flutter_client/dist/SaveState-1.0.${{ github.run_number }}.apk
+          make_latest: true
+          fail_on_unmatched_files: true

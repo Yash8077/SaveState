@@ -7,7 +7,7 @@
   <p>
     <a href="https://save-state-jade.vercel.app"><img src="https://img.shields.io/badge/Open_the_web_app-4fd8c4?style=for-the-badge&labelColor=0f1416&color=4fd8c4" alt="Open the web app" /></a>
     &nbsp;
-    <a href="https://github.com/Yash8077/SaveState"><img src="https://img.shields.io/badge/Android_app-Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white&labelColor=0f1416" alt="Android app" /></a>
+    <a href="https://github.com/Yash8077/SaveState/releases/latest"><img src="https://img.shields.io/github/v/release/Yash8077/SaveState?style=for-the-badge&label=Android%20APK&labelColor=0f1416&color=02569B" alt="Latest Android APK" /></a>
   </p>
 </div>
 
@@ -72,6 +72,8 @@ Search is prefix-friendly (type `astro` and find *Astro Bot*). Covers prefer Ste
 | **Android** | Native Flutter client, same account, same rails, same tracker. |
 
 Homepage layout (show / hide / reorder sections) is saved on each device so a PlayStation-first home on the phone does not have to match a Steam-first home on the laptop.
+
+Every successful Android build is published to **[Releases](https://github.com/Yash8077/SaveState/releases)** with the APK and a changelog of what landed. Grab [the latest](https://github.com/Yash8077/SaveState/releases/latest) and sideload `SaveState-*.apk`.
 
 ---
 
