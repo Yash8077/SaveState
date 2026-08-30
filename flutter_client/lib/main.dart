@@ -3,25 +3,29 @@ import 'package:provider/provider.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'services/api_client.dart';
 import 'state/auth_controller.dart';
+import 'state/theme_controller.dart';
 import 'router.dart';
 
 void main() {
   final api = ApiClient();
   final auth = AuthController(api);
+  final theme = ThemeController();
   runApp(
     MultiProvider(
       providers: [
         Provider<ApiClient>.value(value: api),
         ChangeNotifierProvider<AuthController>.value(value: auth),
+        ChangeNotifierProvider<ThemeController>.value(value: theme),
       ],
-      child: SaveStateApp(auth: auth),
+      child: SaveStateApp(auth: auth, theme: theme),
     ),
   );
 }
 
 class SaveStateApp extends StatefulWidget {
   final AuthController auth;
-  const SaveStateApp({super.key, required this.auth});
+  final ThemeController theme;
+  const SaveStateApp({super.key, required this.auth, required this.theme});
 
   @override
   State<SaveStateApp> createState() => _SaveStateAppState();
@@ -32,24 +36,25 @@ class _SaveStateAppState extends State<SaveStateApp> {
   void initState() {
     super.initState();
     widget.auth.load();
+    widget.theme.load();
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.watch<ThemeController>();
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) {
-        final darkColorScheme = darkDynamic != null
-            ? darkDynamic.copyWith(
-                surface: darkDynamic.surfaceContainer,
-              )
-            : ColorScheme.fromSeed(
-                seedColor: const Color(0xFF4FD8C4),
-                brightness: Brightness.dark,
-              );
+        final darkColorScheme = theme.darkScheme(darkDynamic);
+        final lightColorScheme = theme.lightScheme(lightDynamic);
 
         return MaterialApp.router(
           title: 'SaveState',
-          themeMode: ThemeMode.dark,
+          themeMode: theme.materialThemeMode,
+          theme: ThemeData(
+            useMaterial3: true,
+            colorScheme: lightColorScheme,
+            scaffoldBackgroundColor: lightColorScheme.surface,
+          ),
           darkTheme: ThemeData(
             useMaterial3: true,
             colorScheme: darkColorScheme,

@@ -7,6 +7,7 @@ import 'ui/screens/library_screen.dart';
 import 'ui/screens/stats_screen.dart';
 import 'ui/screens/login_screen.dart';
 import 'ui/screens/game_details_screen.dart';
+import 'ui/screens/settings_screen.dart';
 import 'ui/widgets/app_shell.dart';
 
 final router = GoRouter(
@@ -38,6 +39,10 @@ final router = GoRouter(
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginScreen(),
+    ),
+    GoRoute(
+      path: '/settings',
+      builder: (context, state) => const SettingsScreen(),
     ),
     GoRoute(
       path: '/game/:id',
