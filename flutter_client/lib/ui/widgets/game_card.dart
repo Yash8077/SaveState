@@ -27,6 +27,19 @@ class GameCardWidget extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     final coverUrl = game.artUrl;
+    BoxFit fitFor(String url) =>
+        isLandscapeArt(url) ? BoxFit.contain : BoxFit.cover;
+
+    Widget missingArt() => Container(
+          color: colorScheme.surfaceContainerHighest,
+          child: Center(
+            child: Icon(
+              Icons.videogame_asset_outlined,
+              color: colorScheme.onSurfaceVariant,
+              size: 32,
+            ),
+          ),
+        );
 
     return SizedBox(
       width: 130,
@@ -57,7 +70,7 @@ class GameCardWidget extends StatelessWidget {
                         if (coverUrl != null && coverUrl.isNotEmpty)
                           CachedNetworkImage(
                             imageUrl: coverUrl,
-                            fit: BoxFit.cover,
+                            fit: fitFor(coverUrl),
                             placeholder: (context, url) => Container(
                               color: colorScheme.surfaceContainerHighest,
                               child: const Center(
@@ -72,54 +85,27 @@ class GameCardWidget extends StatelessWidget {
                               final tried = <String>{url};
                               final fallbacks = [
                                 normalizeArtUrl(game.headerUrl),
-                                normalizeArtUrl(game.capsuleUrl),
+                                upgradeSteamCapsule(game.capsuleUrl),
                               ].whereType<String>().where((u) => !tried.contains(u));
                               final next = fallbacks.isEmpty ? null : fallbacks.first;
                               if (next != null) {
                                 return CachedNetworkImage(
                                   imageUrl: next,
-                                  fit: BoxFit.cover,
+                                  fit: fitFor(next),
                                   errorWidget: (context, failed, __) {
-                                    final last = normalizeArtUrl(game.capsuleUrl);
+                                    final last = upgradeSteamCapsule(game.capsuleUrl);
                                     if (last != null && last != failed && last != next) {
                                       return CachedNetworkImage(
                                         imageUrl: last,
-                                        fit: BoxFit.cover,
-                                        errorWidget: (context, _, ___) => Container(
-                                          color: colorScheme.surfaceContainerHighest,
-                                          child: Center(
-                                            child: Icon(
-                                              Icons.videogame_asset_outlined,
-                                              color: colorScheme.onSurfaceVariant,
-                                              size: 32,
-                                            ),
-                                          ),
-                                        ),
+                                        fit: fitFor(last),
+                                        errorWidget: (context, _, ___) => missingArt(),
                                       );
                                     }
-                                    return Container(
-                                      color: colorScheme.surfaceContainerHighest,
-                                      child: Center(
-                                        child: Icon(
-                                          Icons.videogame_asset_outlined,
-                                          color: colorScheme.onSurfaceVariant,
-                                          size: 32,
-                                        ),
-                                      ),
-                                    );
+                                    return missingArt();
                                   },
                                 );
                               }
-                              return Container(
-                                color: colorScheme.surfaceContainerHighest,
-                                child: Center(
-                                  child: Icon(
-                                    Icons.videogame_asset_outlined,
-                                    color: colorScheme.onSurfaceVariant,
-                                    size: 32,
-                                  ),
-                                ),
-                              );
+                              return missingArt();
                             },
                           )
                         else

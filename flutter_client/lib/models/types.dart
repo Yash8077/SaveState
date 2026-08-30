@@ -111,7 +111,9 @@ class CatalogGame {
   String? get artUrl =>
       normalizeArtUrl(coverUrl) ??
       normalizeArtUrl(headerUrl) ??
-      normalizeArtUrl(capsuleUrl);
+      upgradeSteamCapsule(capsuleUrl);
+
+  bool get artIsLandscape => isLandscapeArt(artUrl);
 }
 
 String? normalizeArtUrl(String? url) {
@@ -123,6 +125,24 @@ String? normalizeArtUrl(String? url) {
     return 'https://${trimmed.substring(7)}';
   }
   return trimmed;
+}
+
+bool isLandscapeArt(String? url) {
+  if (url == null) return false;
+  final lower = url.toLowerCase();
+  return lower.contains('header') ||
+      lower.contains('capsule') ||
+      lower.contains('library_hero') ||
+      lower.contains('hero_capsule');
+}
+
+String? upgradeSteamCapsule(String? url) {
+  final normalized = normalizeArtUrl(url);
+  if (normalized == null) return null;
+  return normalized.replaceFirst(
+    RegExp(r'capsule_231x87(?=_2x)?\.jpg', caseSensitive: false),
+    'capsule_231x87_2x.jpg',
+  );
 }
 
 class CatalogDetails extends CatalogGame {

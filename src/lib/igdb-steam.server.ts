@@ -108,7 +108,7 @@ export async function lookupIgdbBySteamIds(
     const out: CatalogGame[] = [];
     const seen = new Set<string>();
     for (const row of games ?? []) {
-      const mapped = toGame(row, "cover_big");
+      const mapped = toGame(row);
       if (!mapped || seen.has(mapped.id)) continue;
       seen.add(mapped.id);
       out.push(slimCatalogGame(mapped));

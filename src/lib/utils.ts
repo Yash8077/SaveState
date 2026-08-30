@@ -30,3 +30,15 @@ export function normalizeArtUrl(url: string | null | undefined): string | null {
   if (trimmed.startsWith("https://") || trimmed.startsWith("/")) return trimmed;
   return trimmed;
 }
+
+/** Steam capsules/headers/heroes are landscape; library covers are 2:3 portraits. */
+export function isLandscapeArt(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return /(?:header|capsule|library_hero|hero_capsule)/i.test(url);
+}
+
+export function upgradeSteamCapsule(url: string | null | undefined): string | null {
+  const normalized = normalizeArtUrl(url);
+  if (!normalized) return null;
+  return normalized.replace(/capsule_231x87(?=_2x)?\.jpg/i, "capsule_231x87_2x.jpg");
+}

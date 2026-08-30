@@ -13,6 +13,7 @@ import {
 } from "./igdb-steam.server.ts";
 import { GAME_TYPE } from "./game-type.ts";
 import type { CatalogProvider } from "./catalog-provider.ts";
+import { upgradeSteamCapsule } from "./utils.ts";
 
 const UA =
   "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0.0.0 Mobile Safari/537.36";
@@ -59,7 +60,7 @@ let featuredCache: { at: number; rails: FeaturedRail[] } | null = null;
 const FEATURED_TTL_MS = 30 * 60 * 1000;
 const SEARCH_TTL_MS = 10 * 60 * 1000;
 const DETAILS_TTL_MS = 2 * 60 * 1000;
-const DETAILS_CACHE_VER = "rel-10";
+const DETAILS_CACHE_VER = "rel-11";
 const FETCH_MS = 4000;
 const searchCache = new Map<string, { at: number; games: CatalogGame[] }>();
 const detailsCache = new Map<
@@ -113,6 +114,10 @@ function portraitUrl(steamId: number): string {
   return `${STEAM_IMG}/${steamId}/library_600x900.jpg`;
 }
 
+function heroUrl(steamId: number): string {
+  return `${STEAM_IMG}/${steamId}/library_hero.jpg`;
+}
+
 function fromSearchItem(item: SteamSearchItem): CatalogGame | null {
   if (!item.id || !item.name) return null;
   const kind = (item.type ?? "app").toLowerCase();
@@ -121,14 +126,14 @@ function fromSearchItem(item: SteamSearchItem): CatalogGame | null {
     return null;
   }
   const metascore = item.metascore ? Number(item.metascore) : NaN;
-  const header = artUrl(item.id, item.tiny_image);
+  const header = artUrl(item.id);
   return {
     id: steamCatalogId(item.id),
     steamId: item.id,
     title: item.name,
     coverUrl: portraitUrl(item.id),
-    headerUrl: header,
-    capsuleUrl: item.tiny_image ?? null,
+    headerUrl: heroUrl(item.id),
+    capsuleUrl: upgradeSteamCapsule(item.tiny_image) ?? header,
     platforms: platformsFromFlags(item.platforms),
     metacritic: Number.isFinite(metascore) ? metascore : null,
   };
@@ -138,15 +143,18 @@ function fromFeaturedItem(item: SteamFeaturedItem): CatalogGame | null {
   if (!item.id || !item.name) return null;
   const header = artUrl(
     item.id,
-    item.header_image ?? item.large_capsule_image ?? item.small_capsule_image,
+    item.header_image ?? item.large_capsule_image,
   );
   return {
     id: steamCatalogId(item.id),
     steamId: item.id,
     title: item.name,
     coverUrl: portraitUrl(item.id),
-    headerUrl: header,
-    capsuleUrl: item.small_capsule_image ?? item.large_capsule_image ?? null,
+    headerUrl: heroUrl(item.id),
+    capsuleUrl:
+      upgradeSteamCapsule(item.small_capsule_image) ??
+      item.large_capsule_image ??
+      header,
     platforms: platformsFromFlags(item),
     metacritic: null,
   };
@@ -258,25 +266,25 @@ export function hashedSteamAsset(url: string | null | undefined): boolean {
   return Boolean(url && /\/apps\/\d+\/[a-f0-9]{24,}\//i.test(url));
 }
 
+export function steamCardFromSearchHit(hit: SteamSearchHit): CatalogGame {
+  const capsule = upgradeSteamCapsule(hit.capsule);
+  return {
+    id: steamCatalogId(hit.steamId),
+    steamId: hit.steamId,
+    title: hit.title,
+    coverUrl: portraitUrl(hit.steamId),
+    headerUrl: heroUrl(hit.steamId),
+    capsuleUrl: capsule,
+    platforms: [],
+    metacritic: null,
+  };
+}
+
 function hitsToGames(hits: SteamSearchHit[]): CatalogGame[] {
-  const games: CatalogGame[] = [];
-  for (const hit of hits) {
-    const portrait = portraitUrl(hit.steamId);
-    const header = artUrl(hit.steamId);
-    const capsule = hit.capsule;
-    const hashed = hashedSteamAsset(capsule);
-    games.push({
-      id: steamCatalogId(hit.steamId),
-      steamId: hit.steamId,
-      title: hit.title,
-      coverUrl: hashed && capsule ? capsule : portrait,
-      headerUrl: hashed && capsule ? capsule : header,
-      capsuleUrl: capsule,
-      platforms: [],
-      metacritic: null,
-    });
-  }
-  return collapseEditions(dedupeGames(games)).slice(0, 12);
+  return collapseEditions(dedupeGames(hits.map(steamCardFromSearchHit))).slice(
+    0,
+    12,
+  );
 }
 
 async function fetchSteamSearchHits(params: string): Promise<SteamSearchHit[]> {

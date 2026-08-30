@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { cn, normalizeArtUrl } from "@/lib/utils";
+import { cn, isLandscapeArt, normalizeArtUrl } from "@/lib/utils";
 
 export function Poster({
   title,
@@ -21,7 +21,8 @@ export function Poster({
   const header = normalizeArtUrl(headerUrl);
   const capsule = normalizeArtUrl(capsuleUrl);
   const chain = [cover, header, capsule].filter(
-    (url, index, list): url is string => Boolean(url) && list.indexOf(url) === index,
+    (url, index, list): url is string =>
+      Boolean(url) && list.indexOf(url) === index,
   );
   const [src, setSrc] = useState<string | null>(chain[0] ?? null);
 
@@ -29,22 +30,51 @@ export function Poster({
     setSrc(chain[0] ?? null);
   }, [chain[0], chain[1], chain[2]]);
 
+  const landscape = isLandscapeArt(src);
+
+  function advance() {
+    const idx = src ? chain.indexOf(src) : -1;
+    setSrc(chain[idx + 1] ?? null);
+  }
+
   return (
     <div className={cn("relative isolate overflow-hidden bg-subtle", className)}>
       {src ? (
-        <img
-          src={src}
-          alt=""
-          loading={priority ? "eager" : "lazy"}
-          fetchPriority={priority ? "high" : "low"}
-          decoding="async"
-          referrerPolicy="no-referrer"
-          className="size-full object-cover object-center outline outline-1 -outline-offset-1 outline-white/10"
-          onError={() => {
-            const idx = src ? chain.indexOf(src) : -1;
-            setSrc(chain[idx + 1] ?? null);
-          }}
-        />
+        landscape ? (
+          <>
+            <img
+              src={src}
+              alt=""
+              aria-hidden
+              loading={priority ? "eager" : "lazy"}
+              decoding="async"
+              referrerPolicy="no-referrer"
+              className="absolute inset-0 size-full scale-125 object-cover opacity-50 blur-2xl"
+              onError={advance}
+            />
+            <img
+              src={src}
+              alt=""
+              loading={priority ? "eager" : "lazy"}
+              fetchPriority={priority ? "high" : "low"}
+              decoding="async"
+              referrerPolicy="no-referrer"
+              className="relative size-full object-contain"
+              onError={advance}
+            />
+          </>
+        ) : (
+          <img
+            src={src}
+            alt=""
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "low"}
+            decoding="async"
+            referrerPolicy="no-referrer"
+            className="size-full object-cover object-center outline outline-1 -outline-offset-1 outline-white/10"
+            onError={advance}
+          />
+        )
       ) : (
         <div className="flex size-full items-end bg-elevated p-2.5">
           <span className="text-sm font-medium leading-tight text-fg/90">

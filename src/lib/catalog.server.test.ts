@@ -8,8 +8,10 @@ import {
   rankRailGames,
   refreshFeaturedWith,
   runSearchWith,
+  steamCardFromSearchHit,
   steamReleaseKind,
 } from "./catalog.server.ts";
+import { isLandscapeArt, upgradeSteamCapsule } from "./utils.ts";
 import type { CatalogGame, FeaturedRail } from "./types.ts";
 
 function game(id: string, title: string): CatalogGame {
@@ -344,5 +346,24 @@ describe("Steam search ranking", () => {
     assert.equal(steamReleaseKind("To be announced"), "upcoming");
     assert.equal(steamReleaseKind("Feb 24, 2022"), "old");
     assert.equal(steamReleaseKind("Aug 20, 2026", new Date("2026-08-30")), "recent");
+  });
+
+  it("keeps 2:3 library portraits as the cover and upgrades tiny capsules", () => {
+    const game = steamCardFromSearchHit({
+      steamId: 4001890,
+      title: "How to Fish",
+      released: "Aug 20, 2026",
+      capsule:
+        "https://cdn.example/apps/4001890/8f65bb2b78d37a9147aa79c970a51610e6955bf1/capsule_231x87.jpg?t=1",
+    });
+    assert.match(game.coverUrl ?? "", /library_600x900\.jpg$/);
+    assert.match(game.headerUrl ?? "", /library_hero\.jpg$/);
+    assert.match(game.capsuleUrl ?? "", /capsule_231x87_2x\.jpg/);
+    assert.equal(isLandscapeArt(game.coverUrl), false);
+    assert.equal(isLandscapeArt(game.headerUrl), true);
+    assert.equal(
+      upgradeSteamCapsule("https://cdn.example/capsule_231x87.jpg"),
+      "https://cdn.example/capsule_231x87_2x.jpg",
+    );
   });
 });

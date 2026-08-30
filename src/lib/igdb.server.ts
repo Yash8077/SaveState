@@ -176,7 +176,7 @@ export function mapSearchHits(rows: IgdbGame[] | null | undefined): CatalogGame[
   const games: CatalogGame[] = [];
   for (const row of rows ?? []) {
     if (!isSearchableGame(row)) continue;
-    const mapped = toGame(row, "cover_big");
+    const mapped = toGame(row);
     if (!mapped || seen.has(mapped.id)) continue;
     seen.add(mapped.id);
     games.push(slimCatalogGame(mapped));
@@ -186,7 +186,7 @@ export function mapSearchHits(rows: IgdbGame[] | null | undefined): CatalogGame[
 
 export function toGame(
   game: IgdbGame,
-  coverSize = "cover_big",
+  coverSize = "cover_big_2x",
 ): CatalogGame | null {
   if (!game.id || !game.name) return null;
   const cover = img(coverImageId(game.cover), coverSize);
@@ -224,7 +224,7 @@ function mapRelatedList(
   });
   for (const row of sorted) {
     if (excludeId && row.id === excludeId) continue;
-    const game = toGame(row, "cover_big");
+    const game = toGame(row);
     if (!game || seen.has(game.id)) continue;
     seen.add(game.id);
     out.push(slimCatalogGame(game));
@@ -310,7 +310,7 @@ async function hydrateRelatedCovers(
     );
     const cards: CatalogGame[] = [];
     for (const row of rows ?? []) {
-      const mapped = toGame(row, "cover_big");
+      const mapped = toGame(row);
       if (mapped) cards.push(slimCatalogGame(mapped));
     }
     return dropCoverlessSimilar(applyRelatedArt(rails, cards));
@@ -586,7 +586,7 @@ async function fetchIgdbCards(query: {
     const byId = new Map<number, CatalogGame>();
     const bySlug = new Map<string, CatalogGame>();
     for (const row of rows ?? []) {
-      const mapped = toGame(row, "cover_big");
+      const mapped = toGame(row);
       if (!mapped || !row.id) continue;
       const card = slimCatalogGame(mapped);
       byId.set(row.id, card);
@@ -828,7 +828,7 @@ export async function lookupIgdbBySteamIds(
     const out: CatalogGame[] = [];
     const seen = new Set<string>();
     for (const row of games ?? []) {
-      const mapped = toGame(row, "cover_big");
+      const mapped = toGame(row);
       if (!mapped || seen.has(mapped.id)) continue;
       seen.add(mapped.id);
       out.push(slimCatalogGame(mapped));
@@ -917,7 +917,7 @@ export async function fetchIgdbDetails(
   const game = rows?.[0];
   if (!game) return null;
   const filled = await hydrateSimilarGames(await hydrateCollections(game));
-  const base = toGame(filled, "cover_big");
+  const base = toGame(filled);
   if (!base) return null;
   const shots = (filled.screenshots ?? [])
     .map((s) => img(s.image_id, "screenshot_med"))
@@ -990,7 +990,7 @@ query games "top" {
     const games: CatalogGame[] = [];
     const seen = new Set<string>();
     for (const game of row.result ?? []) {
-      const mapped = toGame(game, "cover_big");
+      const mapped = toGame(game);
       if (!mapped || seen.has(mapped.id)) continue;
       seen.add(mapped.id);
       games.push(slimCatalogGame(mapped));
@@ -1025,7 +1025,7 @@ export async function fetchIgdbPlaystation(): Promise<FeaturedRail | null> {
   const seen = new Set<string>();
   const scored: { game: CatalogGame; score: number }[] = [];
   for (const row of [...(hyped ?? []), ...(rated ?? [])]) {
-    const mapped = toGame(row, "cover_big");
+    const mapped = toGame(row);
     if (!mapped?.coverUrl || seen.has(mapped.id)) continue;
     seen.add(mapped.id);
     scored.push({
@@ -1065,7 +1065,7 @@ export async function fetchIgdbAnticipated(): Promise<CatalogGame[]> {
   const games: CatalogGame[] = [];
   const seen = new Set<string>();
   for (const row of rows ?? []) {
-    const mapped = toGame(row, "cover_big");
+    const mapped = toGame(row);
     if (!mapped?.coverUrl || seen.has(mapped.id)) continue;
     seen.add(mapped.id);
     games.push(slimCatalogGame(mapped));

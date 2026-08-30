@@ -48,7 +48,7 @@ describe("toGame mapping", () => {
     assert.equal(game.metacritic, 93);
     assert.equal(
       game.coverUrl,
-      "https://images.igdb.com/igdb/image/upload/t_cover_big/abc123.jpg",
+      "https://images.igdb.com/igdb/image/upload/t_cover_big_2x/abc123.jpg",
     );
     assert.equal(
       game.headerUrl,
