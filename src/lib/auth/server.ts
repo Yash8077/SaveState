@@ -92,6 +92,9 @@ export const authConfigured =
 // preview allowlist, which makes the OAuth `redirect_uri` the concrete preview URL
 // the broker's preview client accepts.
 const explicitBaseURL = env("BETTER_AUTH_URL");
+const strip = (u: string) => u.replace(/\/+$/, "");
+const vercelHost = "save-state-jade.vercel.app";
+
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
 const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
@@ -103,44 +106,35 @@ const LOCAL_DEV_ORIGINS: string[] = [
   "http://127.0.0.1:8080",
   "http://[::1]:8080",
 ];
-const baseURL = explicitBaseURL ?? {
-  // Include loopback hosts so dynamic baseURL resolves for local email/password
-  // (not only the preview wildcard).
-  allowedHosts: [
-    ...previewAllowedHosts,
-    "localhost",
-    "127.0.0.1",
-    "[::1]",
-    "save-state-jade.vercel.app",
-    vercelProject,
-    vercelBranch,
-  ].filter((x): x is string => Boolean(x)),
-  // `auto` → trust both http:// and https:// expansions of allowedHosts
-  // (preview is https; local dev is http).
-  protocol: "auto" as const,
-  fallback: "https://save-state-jade.vercel.app",
-};
+
+const baseURL = explicitBaseURL
+  ? strip(explicitBaseURL)
+  : {
+      allowedHosts: [
+        vercelHost,
+        "*.vercel.app",
+        ...previewAllowedHosts,
+        "localhost",
+        "127.0.0.1",
+        "[::1]",
+      ],
+      protocol: "auto" as const,
+      fallback: "http://localhost:8080",
+    };
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
-// Using a function so we can dynamically match Vercel's various deployment URLs.
-const STATIC_TRUSTED: string[] = [
-  "https://save-state-jade.vercel.app",
+const trustedOrigins: string[] = [
+  explicitBaseURL && strip(explicitBaseURL),
+  `https://${vercelHost}`,
+  "https://*.vercel.app",
+  env("VERCEL_URL") && `https://${env("VERCEL_URL")}`,
+  env("VERCEL_PROJECT_PRODUCTION_URL") &&
+    `https://${env("VERCEL_PROJECT_PRODUCTION_URL")}`,
   ...LOCAL_DEV_ORIGINS,
   ...previewAllowedHosts,
   ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
-];
-if (explicitBaseURL) STATIC_TRUSTED.push(explicitBaseURL);
-
-const trustedOrigins = (request: Request): string[] => {
-  const origin = request.headers.get("origin") ?? "";
-  // Trust any *.vercel.app origin for this project (covers deployment previews,
-  // branch deploys, and the production alias).
-  if (origin.endsWith(".vercel.app") && origin.startsWith("https://")) {
-    return [...STATIC_TRUSTED, origin];
-  }
-  return STATIC_TRUSTED;
-};
+].filter((x): x is string => Boolean(x));
 
 const databaseUrl = env("DATABASE_URL");
 
