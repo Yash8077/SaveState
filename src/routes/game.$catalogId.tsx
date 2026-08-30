@@ -9,8 +9,15 @@ import { ListEditor, type ListEditorValue } from "@/components/list-editor";
 import { GameCard, GameRail } from "@/components/game-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLibrary, useLibraryMutations } from "@/hooks/use-library";
-import { getCatalogGame, snapshotFromDetails } from "@/lib/api";
+import {
+  catalogGameQueryKey,
+  CATALOG_GAME_STALE_MS,
+  getCatalogGame,
+  snapshotFromDetails,
+} from "@/lib/api";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { seedRelated } from "@/lib/catalog-seed";
+import { flattenRelated } from "@/lib/related";
 import { STATUS_LABEL, type Status } from "@/lib/types";
 import { cn, steamPortraitUrl } from "@/lib/utils";
 
@@ -36,10 +43,10 @@ function GamePage() {
   const [favoriteHint, setFavoriteHint] = useState(false);
 
   const details = useQuery({
-    queryKey: ["catalog-game", catalogId, "rel-3"],
+    queryKey: catalogGameQueryKey(catalogId),
     queryFn: ({ signal }) => getCatalogGame(catalogId, signal),
     enabled: !isCustom,
-    staleTime: 30_000,
+    staleTime: CATALOG_GAME_STALE_MS,
   });
 
   const entry = (library.data ?? []).find((e) => e.catalogId === catalogId);
@@ -58,7 +65,9 @@ function GamePage() {
   const screenshots =
     (entry?.screenshots?.length ? entry.screenshots : catalog?.screenshots) ??
     [];
-  const related = catalog?.related ?? [];
+  const related = flattenRelated(
+    catalog?.related?.length ? catalog.related : seedRelated(catalogId),
+  );
   const releaseDate = entry?.releaseDate ?? catalog?.releaseDate;
   const metacritic = entry?.metacritic ?? catalog?.metacritic;
   const banner = headerUrl || coverUrl;
@@ -114,26 +123,15 @@ function GamePage() {
         finishedAt: value.finishedAt,
       });
     } else {
-      const created = await add.mutateAsync({
+      await add.mutateAsync({
         catalogId,
         status: value.status,
         snapshot: snapshot(),
+        score: value.score,
+        favorite: value.favorite,
+        startedAt: value.startedAt,
+        finishedAt: value.finishedAt,
       });
-      if (
-        created &&
-        (value.score != null ||
-          value.favorite ||
-          value.startedAt ||
-          value.finishedAt)
-      ) {
-        await update.mutateAsync({
-          id: created.id,
-          score: value.score,
-          favorite: value.favorite,
-          startedAt: value.startedAt,
-          finishedAt: value.finishedAt,
-        });
-      }
     }
     setEditorOpen(false);
   }
@@ -261,6 +259,19 @@ function GamePage() {
           </div>
         ) : null}
 
+        {related.length ? (
+          <RelatedRail cards={related} />
+        ) : details.isLoading && !isCustom ? (
+          <section className="mt-6 space-y-3">
+            <h2 className="text-base font-medium">Related</h2>
+            <div className="rail-scroll">
+              {Array.from({ length: 5 }, (_, i) => (
+                <Skeleton key={i} className="h-36 w-[7.25rem] shrink-0 rounded-lg sm:w-[8.25rem]" />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         <div className="mt-6 grid gap-4 pb-4 expanded:grid-cols-[minmax(0,1fr)_22rem] expanded:items-start">
           <div className="space-y-4">
             {summary ? <Synopsis text={summary} /> : null}
@@ -292,27 +303,6 @@ function GamePage() {
             />
           ) : null}
         </div>
-
-        {related.some((rail) => rail.games.length) ? (
-          <section className="space-y-5 pb-5">
-            <h2 className="text-base font-medium">Related</h2>
-            {related.map((rail) =>
-              rail.games.length ? (
-                <GameRail key={rail.id} title={rail.title}>
-                  {rail.games.map((g) => (
-                    <GameCard
-                      key={g.id}
-                      catalogId={g.id}
-                      title={g.title}
-                      coverUrl={g.coverUrl}
-                      headerUrl={g.headerUrl}
-                    />
-                  ))}
-                </GameRail>
-              ) : null,
-            )}
-          </section>
-        ) : null}
 
         {screenshots.length > 0 ? (
           <section className="pb-4">
@@ -361,6 +351,29 @@ function GamePage() {
         />
       ) : null}
     </article>
+  );
+}
+
+function RelatedRail({
+  cards,
+}: {
+  cards: ReturnType<typeof flattenRelated>;
+}) {
+  return (
+    <section className="mt-6">
+      <GameRail title="Related">
+        {cards.map((g) => (
+          <GameCard
+            key={`${g.relationId}-${g.id}`}
+            catalogId={g.id}
+            title={g.title}
+            coverUrl={g.coverUrl}
+            headerUrl={g.headerUrl}
+            badge={g.relation}
+          />
+        ))}
+      </GameRail>
+    </section>
   );
 }
 
