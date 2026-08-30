@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
@@ -7,7 +7,6 @@ import { CustomGameForm } from "@/components/custom-game-form";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { searchGames } from "@/lib/api";
-import { useCatalogSource, CatalogSourceSwitch } from "@/components/catalog-provider";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useLibrary } from "@/hooks/use-library";
 import { StatusBadge } from "@/components/status-badge";
@@ -24,37 +23,36 @@ export const Route = createFileRoute("/search")({
 function SearchPage() {
   const { q = "" } = Route.useSearch();
   const [draft, setDraft] = useState(q);
-  const [debounced, setDebounced] = useState(q);
+  const [query, setQuery] = useState(q);
   const [showCustom, setShowCustom] = useState(false);
   const { user } = useCurrentUserState();
   const library = useLibrary();
   const navigate = Route.useNavigate();
-  const { provider } = useCatalogSource();
+  const lastWritten = useRef(q);
 
   useEffect(() => {
-    setDraft(q);
-    setDebounced(q);
-  }, [q]);
-
-  useEffect(() => {
-    const handle = window.setTimeout(() => setDebounced(draft), 120);
+    const handle = window.setTimeout(() => setQuery(draft), 180);
     return () => window.clearTimeout(handle);
   }, [draft]);
 
   useEffect(() => {
-    const handle = window.setTimeout(() => {
-      if (debounced !== q) {
-        void navigate({ search: { q: debounced }, replace: true });
-      }
-    }, 280);
-    return () => window.clearTimeout(handle);
-  }, [debounced, q, navigate]);
+    if (query === lastWritten.current) return;
+    lastWritten.current = query;
+    void navigate({ search: { q: query }, replace: true });
+  }, [query, navigate]);
 
-  const ready = debounced.trim().length >= 2;
+  useEffect(() => {
+    if (q === lastWritten.current) return;
+    lastWritten.current = q;
+    setDraft(q);
+    setQuery(q);
+  }, [q]);
+
+  const ready = query.trim().length >= 2;
 
   const results = useQuery({
-    queryKey: ["search", provider, debounced],
-    queryFn: ({ signal }) => searchGames(debounced, signal, provider),
+    queryKey: ["search", query],
+    queryFn: ({ signal }) => searchGames(query, signal),
     enabled: ready,
     staleTime: 10 * 60_000,
     gcTime: 30 * 60_000,
@@ -76,15 +74,11 @@ function SearchPage() {
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Search games"
           autoFocus
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           className="h-12 rounded-full border-0 bg-subtle pr-4 pl-11"
         />
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-faint">
-          Searching {provider === "steam" ? "Steam" : "IGDB"}
-        </p>
-        <CatalogSourceSwitch />
       </div>
 
       {showSkeleton ? (
@@ -123,7 +117,7 @@ function SearchPage() {
       ) : null}
 
       {ready && results.isFetched && games.length === 0 ? (
-        <p className="text-sm text-muted">No matches for “{debounced}”.</p>
+        <p className="text-sm text-muted">No matches for “{query}”.</p>
       ) : null}
 
       {user ? (
