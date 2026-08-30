@@ -9,14 +9,10 @@ export const Route = createFileRoute("/api/catalog/featured")({
         );
         const limited = catalogRateLimitResponse(request);
         if (limited) return limited;
-        const { parseCatalogProvider } = await import("@/lib/catalog-provider");
-        const provider = parseCatalogProvider(
-          new URL(request.url).searchParams.get("provider"),
-        );
         const { catalogJson, fetchFeaturedRails } = await import(
           "@/lib/catalog.server"
         );
-        const rails = await fetchFeaturedRails(provider);
+        const rails = await fetchFeaturedRails();
         return catalogJson(rails, 300);
       },
     },
