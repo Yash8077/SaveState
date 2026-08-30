@@ -62,6 +62,10 @@ export function useLibraryMutations() {
       catalogId: string;
       status?: Status;
       snapshot: LibrarySnapshot;
+      score?: number | null;
+      favorite?: boolean;
+      startedAt?: string | null;
+      finishedAt?: string | null;
     }) => addToLibrary({ data: input }),
     onSuccess: () => {
       void invalidate();

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { STATUSES } from "@/lib/types";
+import { STATUSES } from "./types";
 
 export const statusSchema = z.enum(STATUSES);
 
@@ -20,6 +20,10 @@ export const snapshotSchema = z.object({
 export const addToLibraryInput = z.object({
   catalogId: z.string().min(1),
   status: statusSchema.optional(),
+  score: z.number().int().min(1).max(10).nullable().optional(),
+  favorite: z.boolean().optional(),
+  startedAt: z.string().nullable().optional(),
+  finishedAt: z.string().nullable().optional(),
   snapshot: snapshotSchema,
 });
 

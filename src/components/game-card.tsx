@@ -61,7 +61,7 @@ export function GameCard({
       headerUrl: headerUrl ?? null,
     });
     void qc.prefetchQuery({
-      queryKey: ["catalog-game", catalogId, "rel-3"],
+      queryKey: ["catalog-game", catalogId, "rel-4"],
       queryFn: ({ signal }) => getCatalogGame(catalogId, signal),
       staleTime: 30_000,
     });

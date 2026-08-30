@@ -70,16 +70,21 @@ export function DateField({
   const maxDay = year && month ? new Date(year, month, 0).getDate() : 31;
 
   function commit(nextYear: number, nextMonth: number, nextDay: number) {
-    setYear(nextYear);
-    setMonth(nextMonth);
-    setDay(nextDay);
     if (!nextYear && !nextMonth && !nextDay) {
+      setYear(0);
+      setMonth(0);
+      setDay(0);
       onChange("");
       return;
     }
-    if (nextYear && nextMonth && nextDay) {
-      onChange(toIso(nextYear, nextMonth, nextDay));
-    }
+    const y = nextYear || new Date().getFullYear();
+    const m = nextMonth || 1;
+    const max = new Date(y, m, 0).getDate();
+    const d = Math.min(nextDay || 1, max);
+    setYear(y);
+    setMonth(m);
+    setDay(d);
+    onChange(toIso(y, m, d));
   }
 
   return (
@@ -93,7 +98,7 @@ export function DateField({
             commit(Number(e.target.value) || 0, month, day)
           }
           className={cn(
-            "h-12 min-w-0 rounded-md rounded-b-sm border-0 border-b border-border-strong bg-subtle px-2 text-sm text-fg",
+            "h-12 min-w-0 rounded-md rounded-b-sm border-0 border-b border-border-strong bg-subtle px-2 pr-7 text-sm text-fg",
             "focus:border-accent focus:outline-none",
           )}
         >
@@ -111,7 +116,7 @@ export function DateField({
             commit(year, Number(e.target.value) || 0, day)
           }
           className={cn(
-            "h-12 min-w-0 rounded-md rounded-b-sm border-0 border-b border-border-strong bg-subtle px-2 text-sm text-fg",
+            "h-12 min-w-0 rounded-md rounded-b-sm border-0 border-b border-border-strong bg-subtle px-2 pr-7 text-sm text-fg",
             "focus:border-accent focus:outline-none",
           )}
         >
@@ -129,7 +134,7 @@ export function DateField({
             commit(year, month, Number(e.target.value) || 0)
           }
           className={cn(
-            "h-12 min-w-0 rounded-md rounded-b-sm border-0 border-b border-border-strong bg-subtle px-2 text-sm text-fg",
+            "h-12 min-w-0 rounded-md rounded-b-sm border-0 border-b border-border-strong bg-subtle px-2 pr-7 text-sm text-fg",
             "focus:border-accent focus:outline-none",
           )}
         >

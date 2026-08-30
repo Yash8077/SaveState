@@ -9,11 +9,14 @@ export const ACCENTS = [
 export type AccentId = (typeof ACCENTS)[number]["id"];
 export type ThemeMode = "system" | "light" | "dark";
 
+export type GrainIntensity = "low" | "medium" | "high";
+
 export type Appearance = {
   mode: ThemeMode;
   oled: boolean;
   accent: AccentId;
   grain: boolean;
+  grainIntensity: GrainIntensity;
   bloom: boolean;
 };
 
@@ -24,6 +27,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   oled: false,
   accent: "teal",
   grain: false,
+  grainIntensity: "medium",
   bloom: true,
 };
 
@@ -33,6 +37,10 @@ function isAccent(value: unknown): value is AccentId {
 
 function isMode(value: unknown): value is ThemeMode {
   return value === "system" || value === "light" || value === "dark";
+}
+
+function isGrain(value: unknown): value is GrainIntensity {
+  return value === "low" || value === "medium" || value === "high";
 }
 
 export function loadAppearance(): Appearance {
@@ -45,6 +53,9 @@ export function loadAppearance(): Appearance {
       oled: Boolean(parsed.oled),
       accent: isAccent(parsed.accent) ? parsed.accent : "teal",
       grain: Boolean(parsed.grain),
+      grainIntensity: isGrain(parsed.grainIntensity)
+        ? parsed.grainIntensity
+        : "medium",
       bloom: parsed.bloom !== false,
     };
   } catch {
@@ -82,5 +93,6 @@ export function applyAppearance(
   root.classList.toggle("grain", next.grain);
   root.classList.toggle("bloom", next.bloom);
   root.dataset.accent = next.accent;
+  root.dataset.grain = next.grainIntensity;
   root.style.colorScheme = dark ? "dark" : "light";
 }
