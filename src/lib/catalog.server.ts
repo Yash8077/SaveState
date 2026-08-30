@@ -3,14 +3,14 @@ import { seedRelated, slimCatalogGame } from "./catalog-seed.ts";
 import {
   fetchIgdbDetails,
   fetchIgdbFeatured,
+  igdbCatalogId,
   isIgdbReady,
+  lookupIgdbBySteamIds,
+  lookupIgdbIdBySteamId,
   searchIgdb,
 } from "./igdb.server.ts";
 import { GAME_TYPE } from "./game-type.ts";
-import {
-  parseCatalogProvider,
-  type CatalogProvider,
-} from "./catalog-provider.ts";
+import type { CatalogProvider } from "./catalog-provider.ts";
 
 const UA =
   "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0.0.0 Mobile Safari/537.36";
@@ -50,16 +50,14 @@ type SteamAppData = {
   metacritic?: { score?: number };
   release_date?: { coming_soon?: boolean; date?: string };
   platforms?: { windows?: boolean; mac?: boolean; linux?: boolean };
+  dlc?: number[];
 };
 
-let featuredCache = new Map<
-  CatalogProvider,
-  { at: number; rails: FeaturedRail[] }
->();
+let featuredCache: { at: number; rails: FeaturedRail[] } | null = null;
 const FEATURED_TTL_MS = 30 * 60 * 1000;
 const SEARCH_TTL_MS = 10 * 60 * 1000;
 const DETAILS_TTL_MS = 2 * 60 * 1000;
-const DETAILS_CACHE_VER = "rel-5";
+const DETAILS_CACHE_VER = "rel-6";
 const FETCH_MS = 4000;
 const searchCache = new Map<string, { at: number; games: CatalogGame[] }>();
 const detailsCache = new Map<
@@ -68,7 +66,7 @@ const detailsCache = new Map<
 >();
 const searchInflight = new Map<string, Promise<CatalogGame[]>>();
 const detailsInflight = new Map<string, Promise<CatalogDetails | null>>();
-const featuredInflight = new Map<CatalogProvider, Promise<FeaturedRail[]>>();
+let featuredInflight: Promise<FeaturedRail[]> | null = null;
 
 async function steamGet(url: string): Promise<unknown> {
   const res = await fetch(url, {
@@ -113,7 +111,7 @@ function fromSearchItem(item: SteamSearchItem): CatalogGame | null {
   if (!item.id || !item.name) return null;
   const kind = (item.type ?? "app").toLowerCase();
   if (kind !== "app" && kind !== "game") return null;
-  if (/\b(soundtrack|ost|playtest|demo)\b/i.test(item.name)) {
+  if (/\b(soundtrack|ost|playtest|demo|bundle)\b/i.test(item.name)) {
     return null;
   }
   const metascore = item.metascore ? Number(item.metascore) : NaN;
@@ -212,13 +210,81 @@ export function collapseEditions(games: CatalogGame[]): CatalogGame[] {
       if (otherIndex === index || !other || title === other) return false;
       if (!title.startsWith(other)) return false;
       const rest = title.slice(other.length).trim();
-      return /^[:\-–—]/.test(rest);
+      return /^[:\\-\u2013\u2014]/.test(rest);
     });
   });
 }
 
 function finishSearch(games: CatalogGame[]): CatalogGame[] {
   return collapseEditions(dedupeGames(games));
+}
+
+export function titleKey(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[\u2122\u00ae\u00a9]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function rankTitle(title: string, needle: string): number {
+  if (!needle) return 2;
+  if (title === needle) return 0;
+  if (title.startsWith(needle)) return 1;
+  if (title.split(" ").some((word) => word.startsWith(needle))) return 2;
+  if (title.includes(needle)) return 3;
+  return 4;
+}
+
+export function pickBestTitleMatch(
+  title: string,
+  games: CatalogGame[],
+): CatalogGame | null {
+  const key = titleKey(title);
+  if (!key) return null;
+  const exact = games.find((game) => titleKey(game.title) === key);
+  if (exact) return exact;
+  return (
+    games.find((game) => {
+      const other = titleKey(game.title);
+      return other.startsWith(key) || key.startsWith(other);
+    }) ?? null
+  );
+}
+
+export function mergeSearchResults(
+  igdbGames: CatalogGame[],
+  steamGames: CatalogGame[],
+  query = "",
+): CatalogGame[] {
+  const needle = titleKey(query);
+  const byTitle = new Map<string, CatalogGame>();
+  const out: CatalogGame[] = [];
+
+  const take = (game: CatalogGame) => {
+    const key = titleKey(game.title);
+    const existing = byTitle.get(key);
+    if (existing) {
+      if (!existing.steamId && game.steamId) existing.steamId = game.steamId;
+      return;
+    }
+    const copy = { ...game };
+    byTitle.set(key, copy);
+    out.push(copy);
+  };
+
+  for (const game of igdbGames) take(game);
+  for (const game of steamGames) take(game);
+
+  out.sort((a, b) => {
+    const rank = rankTitle(titleKey(a.title), needle) - rankTitle(titleKey(b.title), needle);
+    if (rank !== 0) return rank;
+    const ap = a.id.startsWith("igdb_") ? 0 : 1;
+    const bp = b.id.startsWith("igdb_") ? 0 : 1;
+    return ap - bp;
+  });
+
+  return finishSearch(out).slice(0, 24);
 }
 
 export async function searchSteam(query: string): Promise<CatalogGame[]> {
@@ -245,26 +311,19 @@ export type SearchSources = {
 export async function runSearchWith(
   query: string,
   sources: SearchSources,
-  provider: CatalogProvider = "igdb",
+  _provider?: CatalogProvider,
 ): Promise<CatalogGame[]> {
-  if (provider === "steam") {
-    try {
-      return finishSearch(await sources.searchSteam(query));
-    } catch {
-      return [];
-    }
-  }
-  if (!sources.igdbReady()) return [];
-  try {
-    return finishSearch(await sources.searchIgdb(query));
-  } catch {
-    return [];
-  }
+  const igdbHits = sources.igdbReady()
+    ? sources.searchIgdb(query).catch(() => [] as CatalogGame[])
+    : Promise.resolve([] as CatalogGame[]);
+  const steamHits = sources.searchSteam(query).catch(() => [] as CatalogGame[]);
+  const [igdbGames, steamGames] = await Promise.all([igdbHits, steamHits]);
+  return mergeSearchResults(igdbGames, steamGames, query);
 }
 
 export async function runSearch(
   query: string,
-  provider: CatalogProvider = "igdb",
+  provider?: CatalogProvider,
 ): Promise<CatalogGame[]> {
   return runSearchWith(
     query,
@@ -279,12 +338,11 @@ export async function runSearch(
 
 export async function searchCatalog(
   query: string,
-  provider: CatalogProvider = "igdb",
+  _provider?: CatalogProvider,
 ): Promise<CatalogGame[]> {
   const q = query.trim();
   if (q.length < 2) return [];
-  const source = parseCatalogProvider(provider);
-  const key = `${source}:${q.toLowerCase()}`;
+  const key = q.toLowerCase();
   const now = Date.now();
   const hit = searchCache.get(key);
   if (hit && now - hit.at < SEARCH_TTL_MS) return hit.games;
@@ -292,7 +350,7 @@ export async function searchCatalog(
   const pending = searchInflight.get(key);
   if (hit) {
     if (!pending) {
-      const run = runSearch(q, source)
+      const run = runSearch(q)
         .then((games) => {
           trimCache(searchCache, 200);
           searchCache.set(key, { at: Date.now(), games });
@@ -307,7 +365,7 @@ export async function searchCatalog(
   }
   if (pending) return pending;
 
-  const run = runSearch(q, source)
+  const run = runSearch(q)
     .then((games) => {
       trimCache(searchCache, 200);
       searchCache.set(key, { at: Date.now(), games });
@@ -320,12 +378,56 @@ export async function searchCatalog(
   return run;
 }
 
+async function relatedForSteamGame(opts: {
+  steamId: number;
+  title: string;
+  dlcIds: number[];
+}): Promise<FeaturedRail[]> {
+  const catalogId = steamCatalogId(opts.steamId);
+  if (!isIgdbReady()) return seedRelated(catalogId);
+
+  let rails: FeaturedRail[] = [];
+  try {
+    const igdbId = await lookupIgdbIdBySteamId(opts.steamId);
+    let details: CatalogDetails | null = null;
+    if (igdbId) {
+      details = await fetchIgdbDetails(igdbCatalogId(igdbId));
+    }
+    if (!details?.related?.length && opts.title.trim().length >= 2) {
+      const hits = await searchIgdb(opts.title);
+      const match = pickBestTitleMatch(opts.title, hits);
+      if (match) details = await fetchIgdbDetails(match.id);
+    }
+    if (details?.related?.length) rails = details.related;
+  } catch {
+    rails = [];
+  }
+
+  const hasDlc = rails.some((rail) => rail.id === "dlc" && rail.games.length > 0);
+  if (!hasDlc && opts.dlcIds.length) {
+    try {
+      const dlcGames = await lookupIgdbBySteamIds(opts.dlcIds);
+      if (dlcGames.length) {
+        rails = [
+          ...rails,
+          { id: "dlc", title: "DLC & expansions", games: dlcGames },
+        ];
+      }
+    } catch {
+      /* Steam DLC enrichment is best-effort */
+    }
+  }
+
+  if (!rails.length) return seedRelated(catalogId);
+  return rails;
+}
+
 export async function fetchSteamDetails(
   catalogId: string,
 ): Promise<CatalogDetails | null> {
   const steamId = parseSteamId(catalogId);
   if (!steamId) return null;
-  const url = `https://store.steampowered.com/api/appdetails?appids=${steamId}&l=english&filters=basic,developers,publishers,genres,screenshots,metacritic`;
+  const url = `https://store.steampowered.com/api/appdetails?appids=${steamId}&l=english&filters=basic,developers,publishers,genres,screenshots,metacritic,dlc`;
   const data = (await steamGet(url)) as Record<
     string,
     { success?: boolean; data?: SteamAppData }
@@ -338,6 +440,12 @@ export async function fetchSteamDetails(
     .filter((src): src is string => Boolean(src))
     .slice(0, 6);
   const art = artUrl(steamId, app.header_image);
+  const dlcIds = (app.dlc ?? []).filter((id) => Number.isFinite(id) && id > 0);
+  const related = await relatedForSteamGame({
+    steamId,
+    title: app.name ?? "",
+    dlcIds,
+  });
   return {
     id: steamCatalogId(steamId),
     steamId,
@@ -357,7 +465,7 @@ export async function fetchSteamDetails(
     publishers: app.publishers ?? [],
     screenshots,
     website: app.website ?? null,
-    related: seedRelated(steamCatalogId(steamId)),
+    related,
   };
 }
 
@@ -453,19 +561,19 @@ export type FeaturedSources = {
 
 export async function refreshFeaturedWith(
   sources: FeaturedSources,
-  provider: CatalogProvider = "igdb",
+  _provider?: CatalogProvider,
 ): Promise<FeaturedRail[]> {
-  const source = parseCatalogProvider(provider);
   let rails: FeaturedRail[] = [];
-  if (source === "steam") {
+  if (sources.igdbReady()) {
     try {
-      rails = await sources.fetchSteamFeatured();
+      rails = await sources.fetchIgdbFeatured();
     } catch {
       rails = [];
     }
-  } else if (sources.igdbReady()) {
+  }
+  if (!rails.length) {
     try {
-      rails = await sources.fetchIgdbFeatured();
+      rails = await sources.fetchSteamFeatured();
     } catch {
       rails = [];
     }
@@ -474,47 +582,43 @@ export async function refreshFeaturedWith(
     ...rail,
     games: collapseEditions(dedupeGames(rail.games)),
   }));
-  featuredCache.set(source, { at: Date.now(), rails });
+  featuredCache = { at: Date.now(), rails };
   return rails;
 }
 
 export async function refreshFeatured(
-  provider: CatalogProvider = "igdb",
+  _provider?: CatalogProvider,
 ): Promise<FeaturedRail[]> {
-  return refreshFeaturedWith(
-    {
-      igdbReady: isIgdbReady,
-      fetchIgdbFeatured,
-      fetchSteamFeatured,
-    },
-    provider,
-  );
+  return refreshFeaturedWith({
+    igdbReady: isIgdbReady,
+    fetchIgdbFeatured,
+    fetchSteamFeatured,
+  });
 }
 
 export async function fetchFeaturedRails(
-  provider: CatalogProvider = "igdb",
+  _provider?: CatalogProvider,
 ): Promise<FeaturedRail[]> {
-  const source = parseCatalogProvider(provider);
   const now = Date.now();
-  const hit = featuredCache.get(source);
+  const hit = featuredCache;
   if (hit && now - hit.at < FEATURED_TTL_MS) return hit.rails;
 
-  const pending = featuredInflight.get(source);
+  const pending = featuredInflight;
   if (hit) {
     if (!pending) {
-      const run = refreshFeatured(source).finally(() => {
-        featuredInflight.delete(source);
+      const run = refreshFeatured().finally(() => {
+        featuredInflight = null;
       });
-      featuredInflight.set(source, run);
+      featuredInflight = run;
     }
     return hit.rails;
   }
   if (pending) return pending;
 
-  const run = refreshFeatured(source).finally(() => {
-    featuredInflight.delete(source);
+  const run = refreshFeatured().finally(() => {
+    featuredInflight = null;
   });
-  featuredInflight.set(source, run);
+  featuredInflight = run;
   return run;
 }
 
@@ -528,5 +632,5 @@ export function catalogJson(data: unknown, maxAgeSec: number): Response {
 }
 
 if (!process.env.NODE_TEST_CONTEXT) {
-  void fetchFeaturedRails("igdb").catch(() => {});
+  void fetchFeaturedRails().catch(() => {});
 }
