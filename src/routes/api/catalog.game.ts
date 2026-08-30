@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/catalog/game")({
           "@/lib/catalog.server"
         );
         const data = id ? await fetchCatalogDetails(id) : null;
-        return catalogJson(data, 600);
+        return catalogJson(data, 60);
       },
     },
   },
