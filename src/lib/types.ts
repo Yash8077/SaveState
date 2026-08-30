@@ -29,6 +29,12 @@ export type CatalogGame = {
   metacritic: number | null;
 };
 
+export type FeaturedRail = {
+  id: string;
+  title: string;
+  games: CatalogGame[];
+};
+
 export type CatalogDetails = CatalogGame & {
   summary: string;
   releaseDate: string | null;
@@ -38,12 +44,7 @@ export type CatalogDetails = CatalogGame & {
   publishers: string[];
   screenshots: string[];
   website: string | null;
-};
-
-export type FeaturedRail = {
-  id: string;
-  title: string;
-  games: CatalogGame[];
+  related: FeaturedRail[];
 };
 
 export type GameEntry = {
