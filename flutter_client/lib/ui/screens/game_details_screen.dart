@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
-import '../widgets/game_rail.dart';
+import '../../state/theme_controller.dart';
 import '../widgets/list_editor_sheet.dart';
 
 class GameDetailsScreen extends StatefulWidget {
@@ -26,6 +26,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   bool _saving = false;
   late final TextEditingController _hours;
   late final TextEditingController _notes;
+  String? _startedAt;
+  String? _finishedAt;
 
   @override
   void initState() {
@@ -45,6 +47,13 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   void _syncLogFields(GameEntry? entry) {
     _hours.text = entry?.hours?.toString() ?? '';
     _notes.text = entry?.notes ?? '';
+    _startedAt = _ymd(entry?.startedAt);
+    _finishedAt = _ymd(entry?.finishedAt);
+  }
+
+  String? _ymd(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    return raw.length >= 10 ? raw.substring(0, 10) : raw;
   }
 
   Future<void> _load() async {
@@ -119,14 +128,21 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           'status': result.status.value,
           'score': result.score,
           'favorite': result.favorite,
+          'startedAt': result.startedAt,
+          'finishedAt': result.finishedAt,
         });
-        if (mounted) setState(() => _entry = updated);
+        if (mounted) {
+          _syncLogFields(updated);
+          setState(() => _entry = updated);
+        }
       } else {
         final created = await api.addToLibrary(
           game,
           status: result.status.value,
           score: result.score,
           favorite: result.favorite,
+          startedAt: result.startedAt,
+          finishedAt: result.finishedAt,
           details: game,
         );
         if (mounted) {
@@ -189,8 +205,13 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       final updated = await context.read<ApiClient>().updateEntry(_entry!.id, {
         'hours': hoursRaw.isEmpty ? null : num.parse(hoursRaw),
         'notes': notesRaw.isEmpty ? null : notesRaw,
+        'startedAt': _startedAt,
+        'finishedAt': _finishedAt,
       });
-      if (mounted) setState(() => _entry = updated);
+      if (mounted) {
+        _syncLogFields(updated);
+        setState(() => _entry = updated);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -235,6 +256,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     final game = _game!;
     final banner = game.headerUrl ?? game.coverUrl ?? game.capsuleUrl;
     final auth = context.watch<AuthController>();
+    final bloom = context.watch<ThemeController>().bloom;
     final inLibrary = _entry != null;
     final addLabel = !auth.isSignedIn
         ? 'SIGN IN TO ADD'
@@ -291,6 +313,19 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                       ),
                     ),
                   ),
+                  if (bloom)
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            cs.primary.withOpacity(0.28),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
                   Positioned(
                     left: 16,
                     right: 16,
@@ -422,6 +457,18 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                           .toList(),
                     ),
                   ],
+                ],
+              ),
+            ),
+          ),
+          if (game.related.any((rail) => rail.games.isNotEmpty))
+            SliverToBoxAdapter(child: _RelationsRail(rails: game.related)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   if (game.summary.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     const Text(
@@ -465,8 +512,17 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                     const SizedBox(height: 12),
                     _logCard(cs),
                   ],
-                  if (game.screenshots.isNotEmpty) ...[
-                    const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+          if (game.screenshots.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     const Text(
                       'Screenshots',
                       style: TextStyle(
@@ -494,15 +550,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-          ...game.related.map(
-            (rail) => SliverToBoxAdapter(
-              child: GameRailWidget(title: rail.title, games: rail.games),
-            ),
-          ),
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
@@ -590,6 +640,34 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             ),
           ),
           const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _logDateField(
+                  cs,
+                  label: 'Start date',
+                  value: _startedAt,
+                  onPick: () => _pickLogDate(start: true),
+                  onClear: _startedAt == null
+                      ? null
+                      : () => setState(() => _startedAt = null),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _logDateField(
+                  cs,
+                  label: 'End date',
+                  value: _finishedAt,
+                  onPick: () => _pickLogDate(start: false),
+                  onClear: _finishedAt == null
+                      ? null
+                      : () => setState(() => _finishedAt = null),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           TextField(
             controller: _notes,
             minLines: 2,
@@ -609,6 +687,59 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _pickLogDate({required bool start}) async {
+    final current = DateTime.tryParse(start ? (_startedAt ?? '') : (_finishedAt ?? ''));
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current ?? now,
+      firstDate: DateTime(1970),
+      lastDate: DateTime(now.year + 3),
+    );
+    if (picked == null) return;
+    final value =
+        '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    setState(() {
+      if (start) {
+        _startedAt = value;
+      } else {
+        _finishedAt = value;
+      }
+    });
+  }
+
+  Widget _logDateField(
+    ColorScheme cs, {
+    required String label,
+    required String? value,
+    required VoidCallback onPick,
+    VoidCallback? onClear,
+  }) {
+    return InkWell(
+      onTap: onPick,
+      borderRadius: BorderRadius.circular(8),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          isDense: true,
+          border: const OutlineInputBorder(),
+          suffixIcon: onClear == null
+              ? const Icon(Icons.event, size: 18)
+              : IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: onClear,
+                ),
+        ),
+        child: Text(
+          value ?? 'Not set',
+          style: TextStyle(
+            color: value == null ? cs.onSurfaceVariant : cs.onSurface,
+          ),
+        ),
       ),
     );
   }
@@ -652,6 +783,138 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _RelatedItem {
+  final CatalogGame game;
+  final String badge;
+  const _RelatedItem(this.game, this.badge);
+}
+
+class _RelationsRail extends StatelessWidget {
+  final List<FeaturedRail> rails;
+  const _RelationsRail({required this.rails});
+
+  static const _badges = <String, String>{
+    'prequel': 'Prequel',
+    'sequel': 'Sequel',
+    'series': 'Series',
+    'original': 'Original',
+    'franchise': 'Franchise',
+    'dlc': 'DLC',
+    'remakes': 'Remake',
+    'similar': 'Similar',
+  };
+
+  List<_RelatedItem> get items {
+    final seen = <String>{};
+    final out = <_RelatedItem>[];
+    for (final rail in rails) {
+      final badge = _badges[rail.id] ?? rail.title;
+      for (final game in rail.games) {
+        if (!seen.add(game.id)) continue;
+        out.add(_RelatedItem(game, badge));
+      }
+    }
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = items;
+    if (cards.isEmpty) return const SizedBox.shrink();
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: Text(
+              'Related',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+            ),
+          ),
+          SizedBox(
+            height: 196,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              itemCount: cards.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (context, i) {
+                final item = cards[i];
+                return SizedBox(
+                  width: 108,
+                  child: InkWell(
+                    onTap: () => context.push('/game/${item.game.id}'),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 2 / 3,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: item.game.coverUrl != null
+                                    ? CachedNetworkImage(
+                                        imageUrl: item.game.coverUrl!,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : ColoredBox(color: cs.surfaceContainerHighest),
+                              ),
+                              Positioned(
+                                top: 6,
+                                left: 6,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black87,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    item.badge.toUpperCase(),
+                                    style: TextStyle(
+                                      color: cs.primary,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          item.game.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
