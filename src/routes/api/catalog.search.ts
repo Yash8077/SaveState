@@ -9,11 +9,14 @@ export const Route = createFileRoute("/api/catalog/search")({
         );
         const limited = catalogRateLimitResponse(request);
         if (limited) return limited;
-        const q = new URL(request.url).searchParams.get("q") ?? "";
+        const url = new URL(request.url);
+        const q = url.searchParams.get("q") ?? "";
+        const { parseCatalogProvider } = await import("@/lib/catalog-provider");
+        const provider = parseCatalogProvider(url.searchParams.get("provider"));
         const { catalogJson, searchCatalog } = await import(
           "@/lib/catalog.server"
         );
-        const games = await searchCatalog(q);
+        const games = await searchCatalog(q, provider);
         return catalogJson(games, 120);
       },
     },
