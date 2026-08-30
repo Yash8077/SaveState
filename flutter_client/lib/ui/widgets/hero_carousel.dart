@@ -20,24 +20,36 @@ class HeroCarousel extends StatefulWidget {
 }
 
 class _HeroCarouselState extends State<HeroCarousel> {
+  static const _loop = 8000;
   PageController? _pages;
   Timer? _timer;
   int _index = 0;
+  int _page = 0;
   bool? _wide;
   final Map<String, String> _summaries = {};
+
+  int get _n => widget.games.length;
+
+  int _originFor(int real) {
+    if (_n < 2) return real;
+    return (_loop ~/ 2 ~/ _n) * _n + (real % _n);
+  }
+
+  void _attachController(bool wide) {
+    _wide = wide;
+    _pages?.dispose();
+    _page = _originFor(_index);
+    _pages = PageController(
+      viewportFraction: wide ? 0.34 : 0.86,
+      initialPage: _page,
+    );
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final wide = MediaQuery.sizeOf(context).width >= 720;
-    if (_wide != wide) {
-      _wide = wide;
-      _pages?.dispose();
-      _pages = PageController(
-        viewportFraction: wide ? 0.58 : 1,
-        initialPage: _index,
-      );
-    }
+    if (_wide != wide) _attachController(wide);
   }
 
   @override
@@ -66,9 +78,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
     if (!widget.autoplay || widget.games.length < 2) return;
     _timer = Timer.periodic(const Duration(seconds: 6), (_) {
       if (!mounted || _pages == null || !_pages!.hasClients) return;
-      final next = (_index + 1) % widget.games.length;
-      _pages!.animateToPage(
-        next,
+      _pages!.nextPage(
         duration: const Duration(milliseconds: 520),
         curve: Curves.easeOutCubic,
       );
@@ -76,10 +86,11 @@ class _HeroCarouselState extends State<HeroCarousel> {
   }
 
   void _hydrateAround(int i) {
+    if (_n == 0) return;
     final api = context.read<ApiClient>();
-    for (final j in {i - 1, i, i + 1}) {
-      if (j < 0 || j >= widget.games.length) continue;
-      final id = widget.games[j].id;
+    for (final delta in [-1, 0, 1]) {
+      final j = (i + delta) % _n;
+      final id = widget.games[(j + _n) % _n].id;
       if (_summaries.containsKey(id)) continue;
       api.getGameDetails(id).then((details) {
         if (!mounted || details == null || details.summary.isEmpty) return;
@@ -121,16 +132,27 @@ class _HeroCarouselState extends State<HeroCarousel> {
             aspectRatio: 16 / 9,
             child: PageView.builder(
               controller: controller,
-              itemCount: widget.games.length,
+              padEnds: true,
+              itemCount: _n < 2 ? _n : _loop,
               onPageChanged: (i) {
-                setState(() => _index = i);
-                _hydrateAround(i);
+                setState(() {
+                  _page = i;
+                  _index = i % _n;
+                });
+                _hydrateAround(_index);
               },
               itemBuilder: (context, i) {
-                return _Art(
-                  game: widget.games[i],
-                  preferWide: true,
-                  onTap: () => openGame(context, widget.games[i]),
+                final game = widget.games[i % _n];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(22),
+                    child: _Art(
+                      game: game,
+                      preferWide: true,
+                      onTap: () => openGame(context, game),
+                    ),
+                  ),
                 );
               },
             ),
@@ -158,53 +180,65 @@ class _HeroCarouselState extends State<HeroCarousel> {
   }
 
   Widget _buildWide(PageController controller) {
-    return SizedBox(
-      height: 460,
-      child: PageView.builder(
-        controller: controller,
-        itemCount: widget.games.length,
-        onPageChanged: (i) {
-          setState(() => _index = i);
-          _hydrateAround(i);
-        },
-        itemBuilder: (context, i) {
-          final game = widget.games[i];
-          final selected = i == _index;
-          return AnimatedScale(
-            scale: selected ? 1 : 0.94,
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeOutCubic,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(22),
-                      child: _Art(
-                        game: game,
-                        preferWide: false,
-                        onTap: () => openGame(context, game),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardW = constraints.maxWidth * 0.34;
+        final posterH = cardW * 3 / 2;
+        return SizedBox(
+          height: posterH + 108,
+          child: PageView.builder(
+            controller: controller,
+            padEnds: true,
+            itemCount: _n < 2 ? _n : _loop,
+            onPageChanged: (i) {
+              setState(() {
+                _page = i;
+                _index = i % _n;
+              });
+              _hydrateAround(_index);
+            },
+            itemBuilder: (context, i) {
+              final game = widget.games[i % _n];
+              final selected = i % _n == _index;
+              return AnimatedScale(
+                scale: selected ? 1 : 0.94,
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: SizedBox(
+                          height: posterH,
+                          width: double.infinity,
+                          child: _Art(
+                            game: game,
+                            preferWide: false,
+                            onTap: () => openGame(context, game),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 10),
+                      _TitleRow(game: game),
+                      if (selected && (_summaries[game.id] ?? '').isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _SynopsisCard(
+                          text: _summaries[game.id]!,
+                          onTap: () => openGame(context, game),
+                          compact: true,
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  _TitleRow(game: game),
-                  if ((_summaries[game.id] ?? '').isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    _SynopsisCard(
-                      text: _summaries[game.id]!,
-                      onTap: () => openGame(context, game),
-                      compact: true,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

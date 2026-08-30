@@ -244,8 +244,8 @@ html.bloom .hero-bloom {
 }
 
 .hero-slide {
-  flex: 0 0 100%;
-  scroll-snap-align: start;
+  flex: 0 0 86%;
+  scroll-snap-align: center;
   min-height: 12rem;
   user-select: none;
   -webkit-touch-callout: none;
@@ -265,6 +265,10 @@ html.bloom .hero-bloom {
   border-radius: 1.35rem;
 }
 
+.hero-track {
+  gap: 0.75rem;
+}
+
 @media (min-width: 800px) {
   .hero-phone {
     display: none;
@@ -272,12 +276,12 @@ html.bloom .hero-bloom {
 
   .hero-wide-track {
     display: flex;
-    gap: 1.25rem;
+    gap: 1rem;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
-    padding: 0.25rem 6vw 0.75rem;
+    padding: 0.25rem 0 0.75rem;
   }
 
   .hero-wide-track::-webkit-scrollbar {
@@ -285,7 +289,7 @@ html.bloom .hero-bloom {
   }
 
   .hero-wide-slide {
-    flex: 0 0 min(20rem, 38vw);
+    flex: 0 0 min(15.5rem, 30vw);
     scroll-snap-align: center;
     user-select: none;
   }

@@ -9,6 +9,7 @@ import '../../state/theme_controller.dart';
 import '../widgets/list_editor_sheet.dart';
 import '../widgets/screenshot_gallery.dart';
 import '../open_game.dart';
+import '../../date_format.dart';
 
 class GameDetailsScreen extends StatefulWidget {
   final String id;
@@ -550,53 +551,77 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (game.summary.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    const Text(
-                      'About',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      game.summary,
-                      maxLines: _synopsisOpen ? null : 4,
-                      overflow: _synopsisOpen
-                          ? TextOverflow.visible
-                          : TextOverflow.ellipsis,
-                      style: TextStyle(
-                        height: 1.5,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                    if (game.summary.length > 180)
-                      TextButton(
-                        onPressed: () =>
-                            setState(() => _synopsisOpen = !_synopsisOpen),
-                        child: Text(_synopsisOpen ? 'Show less' : 'Read more'),
-                      ),
-                  ],
-                  if (game.platforms.isNotEmpty ||
-                      game.developers.isNotEmpty ||
-                      game.publishers.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    if (game.platforms.isNotEmpty)
-                      _meta('Platforms', game.platforms.join(', '), cs),
-                    if (game.developers.isNotEmpty)
-                      _meta('Developers', game.developers.join(', '), cs),
-                    if (game.publishers.isNotEmpty)
-                      _meta('Publishers', game.publishers.join(', '), cs),
-                  ],
-                  if (_entry != null) ...[
-                    const SizedBox(height: 12),
-                    _logCard(cs),
-                  ],
-                ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final wide = constraints.maxWidth >= 720;
+                  final about = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (game.summary.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                          'About',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          game.summary,
+                          maxLines: _synopsisOpen ? null : 4,
+                          overflow: _synopsisOpen
+                              ? TextOverflow.visible
+                              : TextOverflow.ellipsis,
+                          style: TextStyle(
+                            height: 1.5,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                        if (game.summary.length > 180)
+                          TextButton(
+                            onPressed: () =>
+                                setState(() => _synopsisOpen = !_synopsisOpen),
+                            child: Text(
+                              _synopsisOpen ? 'Show less' : 'Read more',
+                            ),
+                          ),
+                      ],
+                      if (game.platforms.isNotEmpty ||
+                          game.developers.isNotEmpty ||
+                          game.publishers.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        if (game.platforms.isNotEmpty)
+                          _meta('Platforms', game.platforms.join(', '), cs),
+                        if (game.developers.isNotEmpty)
+                          _meta('Developers', game.developers.join(', '), cs),
+                        if (game.publishers.isNotEmpty)
+                          _meta('Publishers', game.publishers.join(', '), cs),
+                      ],
+                    ],
+                  );
+                  final log = _entry == null ? null : _logCard(cs);
+                  if (!wide || log == null) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        about,
+                        if (log != null) ...[
+                          const SizedBox(height: 12),
+                          log,
+                        ],
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: about),
+                      const SizedBox(width: 16),
+                      SizedBox(width: 320, child: log),
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -745,32 +770,24 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _logDateField(
-                  cs,
-                  label: 'Start date',
-                  value: _startedAt,
-                  onPick: () => _pickLogDate(start: true),
-                  onClear: _startedAt == null
-                      ? null
-                      : () => setState(() => _startedAt = null),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _logDateField(
-                  cs,
-                  label: 'End date',
-                  value: _finishedAt,
-                  onPick: () => _pickLogDate(start: false),
-                  onClear: _finishedAt == null
-                      ? null
-                      : () => setState(() => _finishedAt = null),
-                ),
-              ),
-            ],
+          _logDateField(
+            cs,
+            label: 'Start date',
+            value: _startedAt,
+            onPick: () => _pickLogDate(start: true),
+            onClear: _startedAt == null
+                ? null
+                : () => setState(() => _startedAt = null),
+          ),
+          const SizedBox(height: 10),
+          _logDateField(
+            cs,
+            label: 'End date',
+            value: _finishedAt,
+            onPick: () => _pickLogDate(start: false),
+            onClear: _finishedAt == null
+                ? null
+                : () => setState(() => _finishedAt = null),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -806,8 +823,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       lastDate: DateTime(now.year + 3),
     );
     if (picked == null) return;
-    final value =
-        '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    final value = isoDate(picked);
     setState(() {
       if (start) {
         _startedAt = value;
@@ -840,9 +856,13 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 ),
         ),
         child: Text(
-          value ?? 'Not set',
+          formatDmy(value).isEmpty ? 'Not set' : formatDmy(value),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: value == null ? cs.onSurfaceVariant : cs.onSurface,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
           ),
         ),
       ),

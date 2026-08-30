@@ -286,7 +286,7 @@ function GamePage() {
           <RelatedSkeleton title="Prequels, sequels & DLC" />
         ) : null}
 
-        <div className="mt-6 grid gap-4 pb-4 expanded:grid-cols-[minmax(0,1fr)_22rem] expanded:items-start">
+        <div className="mt-6 grid gap-4 pb-4 expanded:grid-cols-[minmax(0,1fr)_20rem] expanded:items-start">
           <div className="space-y-4">
             {summary ? <Synopsis text={summary} /> : null}
 
@@ -301,6 +301,22 @@ function GamePage() {
                 <Meta label="Publishers" value={publishers.join(", ")} />
               ) : null}
             </dl>
+
+            {screenshots.length > 0 ? (
+              <section className="hidden expanded:block">
+                <h2 className="mb-3 text-base font-medium">Screenshots</h2>
+                <div className="rail-scroll">
+                  {screenshots.map((src, i) => (
+                    <ScreenshotThumb
+                      key={src}
+                      src={src}
+                      index={i}
+                      onOpen={setShotIndex}
+                    />
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </div>
 
           {entry ? (
@@ -319,7 +335,7 @@ function GamePage() {
         </div>
 
         {screenshots.length > 0 ? (
-          <section className="pb-4">
+          <section className="pb-4 expanded:hidden">
             <h2 className="mb-3 text-base font-medium">Screenshots</h2>
             <div className="rail-scroll">
               {screenshots.map((src, i) => (

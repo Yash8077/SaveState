@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../date_format.dart';
 import '../../models/types.dart';
 
 class ListEditorResult {
@@ -91,8 +92,7 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
       lastDate: DateTime(now.year + 3),
     );
     if (picked == null) return;
-    final value =
-        '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    final value = isoDate(picked);
     setState(() {
       if (start) {
         _startedAt = value;
@@ -202,32 +202,24 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
               }),
             ),
             const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: _dateTile(
-                    cs,
-                    label: 'Start date',
-                    value: _startedAt,
-                    onTap: () => _pick(true),
-                    onClear: _startedAt == null
-                        ? null
-                        : () => setState(() => _startedAt = null),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _dateTile(
-                    cs,
-                    label: 'End date',
-                    value: _finishedAt,
-                    onTap: () => _pick(false),
-                    onClear: _finishedAt == null
-                        ? null
-                        : () => setState(() => _finishedAt = null),
-                  ),
-                ),
-              ],
+            _dateTile(
+              cs,
+              label: 'Start date',
+              value: _startedAt,
+              onTap: () => _pick(true),
+              onClear: _startedAt == null
+                  ? null
+                  : () => setState(() => _startedAt = null),
+            ),
+            const SizedBox(height: 10),
+            _dateTile(
+              cs,
+              label: 'End date',
+              value: _finishedAt,
+              onTap: () => _pick(false),
+              onClear: _finishedAt == null
+                  ? null
+                  : () => setState(() => _finishedAt = null),
             ),
             const SizedBox(height: 24),
             Row(
@@ -290,9 +282,12 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
                 ),
         ),
         child: Text(
-          value ?? 'Not set',
+          formatDmy(value).isEmpty ? 'Not set' : formatDmy(value),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: value == null ? cs.onSurfaceVariant : cs.onSurface,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
