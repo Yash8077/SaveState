@@ -36,10 +36,10 @@ function GamePage() {
   const [favoriteHint, setFavoriteHint] = useState(false);
 
   const details = useQuery({
-    queryKey: ["catalog-game", catalogId],
+    queryKey: ["catalog-game", catalogId, "rel-3"],
     queryFn: ({ signal }) => getCatalogGame(catalogId, signal),
     enabled: !isCustom,
-    staleTime: 10 * 60_000,
+    staleTime: 30_000,
   });
 
   const entry = (library.data ?? []).find((e) => e.catalogId === catalogId);
@@ -110,6 +110,8 @@ function GamePage() {
         status: value.status,
         score: value.score,
         favorite: value.favorite,
+        startedAt: value.startedAt,
+        finishedAt: value.finishedAt,
       });
     } else {
       const created = await add.mutateAsync({
@@ -117,11 +119,19 @@ function GamePage() {
         status: value.status,
         snapshot: snapshot(),
       });
-      if (created && (value.score != null || value.favorite)) {
+      if (
+        created &&
+        (value.score != null ||
+          value.favorite ||
+          value.startedAt ||
+          value.finishedAt)
+      ) {
         await update.mutateAsync({
           id: created.id,
           score: value.score,
           favorite: value.favorite,
+          startedAt: value.startedAt,
+          finishedAt: value.finishedAt,
         });
       }
     }
@@ -140,7 +150,7 @@ function GamePage() {
 
   return (
     <article className="-mx-3 -mt-2 sm:-mx-5">
-      <div className="relative h-44 overflow-hidden bg-elevated min-[600px]:h-56 expanded:h-64 short:h-28">
+      <div className="relative h-44 overflow-hidden bg-elevated hero-bloom min-[600px]:h-56 expanded:h-64 short:h-28">
         {banner ? (
           <img
             src={banner}
@@ -283,6 +293,27 @@ function GamePage() {
           ) : null}
         </div>
 
+        {related.some((rail) => rail.games.length) ? (
+          <section className="space-y-5 pb-5">
+            <h2 className="text-base font-medium">Related</h2>
+            {related.map((rail) =>
+              rail.games.length ? (
+                <GameRail key={rail.id} title={rail.title}>
+                  {rail.games.map((g) => (
+                    <GameCard
+                      key={g.id}
+                      catalogId={g.id}
+                      title={g.title}
+                      coverUrl={g.coverUrl}
+                      headerUrl={g.headerUrl}
+                    />
+                  ))}
+                </GameRail>
+              ) : null,
+            )}
+          </section>
+        ) : null}
+
         {screenshots.length > 0 ? (
           <section className="pb-4">
             <h2 className="mb-3 text-base font-medium">Screenshots</h2>
@@ -299,24 +330,6 @@ function GamePage() {
             </div>
           </section>
         ) : null}
-
-        {related.map((rail) =>
-          rail.games.length ? (
-            <div key={rail.id} className="pb-5">
-              <GameRail title={rail.title}>
-                {rail.games.map((g) => (
-                  <GameCard
-                    key={g.id}
-                    catalogId={g.id}
-                    title={g.title}
-                    coverUrl={g.coverUrl}
-                    headerUrl={g.headerUrl}
-                  />
-                ))}
-              </GameRail>
-            </div>
-          ) : null,
-        )}
       </div>
 
       {editorOpen ? (
@@ -325,7 +338,13 @@ function GamePage() {
           title={title ?? "Game"}
           initial={
             entry
-              ? { status: entry.status, score: entry.score, favorite: entry.favorite }
+              ? {
+                  status: entry.status,
+                  score: entry.score,
+                  favorite: entry.favorite,
+                  startedAt: entry.startedAt,
+                  finishedAt: entry.finishedAt,
+                }
               : { status: "playing", favorite: favoriteHint }
           }
           saving={busy}
