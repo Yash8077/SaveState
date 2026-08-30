@@ -266,6 +266,8 @@ export function slimCatalogGame(game: CatalogGame): CatalogGame {
     capsuleUrl: null,
     platforms: [],
     metacritic: null,
+    parentGameId: game.parentGameId ?? null,
+    gameType: game.gameType ?? null,
   };
 }
 
