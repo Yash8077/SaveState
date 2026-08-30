@@ -25,10 +25,6 @@ export function safeIgdbSlug(value: string | null | undefined): string | null {
   return SLUG_RE.test(slug) ? slug : null;
 }
 
-function sparqlString(value: string): string {
-  return '"' + value.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
-}
-
 export function wikidataSparql(igdbId: number, slug?: string | null): string {
   const id = String(Math.trunc(igdbId));
   const safeSlug = safeIgdbSlug(slug);
@@ -36,7 +32,7 @@ export function wikidataSparql(igdbId: number, slug?: string | null): string {
   // as a qualifier on P5794). Prefer the slug when we have it - a
   // UNION across both identifiers is too slow for the public endpoint.
   const subject = safeSlug
-    ? `?game wdt:P5794 ${sparqlString(safeSlug)} .`
+    ? `?game wdt:P5794 "${safeSlug}" .`
     : `{ ?game wdt:P9043 "${id}" . } UNION { ?game wdt:P5794 "${id}" . }`;
   return `SELECT ?followsIgdb ?followedByIgdb ?followsSlug ?followedBySlug WHERE {
   ${subject}
