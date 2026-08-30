@@ -6,7 +6,6 @@ import {
   type ThemeMode,
 } from "@/lib/appearance";
 import { useAppearance } from "@/components/appearance-provider";
-import { CatalogSourceSwitch } from "@/components/catalog-provider";
 import { FEATURED_SEED } from "@/lib/catalog-seed";
 import { tintForCatalog } from "@/lib/tints";
 import { cn } from "@/lib/utils";
@@ -49,21 +48,10 @@ function SettingsPage() {
       <div>
         <h1 className="text-2xl font-medium tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted">
-          Catalog source, theme, accent, and surface effects. Player, reader,
-          and extension settings are not part of SaveState.
+          Theme, accent, and surface effects. Player, reader, and extension
+          settings are not part of SaveState.
         </p>
       </div>
-
-      <section className="rounded-xl bg-elevated p-4 sm:p-5">
-        <p className="text-sm font-medium text-muted">Catalog source</p>
-        <p className="mt-1 text-xs text-faint">
-          Browse and search one catalog at a time — same idea as picking AniList
-          or MAL in AnymeX. Results are never mixed.
-        </p>
-        <div className="mt-3">
-          <CatalogSourceSwitch size="cards" />
-        </div>
-      </section>
 
       <section className="rounded-xl bg-elevated p-4 sm:p-5">
         <p className="flex items-center gap-2 text-sm font-medium text-muted">
