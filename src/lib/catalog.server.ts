@@ -5,10 +5,12 @@ import {
   fetchIgdbFeatured,
   igdbCatalogId,
   isIgdbReady,
-  lookupIgdbBySteamIds,
-  lookupIgdbIdBySteamId,
   searchIgdb,
 } from "./igdb.server.ts";
+import {
+  lookupIgdbBySteamIds,
+  lookupIgdbIdBySteamId,
+} from "./igdb-steam.server.ts";
 import { GAME_TYPE } from "./game-type.ts";
 import type { CatalogProvider } from "./catalog-provider.ts";
 
