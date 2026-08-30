@@ -121,7 +121,7 @@ class ApiClient {
   Future<CatalogDetails?> getGameDetails(String catalogId) async {
     final decoded = await _send(
       'GET',
-      _u('/api/catalog/game', {'id': catalogId, 'rel': '4'}),
+      _u('/api/catalog/game', {'id': catalogId, 'rel': '5'}),
     );
     if (decoded is Map<String, dynamic>) {
       return CatalogDetails.fromJson(decoded);
