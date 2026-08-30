@@ -1,0 +1,32 @@
+name: Strip prebuilt Vercel output
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/strip-prebuilt-vercel.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  strip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Untrack committed .vercel/output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-files | grep -q '^\.vercel/'; then
+            git rm -r .vercel
+            printf '%s\n' '.vercel' '.vercel/output' 'node_modules' > .gitignore
+            git add .gitignore
+            git commit -m "Remove committed .vercel/output so Vercel builds from source"
+            git push
+          else
+            echo "No tracked .vercel files"
+          fi
