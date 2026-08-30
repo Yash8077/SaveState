@@ -9,6 +9,7 @@ import {
   House,
   Library,
   Search,
+  Settings,
 } from "lucide-react";
 import { UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -30,6 +31,7 @@ const TITLES: Record<string, string> = {
   "/search": "Browse",
   "/library": "Library",
   "/stats": "Stats",
+  "/settings": "Settings",
 };
 
 function isActive(pathname: string, to: string) {
@@ -164,6 +166,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Search className="size-5" />
               </Link>
             ) : null}
+            <Link
+              to="/settings"
+              aria-label="Settings"
+              className={cn(
+                "grid size-12 place-items-center rounded-full hover:bg-subtle",
+                pathname === "/settings" ? "text-accent" : "text-fg",
+              )}
+            >
+              <Settings className="size-5" />
+            </Link>
             <AuthSlot />
           </div>
         </header>
