@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -17,13 +18,18 @@ import {
 const AppearanceContext = createContext<{
   appearance: Appearance;
   setAppearance: (next: Appearance) => void;
+  dynamicAccent: string | null;
+  setDynamicAccent: (hex: string | null) => void;
 }>({
   appearance: DEFAULT_APPEARANCE,
   setAppearance: () => {},
+  dynamicAccent: null,
+  setDynamicAccent: () => {},
 });
 
 export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [appearance, setState] = useState<Appearance>(DEFAULT_APPEARANCE);
+  const [dynamicAccent, setDynamicAccent] = useState<string | null>(null);
 
   useEffect(() => {
     const loaded = loadAppearance();
@@ -32,22 +38,35 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    applyAppearance(appearance);
+    applyAppearance(
+      appearance,
+      undefined,
+      appearance.dynamic ? dynamicAccent : null,
+    );
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => applyAppearance(appearance, media.matches);
+    const onChange = () =>
+      applyAppearance(
+        appearance,
+        media.matches,
+        appearance.dynamic ? dynamicAccent : null,
+      );
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
-  }, [appearance]);
+  }, [appearance, dynamicAccent]);
+
+  const setAppearance = useCallback((next: Appearance) => {
+    setState(next);
+    saveAppearance(next);
+  }, []);
 
   const value = useMemo(
     () => ({
       appearance,
-      setAppearance: (next: Appearance) => {
-        setState(next);
-        saveAppearance(next);
-      },
+      setAppearance,
+      dynamicAccent,
+      setDynamicAccent,
     }),
-    [appearance],
+    [appearance, setAppearance, dynamicAccent],
   );
 
   return (

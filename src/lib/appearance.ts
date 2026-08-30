@@ -1,3 +1,5 @@
+import { tunedAccent } from "./tints.ts";
+
 export const ACCENTS = [
   { id: "teal", label: "Teal", accent: "#4fd8c4", fg: "#003731" },
   { id: "blue", label: "Blue", accent: "#8ec8ff", fg: "#00344f" },
@@ -18,6 +20,7 @@ export type Appearance = {
   grain: boolean;
   grainIntensity: GrainIntensity;
   bloom: boolean;
+  dynamic: boolean;
 };
 
 const KEY = "savestate-appearance";
@@ -29,6 +32,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   grain: false,
   grainIntensity: "medium",
   bloom: true,
+  dynamic: false,
 };
 
 function isAccent(value: unknown): value is AccentId {
@@ -43,21 +47,27 @@ function isGrain(value: unknown): value is GrainIntensity {
   return value === "low" || value === "medium" || value === "high";
 }
 
+export function parseAppearance(raw: unknown): Appearance {
+  if (!raw || typeof raw !== "object") return DEFAULT_APPEARANCE;
+  const parsed = raw as Partial<Appearance>;
+  return {
+    mode: isMode(parsed.mode) ? parsed.mode : "dark",
+    oled: Boolean(parsed.oled),
+    accent: isAccent(parsed.accent) ? parsed.accent : "teal",
+    grain: Boolean(parsed.grain),
+    grainIntensity: isGrain(parsed.grainIntensity)
+      ? parsed.grainIntensity
+      : "medium",
+    bloom: parsed.bloom !== false,
+    dynamic: Boolean(parsed.dynamic),
+  };
+}
+
 export function loadAppearance(): Appearance {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_APPEARANCE;
-    const parsed = JSON.parse(raw) as Partial<Appearance>;
-    return {
-      mode: isMode(parsed.mode) ? parsed.mode : "dark",
-      oled: Boolean(parsed.oled),
-      accent: isAccent(parsed.accent) ? parsed.accent : "teal",
-      grain: Boolean(parsed.grain),
-      grainIntensity: isGrain(parsed.grainIntensity)
-        ? parsed.grainIntensity
-        : "medium",
-      bloom: parsed.bloom !== false,
-    };
+    return parseAppearance(JSON.parse(raw) as unknown);
   } catch {
     return DEFAULT_APPEARANCE;
   }
@@ -65,7 +75,6 @@ export function loadAppearance(): Appearance {
 
 export function saveAppearance(next: Appearance) {
   localStorage.setItem(KEY, JSON.stringify(next));
-  applyAppearance(next);
 }
 
 export function systemPrefersDark(): boolean {
@@ -85,6 +94,7 @@ export function isDarkAppearance(
 export function applyAppearance(
   next: Appearance,
   systemDark = systemPrefersDark(),
+  dynamicHex?: string | null,
 ) {
   const root = document.documentElement;
   const dark = isDarkAppearance(next, systemDark);
@@ -92,7 +102,22 @@ export function applyAppearance(
   root.classList.toggle("oled", dark && next.oled);
   root.classList.toggle("grain", next.grain);
   root.classList.toggle("bloom", next.bloom);
-  root.dataset.accent = next.accent;
   root.dataset.grain = next.grainIntensity;
   root.style.colorScheme = dark ? "dark" : "light";
+
+  if (next.dynamic && dynamicHex) {
+    const tuned = tunedAccent(dynamicHex, dark);
+    root.dataset.accent = "dynamic";
+    root.style.setProperty("--color-accent", tuned.accent);
+    root.style.setProperty("--color-accent-fg", tuned.fg);
+    root.style.setProperty("--color-primary", tuned.accent);
+    root.style.setProperty("--color-primary-fg", tuned.fg);
+    return;
+  }
+
+  root.dataset.accent = next.accent;
+  root.style.removeProperty("--color-accent");
+  root.style.removeProperty("--color-accent-fg");
+  root.style.removeProperty("--color-primary");
+  root.style.removeProperty("--color-primary-fg");
 }
