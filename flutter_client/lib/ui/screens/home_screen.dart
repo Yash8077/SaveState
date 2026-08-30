@@ -5,6 +5,7 @@ import '../../services/api_client.dart';
 import '../../state/home_layout_controller.dart';
 import '../widgets/game_rail.dart';
 import '../widgets/hero_carousel.dart';
+import '../widgets/home_greeting.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -132,7 +133,18 @@ class _HomeScreenState extends State<HomeScreen> {
         case 'hero':
           final slides = _heroSlides();
           if (slides.isNotEmpty) {
-            out.add(HeroCarousel(key: const ValueKey('home-hero'), games: slides));
+            out.add(
+              KeyedSubtree(
+                key: const ValueKey('home-hero'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const HomeGreeting(),
+                    HeroCarousel(games: slides),
+                  ],
+                ),
+              ),
+            );
           }
           break;
         case 'stats':

@@ -251,6 +251,46 @@ html.bloom .hero-bloom {
   -webkit-touch-callout: none;
 }
 
+.hero-phone {
+  display: block;
+}
+
+.hero-wide-track {
+  display: none;
+}
+
+.hero-poster {
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: 1.35rem;
+}
+
+@media (min-width: 800px) {
+  .hero-phone {
+    display: none;
+  }
+
+  .hero-wide-track {
+    display: flex;
+    gap: 1.25rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.25rem 6vw 0.75rem;
+  }
+
+  .hero-wide-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hero-wide-slide {
+    flex: 0 0 min(20rem, 38vw);
+    scroll-snap-align: center;
+    user-select: none;
+  }
+}
+
 .peek-card {
   transform-origin: center;
   animation: peek-in 250ms var(--ease-smooth-out);

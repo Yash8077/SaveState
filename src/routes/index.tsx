@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppearance } from "@/components/appearance-provider";
 import { GameCard, GameRail } from "@/components/game-card";
@@ -45,7 +46,7 @@ function Home() {
   const signedIn = mounted && Boolean(user);
   const name = user?.displayName?.split(" ")[0];
   const rails = featured.data ?? FEATURED_SEED;
-  const slides = heroSlides(mounted ? playing : [], FEATURED_SEED);
+  const slides = heroSlides(mounted ? playing : [], rails);
   const tintSource = playing[0]?.catalogId ?? slides[0]?.id;
   const sections = useMemo(
     () => mergeHomeLayout(layout.sections, rails.map((rail) => rail.id)),
@@ -125,7 +126,10 @@ function renderHomeSection(
   switch (section.id) {
     case "hero":
       return ctx.slides.length ? (
-        <HeroCarousel key="hero" games={ctx.slides} />
+        <div key="hero" className="space-y-3">
+          <HomeHello name={ctx.name} />
+          <HeroCarousel games={ctx.slides} />
+        </div>
       ) : null;
     case "stats":
       if (!ctx.signedIn && ctx.mounted) {
@@ -141,11 +145,10 @@ function renderHomeSection(
       if (!ctx.signedIn) return null;
       return (
         <div key="stats">
-          <p className="text-sm text-muted">
-            {ctx.name ? `Welcome back, ${ctx.name}` : "Welcome back"}
-            {ctx.hours > 0 ? ` · ${formatHours(ctx.hours)} logged` : ""}
-          </p>
-          <div className="chip-scroll mt-2">
+          {ctx.hours > 0 ? (
+            <p className="mb-2 text-sm text-muted">{formatHours(ctx.hours)} logged</p>
+          ) : null}
+          <div className="chip-scroll">
             <Stat label="Playing" value={String(ctx.playing.length)} />
             <Stat label="Beaten" value={String(ctx.beaten.length)} />
             <Stat label="Backlog" value={String(ctx.backlog.length)} />
@@ -242,6 +245,32 @@ function LibraryCard({ entry: e }: { entry: GameEntry }) {
       hours={e.hours}
       favorite={e.favorite}
     />
+  );
+}
+
+function HomeHello({ name }: { name?: string }) {
+  const hour = new Date().getHours();
+  const hello =
+    hour < 5 || hour >= 21
+      ? "Good night"
+      : hour < 12
+        ? "Good morning"
+        : hour < 17
+          ? "Good afternoon"
+          : "Good evening";
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-xl font-medium tracking-tight">
+        {name ? `${hello}, ${name}` : hello}
+      </p>
+      <Link
+        to="/search"
+        aria-label="Search"
+        className="inline-flex size-10 items-center justify-center rounded-full bg-elevated text-fg"
+      >
+        <Search className="size-4" />
+      </Link>
+    </div>
   );
 }
 
