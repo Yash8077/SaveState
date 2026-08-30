@@ -169,6 +169,34 @@ function pick(ids: number[]): CatalogGame[] {
   return games;
 }
 
+const SERIES: number[][] = [
+  [570940, 236430, 374320, 814380, 1245620, 2622380],
+  [1145360, 1145350],
+  [400, 620],
+  [367520, 1030300],
+  [1593500, 2322010],
+  [271590, 3240220],
+  [238960, 2694490],
+  [379430, 1771300],
+  [582010, 2246340],
+  [1817070, 2215430],
+];
+
+export function seedRelated(catalogId: string): FeaturedRail[] {
+  const match = /^steam_(\d+)$/.exec(catalogId);
+  if (!match) return [];
+  const steamId = Number(match[1]);
+  const chain = SERIES.find((ids) => ids.includes(steamId));
+  if (!chain) return [];
+  const index = chain.indexOf(steamId);
+  const prequels = pick(chain.slice(0, index));
+  const sequels = pick(chain.slice(index + 1));
+  const rails: FeaturedRail[] = [];
+  if (prequels.length) rails.push({ id: "prequel", title: "Prequel", games: prequels });
+  if (sequels.length) rails.push({ id: "sequel", title: "Sequel", games: sequels });
+  return rails;
+}
+
 export const FEATURED_SEED: FeaturedRail[] = [
   {
     id: "popular",
