@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _name = TextEditingController();
   bool _signup = false;
   bool _busy = false;
+  bool _googleOn = false;
   String? _error;
 
   @override
@@ -26,6 +27,34 @@ class _LoginScreenState extends State<LoginScreen> {
     _password.dispose();
     _name.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ApiClient>().googleAuthEnabled().then((on) {
+        if (mounted) setState(() => _googleOn = on);
+      });
+    });
+  }
+
+  Future<void> _google() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final auth = context.read<AuthController>();
+    try {
+      await auth.signInGoogle();
+      if (mounted) context.go('/');
+    } on ApiException catch (e) {
+      setState(() => _error = e.message);
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -70,6 +99,28 @@ class _LoginScreenState extends State<LoginScreen> {
             style: TextStyle(color: cs.onSurfaceVariant),
           ),
             const SizedBox(height: 24),
+            if (_googleOn) ...[
+              FilledButton.tonalIcon(
+                onPressed: _busy ? null : _google,
+                icon: const Icon(Icons.g_mobiledata_rounded),
+                label: const Text('Continue with Google'),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'or email',
+                      style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
             if (_signup)
               TextField(
                 controller: _name,

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import '../services/api_client.dart';
 
 class AuthController extends ChangeNotifier {
@@ -31,6 +32,26 @@ class AuthController extends ChangeNotifier {
     }
     ready = true;
     notifyListeners();
+  }
+
+  Future<void> signInGoogle() async {
+    error = null;
+    notifyListeners();
+    final result = await FlutterWebAuth2.authenticate(
+      url: '${ApiClient.origin}/api/google/start',
+      callbackUrlScheme: 'savestate',
+    );
+    final token = Uri.parse(result).queryParameters['token'];
+    if (token == null || token.isEmpty) {
+      throw ApiException(401, 'Google sign-in did not return a session');
+    }
+    api.sessionToken = token;
+    final user = await api.getSession();
+    if (user == null) {
+      api.sessionToken = null;
+      throw ApiException(401, 'Google sign-in session was invalid');
+    }
+    await _setSession(token, user);
   }
 
   Future<void> signIn(String email, String password) async {

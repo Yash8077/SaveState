@@ -77,6 +77,25 @@ Every successful Android build is published to **[Releases](https://github.com/Y
 
 ---
 
+## Google sign-in (free, your project)
+
+Google OAuth is **direct** — Google → SaveState. No Grok broker, no paid auth vendor. Google Cloud OAuth is free for this (openid / email / profile).
+
+1. [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → create a project → **OAuth consent screen** (External is fine). App name: `SaveState`. Scopes: `openid`, `email`, `profile`.
+2. **Create credentials → OAuth client ID → Web application**
+   - Authorized JavaScript origins: `https://save-state-jade.vercel.app`
+   - Authorized redirect URI: `https://save-state-jade.vercel.app/api/auth/callback/google`
+3. In **Vercel → Project → Settings → Environment Variables**, add:
+   - `GOOGLE_CLIENT_ID` — the client id (`….apps.googleusercontent.com`)
+   - `GOOGLE_CLIENT_SECRET` — the client secret
+4. Redeploy. **Continue with Google** appears on the website and in the app.
+
+The secret stays on the server. The Android app opens a Chrome tab, Google signs you in on your domain, then returns a session into the app. Same library as email/password.
+
+Until those two env vars are set, email sign-in still works and the Google button stays hidden.
+
+---
+
 ## Stack
 
 <div align="center">

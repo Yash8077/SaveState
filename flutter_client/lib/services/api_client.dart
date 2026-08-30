@@ -260,6 +260,15 @@ class ApiClient {
     _invalidateLibrary();
   }
 
+  Future<bool> googleAuthEnabled() async {
+    try {
+      final decoded = await _send('GET', _u('/api/config'));
+      return decoded is Map && decoded['google'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<({AuthUser user, String token})> signInEmail(
     String email,
     String password,

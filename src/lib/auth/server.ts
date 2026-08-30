@@ -38,6 +38,7 @@ import { Pool } from "pg";
 import { ensureDbReady, getPglite } from "../db";
 import { emailAndPasswordEnabled } from "./email-password";
 import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server";
+import { googleAuthEnabled, googleClientId, googleClientSecret } from "./google-env";
 import { GROK_PROVIDERS } from "./providers";
 import { pgliteDialect } from "./pglite-dialect";
 import {
@@ -92,9 +93,6 @@ export const authConfigured =
 // preview allowlist, which makes the OAuth `redirect_uri` the concrete preview URL
 // the broker's preview client accepts.
 const explicitBaseURL = env("BETTER_AUTH_URL");
-const strip = (u: string) => u.replace(/\/+$/, "");
-const vercelHost = "save-state-jade.vercel.app";
-
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
 const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
@@ -106,35 +104,27 @@ const LOCAL_DEV_ORIGINS: string[] = [
   "http://127.0.0.1:8080",
   "http://[::1]:8080",
 ];
-
-const baseURL = explicitBaseURL
-  ? strip(explicitBaseURL)
-  : {
-      allowedHosts: [
-        vercelHost,
-        "*.vercel.app",
-        ...previewAllowedHosts,
-        "localhost",
-        "127.0.0.1",
-        "[::1]",
-      ],
-      protocol: "auto" as const,
-      fallback: "http://localhost:8080",
-    };
+const baseURL = explicitBaseURL ?? {
+  // Include loopback hosts so dynamic baseURL resolves for local email/password
+  // (not only the preview wildcard).
+  allowedHosts: [...previewAllowedHosts, "localhost", "127.0.0.1", "[::1]"],
+  // `auto` → trust both http:// and https:// expansions of allowedHosts
+  // (preview is https; local dev is http).
+  protocol: "auto" as const,
+  fallback: "http://localhost:8080",
+};
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
-const trustedOrigins: string[] = [
-  explicitBaseURL && strip(explicitBaseURL),
-  `https://${vercelHost}`,
-  "https://*.vercel.app",
-  env("VERCEL_URL") && `https://${env("VERCEL_URL")}`,
-  env("VERCEL_PROJECT_PRODUCTION_URL") &&
-    `https://${env("VERCEL_PROJECT_PRODUCTION_URL")}`,
-  ...LOCAL_DEV_ORIGINS,
-  ...previewAllowedHosts,
-  ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
-].filter((x): x is string => Boolean(x));
+const trustedOrigins: string[] = explicitBaseURL
+  ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS]
+  : [
+      // Host wildcards (matched against Origin's host)
+      ...previewAllowedHosts,
+      // Full-origin wildcards (matched against Origin)
+      ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
+      ...LOCAL_DEV_ORIGINS,
+    ];
 
 const databaseUrl = env("DATABASE_URL");
 
@@ -208,6 +198,7 @@ export const auth = betterAuth({
       trustedProviders: [
         ...GROK_PROVIDERS.map((p) => p.providerId),
         GATE_PROVIDER_ID,
+        "google",
       ],
       // X's synthetic email is never "verified", so don't gate linking on the
       // local user's email-verified state.
@@ -223,6 +214,20 @@ export const auth = betterAuth({
 
   // Local email/password — toggled only via `./email-password` (not a plugin).
   ...(emailAndPasswordEnabled ? { emailAndPassword: { enabled: true } } : {}),
+
+  // Direct Google OAuth (your Cloud project). Off until GOOGLE_CLIENT_ID and
+  // GOOGLE_CLIENT_SECRET are set. Never sent to the Grok broker.
+  ...(googleAuthEnabled
+    ? {
+        socialProviders: {
+          google: {
+            clientId: googleClientId as string,
+            clientSecret: googleClientSecret as string,
+            prompt: "select_account" as const,
+          },
+        },
+      }
+    : {}),
 
   // `__Host-` prefixed cookies: the browser REFUSES any same-named cookie that
   // carries a `Domain` attribute, so a sibling `*.grok.me` app cannot "toss" a

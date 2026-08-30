@@ -16,12 +16,16 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StatsRouteImport } from './routes/stats'
+import { Route as ApiConfigRouteImport } from './routes/api/config'
 import { Route as ApiLibraryRouteImport } from './routes/api/library'
 import { Route as GameCatalogIdRouteImport } from './routes/game.$catalogId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiCatalogArtRouteImport } from './routes/api/catalog.art'
 import { Route as ApiCatalogFeaturedRouteImport } from './routes/api/catalog.featured'
 import { Route as ApiCatalogGameRouteImport } from './routes/api/catalog.game'
 import { Route as ApiCatalogSearchRouteImport } from './routes/api/catalog.search'
+import { Route as ApiGoogleNativeRouteImport } from './routes/api/google.native'
+import { Route as ApiGoogleStartRouteImport } from './routes/api/google.start'
 import { Route as ApiLibraryIdRouteImport } from './routes/api/library.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -59,6 +63,11 @@ const StatsRoute = StatsRouteImport.update({
   path: '/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiConfigRoute = ApiConfigRouteImport.update({
+  id: '/api/config',
+  path: '/api/config',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiLibraryRoute = ApiLibraryRouteImport.update({
   id: '/api/library',
   path: '/api/library',
@@ -72,6 +81,11 @@ const GameCatalogIdRoute = GameCatalogIdRouteImport.update({
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCatalogArtRoute = ApiCatalogArtRouteImport.update({
+  id: '/api/catalog/art',
+  path: '/api/catalog/art',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCatalogFeaturedRoute = ApiCatalogFeaturedRouteImport.update({
@@ -89,6 +103,16 @@ const ApiCatalogSearchRoute = ApiCatalogSearchRouteImport.update({
   path: '/api/catalog/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGoogleNativeRoute = ApiGoogleNativeRouteImport.update({
+  id: '/api/google/native',
+  path: '/api/google/native',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGoogleStartRoute = ApiGoogleStartRouteImport.update({
+  id: '/api/google/start',
+  path: '/api/google/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiLibraryIdRoute = ApiLibraryIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -103,12 +127,16 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
+  '/api/config': typeof ApiConfigRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
   '/game/$catalogId': typeof GameCatalogIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/catalog/art': typeof ApiCatalogArtRoute
   '/api/catalog/featured': typeof ApiCatalogFeaturedRoute
   '/api/catalog/game': typeof ApiCatalogGameRoute
   '/api/catalog/search': typeof ApiCatalogSearchRoute
+  '/api/google/native': typeof ApiGoogleNativeRoute
+  '/api/google/start': typeof ApiGoogleStartRoute
   '/api/library/$id': typeof ApiLibraryIdRoute
 }
 export interface FileRoutesByTo {
@@ -119,12 +147,16 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
+  '/api/config': typeof ApiConfigRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
   '/game/$catalogId': typeof GameCatalogIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/catalog/art': typeof ApiCatalogArtRoute
   '/api/catalog/featured': typeof ApiCatalogFeaturedRoute
   '/api/catalog/game': typeof ApiCatalogGameRoute
   '/api/catalog/search': typeof ApiCatalogSearchRoute
+  '/api/google/native': typeof ApiGoogleNativeRoute
+  '/api/google/start': typeof ApiGoogleStartRoute
   '/api/library/$id': typeof ApiLibraryIdRoute
 }
 export interface FileRoutesById {
@@ -136,12 +168,16 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
+  '/api/config': typeof ApiConfigRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
   '/game/$catalogId': typeof GameCatalogIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/catalog/art': typeof ApiCatalogArtRoute
   '/api/catalog/featured': typeof ApiCatalogFeaturedRoute
   '/api/catalog/game': typeof ApiCatalogGameRoute
   '/api/catalog/search': typeof ApiCatalogSearchRoute
+  '/api/google/native': typeof ApiGoogleNativeRoute
+  '/api/google/start': typeof ApiGoogleStartRoute
   '/api/library/$id': typeof ApiLibraryIdRoute
 }
 export interface FileRouteTypes {
@@ -154,12 +190,16 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/stats'
+    | '/api/config'
     | '/api/library'
     | '/game/$catalogId'
     | '/api/auth/$'
+    | '/api/catalog/art'
     | '/api/catalog/featured'
     | '/api/catalog/game'
     | '/api/catalog/search'
+    | '/api/google/native'
+    | '/api/google/start'
     | '/api/library/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -170,12 +210,16 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/stats'
+    | '/api/config'
     | '/api/library'
     | '/game/$catalogId'
     | '/api/auth/$'
+    | '/api/catalog/art'
     | '/api/catalog/featured'
     | '/api/catalog/game'
     | '/api/catalog/search'
+    | '/api/google/native'
+    | '/api/google/start'
     | '/api/library/$id'
   id:
     | '__root__'
@@ -186,12 +230,16 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/stats'
+    | '/api/config'
     | '/api/library'
     | '/game/$catalogId'
     | '/api/auth/$'
+    | '/api/catalog/art'
     | '/api/catalog/featured'
     | '/api/catalog/game'
     | '/api/catalog/search'
+    | '/api/google/native'
+    | '/api/google/start'
     | '/api/library/$id'
   fileRoutesById: FileRoutesById
 }
@@ -203,12 +251,16 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
   StatsRoute: typeof StatsRoute
+  ApiConfigRoute: typeof ApiConfigRoute
   ApiLibraryRoute: typeof ApiLibraryRouteWithChildren
   GameCatalogIdRoute: typeof GameCatalogIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiCatalogArtRoute: typeof ApiCatalogArtRoute
   ApiCatalogFeaturedRoute: typeof ApiCatalogFeaturedRoute
   ApiCatalogGameRoute: typeof ApiCatalogGameRoute
   ApiCatalogSearchRoute: typeof ApiCatalogSearchRoute
+  ApiGoogleNativeRoute: typeof ApiGoogleNativeRoute
+  ApiGoogleStartRoute: typeof ApiGoogleStartRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -262,6 +314,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StatsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/config': {
+      id: '/api/config'
+      path: '/api/config'
+      fullPath: '/api/config'
+      preLoaderRoute: typeof ApiConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/library': {
       id: '/api/library'
       path: '/api/library'
@@ -283,6 +342,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/catalog/art': {
+      id: '/api/catalog/art'
+      path: '/api/catalog/art'
+      fullPath: '/api/catalog/art'
+      preLoaderRoute: typeof ApiCatalogArtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/catalog/featured': {
       id: '/api/catalog/featured'
       path: '/api/catalog/featured'
@@ -302,6 +368,20 @@ declare module '@tanstack/react-router' {
       path: '/api/catalog/search'
       fullPath: '/api/catalog/search'
       preLoaderRoute: typeof ApiCatalogSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/google/native': {
+      id: '/api/google/native'
+      path: '/api/google/native'
+      fullPath: '/api/google/native'
+      preLoaderRoute: typeof ApiGoogleNativeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/google/start': {
+      id: '/api/google/start'
+      path: '/api/google/start'
+      fullPath: '/api/google/start'
+      preLoaderRoute: typeof ApiGoogleStartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/library/$id': {
@@ -334,12 +414,16 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
   StatsRoute: StatsRoute,
+  ApiConfigRoute: ApiConfigRoute,
   ApiLibraryRoute: ApiLibraryRouteWithChildren,
   GameCatalogIdRoute: GameCatalogIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiCatalogArtRoute: ApiCatalogArtRoute,
   ApiCatalogFeaturedRoute: ApiCatalogFeaturedRoute,
   ApiCatalogGameRoute: ApiCatalogGameRoute,
   ApiCatalogSearchRoute: ApiCatalogSearchRoute,
+  ApiGoogleNativeRoute: ApiGoogleNativeRoute,
+  ApiGoogleStartRoute: ApiGoogleStartRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

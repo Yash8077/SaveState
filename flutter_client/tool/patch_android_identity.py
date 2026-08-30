@@ -16,6 +16,21 @@ STYLES = [
 ]
 
 
+CALLBACK_ACTIVITY = '''
+        <activity
+            android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+            android:exported="true"
+            android:taskAffinity="">
+            <intent-filter android:label="flutter_web_auth_2">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="savestate" />
+            </intent-filter>
+        </activity>
+'''
+
+
 def patch_manifest(text: str) -> str:
     text = re.sub(r'android:label="[^"]*"', 'android:label="SaveState"', text)
     if "enableOnBackInvokedCallback" in text:
@@ -24,17 +39,19 @@ def patch_manifest(text: str) -> str:
             'android:enableOnBackInvokedCallback="true"',
             text,
         )
-        return text
-    text = text.replace(
-        "<application",
-        '<application android:enableOnBackInvokedCallback="true"',
-        1,
-    )
-    text = text.replace(
-        "<activity",
-        '<activity android:enableOnBackInvokedCallback="true"',
-        1,
-    )
+    else:
+        text = text.replace(
+            "<application",
+            '<application android:enableOnBackInvokedCallback="true"',
+            1,
+        )
+        text = text.replace(
+            "<activity",
+            '<activity android:enableOnBackInvokedCallback="true"',
+            1,
+        )
+    if "flutter_web_auth_2.CallbackActivity" not in text:
+        text = text.replace("</application>", CALLBACK_ACTIVITY + "    </application>", 1)
     return text
 
 
