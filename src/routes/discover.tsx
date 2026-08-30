@@ -37,6 +37,7 @@ function Discover() {
               coverUrl={g.coverUrl}
               headerUrl={g.headerUrl}
               capsuleUrl={g.capsuleUrl}
+              metacritic={g.metacritic}
               priority={railIndex === 0 && i < 6}
             />
           ))}

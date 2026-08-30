@@ -416,6 +416,7 @@ function RelatedRail({
             coverUrl={g.coverUrl}
             headerUrl={g.headerUrl}
             capsuleUrl={g.capsuleUrl}
+            metacritic={g.metacritic}
             badge={g.relation}
           />
         ))}
