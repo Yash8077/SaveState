@@ -54,6 +54,36 @@ describe("flattenRelated", () => {
     assert.equal(relationBadge("side", "Side story"), "Side story");
     assert.equal(relationBadge("dlc", "DLC & expansions"), "DLC");
   });
+
+  it("splits sequel/DLC cards from related/similar cards", () => {
+    const rails: FeaturedRail[] = [
+      { id: "prequel", title: "Prequel", games: [game("a", "One")] },
+      { id: "sequel", title: "Sequel", games: [game("b", "Two")] },
+      { id: "dlc", title: "DLC & expansions", games: [game("d", "Pack")] },
+      { id: "similar", title: "Similar games", games: [game("c", "Like")] },
+      { id: "franchise", title: "Franchise", games: [game("e", "Spin")] },
+    ];
+    assert.deepEqual(
+      flattenRelated(rails, ["dlc", "prequel", "sequel"]).map((c) => [
+        c.id,
+        c.relation,
+      ]),
+      [
+        ["a", "Prequel"],
+        ["b", "Sequel"],
+        ["d", "DLC"],
+      ],
+    );
+    assert.deepEqual(
+      flattenRelated(rails, ["series", "original", "franchise", "remakes", "similar"]).map(
+        (c) => [c.id, c.relation],
+      ),
+      [
+        ["c", "Similar"],
+        ["e", "Franchise"],
+      ],
+    );
+  });
 });
 
 describe("needsPrequelSequelFallback", () => {
