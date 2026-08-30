@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../models/types.dart';
+import '../../services/api_client.dart';
 import '../widgets/game_card.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -10,12 +13,63 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
-  // In a real app, you'd fetch this from your ApiClient or local SQLite database
-  final List<GameEntry> _entries = [];
+  List<GameEntry> _entries = [];
+  bool _isLoading = true;
+  String _error = '';
   String _selectedStatus = 'all';
 
   @override
+  void initState() {
+    super.initState();
+    _fetchLibrary();
+  }
+
+  Future<void> _fetchLibrary() async {
+    try {
+      final entries = await context.read<ApiClient>().getLibrary();
+      if (mounted) {
+        setState(() {
+          _entries = entries;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Please sign in to view your library.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_error.isNotEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Library')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock_outline, size: 64, color: Colors.white24),
+              const SizedBox(height: 16),
+              Text(_error, style: const TextStyle(fontSize: 18)),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => context.go('/login'),
+                child: const Text('Go to Login'),
+              )
+            ],
+          ),
+        ),
+      );
+    }
+
     final filtered = _selectedStatus == 'all'
         ? _entries
         : _entries.where((e) => e.status.value == _selectedStatus).toList();
@@ -28,9 +82,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
-            onPressed: () {
-              // Filter logic placeholder
-            },
+            onPressed: () {},
           )
         ],
       ),

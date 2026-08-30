@@ -3,8 +3,8 @@ import 'package:http/http.dart' as http;
 import '../models/types.dart';
 
 class ApiClient {
-  // Point this to your backend API once deployed, or 10.0.2.2:8080 for Android emulator pointing to localhost
-  static const String baseUrl = 'http://127.0.0.1:8080';
+  // Pointing to your live Vercel deployment!
+  static const String baseUrl = 'https://save-state-jade.vercel.app';
 
   Future<List<CatalogGame>> searchGames(String query) async {
     final uri = Uri.parse('$baseUrl/api/catalog/search?q=${Uri.encodeComponent(query)}');
