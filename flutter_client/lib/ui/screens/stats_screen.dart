@@ -38,20 +38,27 @@ class _StatsScreenState extends State<StatsScreen> {
           _isLoading = false;
         });
       }
+    } on ApiException catch (e) {
+      if (mounted) {
+        if (e.status == 401) {
+          setState(() {
+            _isAuthError = true;
+            _errorMessage = 'Sign in to view your stats';
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _isAuthError = false;
+            _errorMessage = e.message;
+            _isLoading = false;
+          });
+        }
+      }
     } catch (e) {
       if (mounted) {
-        final errString = e.toString().toLowerCase();
-        final isAuth = errString.contains('401') ||
-            errString.contains('unauthorized') ||
-            errString.contains('auth') ||
-            errString.contains('sign in') ||
-            errString.contains('login');
-
         setState(() {
-          _isAuthError = isAuth;
-          _errorMessage = isAuth
-              ? 'Sign in to view your stats'
-              : 'Unable to load your stats. Please try again.';
+          _isAuthError = false;
+          _errorMessage = e.toString();
           _isLoading = false;
         });
       }
@@ -165,12 +172,24 @@ class _StatsScreenState extends State<StatsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Sign in on the SaveState website to view your gaming analytics, hours logged, and completion metrics.',
+                'Sign in to view your gaming analytics, hours logged, and completion metrics.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                   height: 1.4,
                 ),
                 textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () => context.push('/login'),
+                icon: const Icon(Icons.login_rounded, size: 18),
+                label: const Text('Sign In'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
             ],
           ),

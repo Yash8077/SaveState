@@ -2,169 +2,273 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/types.dart';
 
+class ApiException implements Exception {
+  final int status;
+  final String message;
+  ApiException(this.status, this.message);
+  @override
+  String toString() => message.isEmpty ? 'HTTP $status' : message;
+}
+
+class AuthUser {
+  final String id;
+  final String email;
+  final String name;
+  AuthUser({required this.id, required this.email, required this.name});
+}
+
 class ApiClient {
-  static const String defaultBaseUrl = 'https://save-state-jade.vercel.app';
-  static const String baseUrl = defaultBaseUrl;
+  static const String origin = 'https://save-state-jade.vercel.app';
 
-  final String _baseUrl;
   final http.Client _client;
+  String? sessionToken;
 
-  ApiClient({
-    String? baseUrl,
-    http.Client? client,
-  })  : _baseUrl = baseUrl ?? defaultBaseUrl,
-        _client = client ?? http.Client();
+  ApiClient({http.Client? client}) : _client = client ?? http.Client();
 
-  Map<String, String> get _headers => const {
-        'Accept': 'application/json',
-      };
+  Map<String, String> _headers({bool json = false}) {
+    final h = <String, String>{
+      'Accept': 'application/json',
+      // Required on auth POSTs; harmless on catalog GETs.
+      'Origin': origin,
+    };
+    if (json) h['Content-Type'] = 'application/json';
+    final token = sessionToken;
+    if (token != null && token.isNotEmpty) {
+      h['Authorization'] = 'Bearer $token';
+    }
+    return h;
+  }
 
-  Map<String, String> get _headersWithJson => const {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      };
+  Uri _u(String path, [Map<String, String>? q]) =>
+      Uri.parse('$origin$path').replace(queryParameters: q);
+
+  Future<dynamic> _send(
+    String method,
+    Uri uri, {
+    Object? body,
+    bool jsonBody = false,
+  }) async {
+    final headers = _headers(json: jsonBody);
+    final http.Response res;
+    switch (method) {
+      case 'GET':
+        res = await _client.get(uri, headers: headers);
+        break;
+      case 'POST':
+        res = await _client.post(uri,
+            headers: headers, body: jsonBody ? jsonEncode(body) : body);
+        break;
+      case 'PATCH':
+        res = await _client.patch(uri,
+            headers: headers, body: jsonEncode(body));
+        break;
+      case 'DELETE':
+        res = await _client.delete(uri, headers: headers);
+        break;
+      default:
+        throw ApiException(0, 'Unsupported $method');
+    }
+
+    if (res.statusCode >= 400) {
+      String message = 'HTTP ${res.statusCode}';
+      try {
+        final decoded = jsonDecode(res.body);
+        if (decoded is Map && decoded['message'] is String) {
+          message = decoded['message'] as String;
+        } else if (decoded is Map && decoded['error'] is String) {
+          message = decoded['error'] as String;
+        }
+      } catch (_) {
+        if (res.body.trim().isNotEmpty) message = res.body;
+      }
+      throw ApiException(res.statusCode, message);
+    }
+    if (res.body.isEmpty) return null;
+    return jsonDecode(res.body);
+  }
+
+  String? _tokenFrom(dynamic data, http.Response? raw) {
+    if (data is Map) {
+      final top = data['token'];
+      if (top is String && top.isNotEmpty) return top;
+      final session = data['session'];
+      if (session is Map && session['token'] is String) {
+        return session['token'] as String;
+      }
+    }
+    return null;
+  }
 
   Future<List<CatalogGame>> searchGames(String query) async {
     if (query.trim().isEmpty) return const [];
-    try {
-      final uri = Uri.parse('$_baseUrl/api/catalog/search?q=${Uri.encodeQueryComponent(query)}');
-      final response = await _client.get(uri, headers: _headers);
-
-      if (response.statusCode == 200) {
-        final dynamic decoded = jsonDecode(response.body);
-        if (decoded is List) {
-          return decoded
-              .map((item) => CatalogGame.fromJson(item as Map<String, dynamic>))
-              .toList();
-        }
-      }
-      return const [];
-    } catch (e) {
-      return const [];
-    }
+    final decoded = await _send(
+      'GET',
+      _u('/api/catalog/search', {'q': query.trim()}),
+    );
+    if (decoded is! List) return const [];
+    return decoded
+        .map((e) => CatalogGame.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<FeaturedRail>> getFeaturedRails() async {
-    try {
-      final uri = Uri.parse('$_baseUrl/api/catalog/featured');
-      final response = await _client.get(uri, headers: _headers);
-
-      if (response.statusCode == 200) {
-        final dynamic decoded = jsonDecode(response.body);
-        if (decoded is List) {
-          return decoded
-              .map((item) => FeaturedRail.fromJson(item as Map<String, dynamic>))
-              .toList();
-        }
-      }
-      return const [];
-    } catch (e) {
-      return const [];
-    }
+    final decoded = await _send('GET', _u('/api/catalog/featured'));
+    if (decoded is! List) return const [];
+    return decoded
+        .map((e) => FeaturedRail.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<CatalogDetails?> getGameDetails(String catalogId) async {
-    if (catalogId.trim().isEmpty) return null;
-    try {
-      final uri = Uri.parse('$_baseUrl/api/catalog/game?id=${Uri.encodeQueryComponent(catalogId)}');
-      final response = await _client.get(uri, headers: _headers);
-
-      if (response.statusCode == 200) {
-        final dynamic decoded = jsonDecode(response.body);
-        if (decoded is Map<String, dynamic>) {
-          return CatalogDetails.fromJson(decoded);
-        }
-      }
-      return null;
-    } catch (e) {
-      return null;
+    final decoded = await _send(
+      'GET',
+      _u('/api/catalog/game', {'id': catalogId}),
+    );
+    if (decoded is Map<String, dynamic>) {
+      return CatalogDetails.fromJson(decoded);
     }
+    return null;
   }
 
   Future<List<GameEntry>> getLibrary() async {
-    try {
-      final uri = Uri.parse('$_baseUrl/api/library');
-      final response = await _client.get(uri, headers: _headers);
-
-      if (response.statusCode == 401) {
-        return const [];
-      }
-
-      if (response.statusCode == 200) {
-        final dynamic decoded = jsonDecode(response.body);
-        if (decoded is List) {
-          return decoded
-              .map((item) => GameEntry.fromJson(item as Map<String, dynamic>))
-              .toList();
-        } else if (decoded is Map<String, dynamic> && decoded['items'] is List) {
-          return (decoded['items'] as List)
-              .map((item) => GameEntry.fromJson(item as Map<String, dynamic>))
-              .toList();
-        }
-      }
-      return const [];
-    } catch (e) {
-      return const [];
+    final decoded = await _send('GET', _u('/api/library'));
+    if (decoded is List) {
+      return decoded
+          .map((e) => GameEntry.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
+    if (decoded is Map && decoded['items'] is List) {
+      return (decoded['items'] as List)
+          .map((e) => GameEntry.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    return const [];
   }
 
-  Future<GameEntry?> addToLibrary(String catalogId, String status) async {
-    try {
-      final uri = Uri.parse('$_baseUrl/api/library');
-      final body = jsonEncode({
-        'catalogId': catalogId,
+  Future<GameEntry> addToLibrary(CatalogGame game, {String status = 'backlog'}) async {
+    final decoded = await _send(
+      'POST',
+      _u('/api/library'),
+      jsonBody: true,
+      body: {
+        'catalogId': game.id,
         'status': status,
-      });
-
-      final response = await _client.post(
-        uri,
-        headers: _headersWithJson,
-        body: body,
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final dynamic decoded = jsonDecode(response.body);
-        if (decoded is Map<String, dynamic>) {
-          return GameEntry.fromJson(decoded);
-        }
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
+        'snapshot': {
+          'title': game.title,
+          'coverUrl': game.coverUrl,
+          'headerUrl': game.headerUrl,
+          'summary': null,
+          'releaseDate': null,
+          'platforms': game.platforms,
+          'genres': <String>[],
+          'metacritic': game.metacritic,
+          'developers': <String>[],
+          'publishers': <String>[],
+          'screenshots': <String>[],
+        },
+      },
+    );
+    return GameEntry.fromJson(decoded as Map<String, dynamic>);
   }
 
-  Future<GameEntry?> updateEntry(int id, Map<String, dynamic> updates) async {
-    try {
-      final uri = Uri.parse('$_baseUrl/api/library/$id');
-      final body = jsonEncode(updates);
-
-      final response = await _client.patch(
-        uri,
-        headers: _headersWithJson,
-        body: body,
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final dynamic decoded = jsonDecode(response.body);
-        if (decoded is Map<String, dynamic>) {
-          return GameEntry.fromJson(decoded);
-        }
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
+  Future<GameEntry> updateEntry(int id, Map<String, dynamic> updates) async {
+    final decoded = await _send(
+      'PATCH',
+      _u('/api/library/$id'),
+      jsonBody: true,
+      body: updates,
+    );
+    return GameEntry.fromJson(decoded as Map<String, dynamic>);
   }
 
-  Future<bool> deleteEntry(int id) async {
-    try {
-      final uri = Uri.parse('$_baseUrl/api/library/$id');
-      final response = await _client.delete(uri, headers: _headers);
+  Future<void> deleteEntry(int id) async {
+    await _send('DELETE', _u('/api/library/$id'));
+  }
 
-      return response.statusCode == 200 || response.statusCode == 204;
-    } catch (e) {
-      return false;
+  Future<({AuthUser user, String token})> signInEmail(
+    String email,
+    String password,
+  ) async {
+    return _authPost('/api/auth/sign-in/email', {
+      'email': email.trim(),
+      'password': password,
+    });
+  }
+
+  Future<({AuthUser user, String token})> signUpEmail({
+    required String email,
+    required String password,
+    required String name,
+  }) async {
+    return _authPost('/api/auth/sign-up/email', {
+      'email': email.trim(),
+      'password': password,
+      'name': name.trim().isEmpty ? email.split('@').first : name.trim(),
+    });
+  }
+
+  Future<({AuthUser user, String token})> _authPost(
+    String path,
+    Map<String, String> body,
+  ) async {
+    final uri = _u(path);
+    final res = await _client.post(
+      uri,
+      headers: _headers(json: true),
+      body: jsonEncode(body),
+    );
+    dynamic decoded;
+    try {
+      decoded = res.body.isEmpty ? null : jsonDecode(res.body);
+    } catch (_) {}
+    if (res.statusCode >= 400) {
+      final msg = decoded is Map
+          ? (decoded['message'] ?? decoded['error'] ?? 'Auth failed')
+          : 'Auth failed (${res.statusCode})';
+      throw ApiException(res.statusCode, msg.toString());
+    }
+    final token = _tokenFrom(decoded, res);
+    if (token == null) {
+      throw ApiException(res.statusCode, 'Signed in but no session token');
+    }
+    final userMap = decoded is Map ? decoded['user'] : null;
+    if (userMap is! Map) {
+      throw ApiException(res.statusCode, 'Signed in but no user');
+    }
+    return (
+      user: AuthUser(
+        id: userMap['id']?.toString() ?? '',
+        email: userMap['email']?.toString() ?? '',
+        name: userMap['name']?.toString() ?? '',
+      ),
+      token: token,
+    );
+  }
+
+  Future<AuthUser?> getSession() async {
+    if (sessionToken == null) return null;
+    try {
+      final decoded = await _send('GET', _u('/api/auth/get-session'));
+      if (decoded is Map && decoded['user'] is Map) {
+        final u = decoded['user'] as Map;
+        return AuthUser(
+          id: u['id']?.toString() ?? '',
+          email: u['email']?.toString() ?? '',
+          name: u['name']?.toString() ?? '',
+        );
+      }
+    } on ApiException catch (e) {
+      if (e.status == 401) return null;
+      rethrow;
+    }
+    return null;
+  }
+
+  Future<void> signOut() async {
+    try {
+      await _send('POST', _u('/api/auth/sign-out'), jsonBody: true, body: {});
+    } catch (_) {
+      // Token is dropped locally either way.
     }
   }
 }

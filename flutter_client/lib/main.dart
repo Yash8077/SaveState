@@ -1,55 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:dynamic_color/dynamic_color.dart';
-import 'models/types.dart';
 import 'services/api_client.dart';
+import 'state/auth_controller.dart';
 import 'router.dart';
 
 void main() {
+  final api = ApiClient();
+  final auth = AuthController(api);
   runApp(
     MultiProvider(
       providers: [
-        Provider<ApiClient>(create: (_) => ApiClient()),
+        Provider<ApiClient>.value(value: api),
+        ChangeNotifierProvider<AuthController>.value(value: auth),
       ],
-      child: const SaveStateApp(),
+      child: SaveStateApp(auth: auth),
     ),
   );
 }
 
-class SaveStateApp extends StatelessWidget {
-  const SaveStateApp({super.key});
+class SaveStateApp extends StatefulWidget {
+  final AuthController auth;
+  const SaveStateApp({super.key, required this.auth});
+
+  @override
+  State<SaveStateApp> createState() => _SaveStateAppState();
+}
+
+class _SaveStateAppState extends State<SaveStateApp> {
+  @override
+  void initState() {
+    super.initState();
+    widget.auth.load();
+  }
 
   @override
   Widget build(BuildContext context) {
     return DynamicColorBuilder(
-      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        ColorScheme darkColorScheme;
-
-        if (darkDynamic != null) {
-          // On Android 12+, use the wallpaper's extracted colors (Material You)
-          darkColorScheme = darkDynamic.copyWith(
-            surface: darkDynamic.surfaceContainer,
-            background: darkDynamic.surface,
-          );
-        } else {
-          // Fallback M3 color scheme if dynamic color isn't supported
-          darkColorScheme = ColorScheme.fromSeed(
-            seedColor: const Color(0xFF3B82F6),
-            brightness: Brightness.dark,
-          );
-        }
+      builder: (lightDynamic, darkDynamic) {
+        final darkColorScheme = darkDynamic != null
+            ? darkDynamic.copyWith(
+                surface: darkDynamic.surfaceContainer,
+              )
+            : ColorScheme.fromSeed(
+                seedColor: const Color(0xFF4FD8C4),
+                brightness: Brightness.dark,
+              );
 
         return MaterialApp.router(
           title: 'SaveState',
-          themeMode: ThemeMode.dark, // Force dark theme for now
+          themeMode: ThemeMode.dark,
           darkTheme: ThemeData(
             useMaterial3: true,
             colorScheme: darkColorScheme,
-            scaffoldBackgroundColor: darkColorScheme.background,
-            appBarTheme: const AppBarTheme(
-              centerTitle: true,
-              elevation: 0,
-            ),
+            scaffoldBackgroundColor: darkColorScheme.surface,
           ),
           routerConfig: router,
         );

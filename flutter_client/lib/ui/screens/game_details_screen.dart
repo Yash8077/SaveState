@@ -578,16 +578,35 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                           ),
                           const SizedBox(height: 16),
                           FilledButton.icon(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('${game.title} added to Library'),
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                              );
+                            onPressed: () async {
+                              try {
+                                final api = context.read<ApiClient>();
+                                await api.addToLibrary(game, status: 'backlog');
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('${game.title} added to Library'),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to add: $e'),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: colorScheme.error,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
                             },
                             icon: const Icon(Icons.add),
                             label: const Text('Add to Library'),

@@ -1,0 +1,1 @@
+import{i as e,r as t}from"./types-BqNamjDM.js";function n(n,r){return t(n,e,r)}export{n as t};

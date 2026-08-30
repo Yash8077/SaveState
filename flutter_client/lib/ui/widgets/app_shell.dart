@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../state/auth_controller.dart';
 
 class AppShell extends StatelessWidget {
   final Widget child;
@@ -37,7 +39,35 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthController>();
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('SaveState'),
+        actions: [
+          if (!auth.ready)
+            const Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else if (auth.isSignedIn)
+            IconButton(
+              tooltip: auth.user?.email ?? 'Account',
+              onPressed: () async {
+                await auth.signOut();
+              },
+              icon: const Icon(Icons.logout),
+            )
+          else
+            TextButton(
+              onPressed: () => context.push('/login'),
+              child: const Text('Sign in'),
+            ),
+        ],
+      ),
       body: child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _calculateSelectedIndex(context),
