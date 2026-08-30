@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { flattenRelated, relationBadge } from "./related.ts";
+import {
+  flattenRelated,
+  needsPrequelSequelFallback,
+  prependPrequelSequel,
+  relationBadge,
+} from "./related.ts";
 import { seedRelated } from "./catalog-seed.ts";
 import type { CatalogGame, FeaturedRail } from "./types.ts";
 
@@ -48,6 +53,56 @@ describe("flattenRelated", () => {
   it("falls back to the rail title for unknown ids", () => {
     assert.equal(relationBadge("side", "Side story"), "Side story");
     assert.equal(relationBadge("dlc", "DLC & expansions"), "DLC");
+  });
+});
+
+describe("needsPrequelSequelFallback", () => {
+  it("is true when both prequel and sequel rails are missing", () => {
+    const rails: FeaturedRail[] = [
+      { id: "similar", title: "Similar games", games: [game("c", "Like")] },
+    ];
+    assert.equal(needsPrequelSequelFallback(rails), true);
+    assert.equal(needsPrequelSequelFallback([]), true);
+  });
+
+  it("is true when the rails exist but have no games", () => {
+    const rails: FeaturedRail[] = [
+      { id: "prequel", title: "Prequel", games: [] },
+      { id: "sequel", title: "Sequel", games: [] },
+    ];
+    assert.equal(needsPrequelSequelFallback(rails), true);
+  });
+
+  it("is false when a collection already produced a prequel, even without a sequel", () => {
+    const rails: FeaturedRail[] = [
+      { id: "prequel", title: "Prequel", games: [game("a", "One")] },
+      { id: "similar", title: "Similar games", games: [game("c", "Like")] },
+    ];
+    assert.equal(needsPrequelSequelFallback(rails), false);
+  });
+
+  it("is false when a sequel rail already has games", () => {
+    const rails: FeaturedRail[] = [
+      { id: "sequel", title: "Sequel", games: [game("b", "Two")] },
+    ];
+    assert.equal(needsPrequelSequelFallback(rails), false);
+  });
+});
+
+describe("prependPrequelSequel", () => {
+  it("puts Wikidata cards in front and drops them from later rails", () => {
+    const rails: FeaturedRail[] = [
+      { id: "similar", title: "Similar games", games: [game("igdb_1", "Before"), game("c", "Like")] },
+    ];
+    const out = prependPrequelSequel(rails, game("igdb_1", "Before"), game("igdb_2", "After"));
+    assert.deepEqual(
+      out.map((r) => [r.id, r.games.map((g) => g.id)]),
+      [
+        ["prequel", ["igdb_1"]],
+        ["sequel", ["igdb_2"]],
+        ["similar", ["c"]],
+      ],
+    );
   });
 });
 
