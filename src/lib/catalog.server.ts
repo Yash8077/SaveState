@@ -185,7 +185,7 @@ export function dedupeGames(games: CatalogGame[]): CatalogGame[] {
     const linked = group.some((g) => g.parentGameId && ids.has(g.parentGameId));
     if (!linked) continue;
     for (const game of group) {
-      if (game.parentGameId && ids.has(g.parentGameId)) {
+      if (game.parentGameId && ids.has(game.parentGameId)) {
         dropped.add(game.id);
       }
     }
