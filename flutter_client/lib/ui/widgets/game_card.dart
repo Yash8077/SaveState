@@ -11,16 +11,6 @@ class GameCardWidget extends StatelessWidget {
     required this.game,
   });
 
-  Color _getMetacriticColor(int score) {
-    if (score >= 75) {
-      return const Color(0xFF22C55E);
-    } else if (score >= 50) {
-      return const Color(0xFFEAB308);
-    } else {
-      return const Color(0xFFEF4444);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -123,32 +113,7 @@ class GameCardWidget extends StatelessWidget {
                           Positioned(
                             top: 6,
                             right: 6,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _getMetacriticColor(game.metacritic!),
-                                borderRadius: BorderRadius.circular(6),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.5),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 1),
-                                  ),
-                                ],
-                              ),
-                              child: Text(
-                                '${game.metacritic}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.1,
-                                ),
-                              ),
-                            ),
+                            child: MetacriticBadge(score: game.metacritic!),
                           ),
                       ],
                     ),
@@ -167,6 +132,44 @@ class GameCardWidget extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class MetacriticBadge extends StatelessWidget {
+  final int score;
+  const MetacriticBadge({super.key, required this.score});
+
+  static Color colorFor(int score) {
+    if (score >= 75) return const Color(0xFF22C55E);
+    if (score >= 50) return const Color(0xFFEAB308);
+    return const Color(0xFFEF4444);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: colorFor(score),
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Text(
+        '$score',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          height: 1.1,
         ),
       ),
     );

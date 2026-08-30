@@ -94,6 +94,7 @@ function LibraryPage() {
               score={e.score}
               hours={e.hours}
               favorite={e.favorite}
+              metacritic={e.metacritic}
               size="grid"
             />
           ))}

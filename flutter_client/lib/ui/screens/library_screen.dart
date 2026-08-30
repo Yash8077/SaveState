@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../open_game.dart';
+import '../widgets/game_card.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -618,7 +619,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       if (entry.favorite)
                         Positioned(
                           top: 8,
-                          right: 8,
+                          right: entry.metacritic != null ? 44 : 8,
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
@@ -635,6 +636,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               color: Colors.pinkAccent,
                             ),
                           ),
+                        ),
+                      if (entry.metacritic != null)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: MetacriticBadge(score: entry.metacritic!),
                         ),
                       // Score pill if present
                       if (entry.score != null && entry.score! > 0)

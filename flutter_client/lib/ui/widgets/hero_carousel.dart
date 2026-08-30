@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../open_game.dart';
+import 'game_card.dart';
 
 class HeroCarousel extends StatefulWidget {
   final List<CatalogGame> games;
@@ -279,7 +280,7 @@ class _Art extends StatelessWidget {
               Positioned(
                 top: 8,
                 right: 8,
-                child: _ScoreChip(score: game.metacritic!),
+                child: MetacriticBadge(score: game.metacritic!),
               ),
           ],
         ),

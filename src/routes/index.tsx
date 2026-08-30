@@ -30,7 +30,7 @@ function Home() {
   const { appearance, setDynamicAccent } = useAppearance();
   const layout = useHomeLayout();
   const featured = useQuery({
-    queryKey: ["featured", "rel-15"],
+    queryKey: ["featured", "rel-16"],
     queryFn: ({ signal }) => getFeaturedRails(signal),
     staleTime: 30 * 60_000,
     placeholderData: FEATURED_SEED,
@@ -44,7 +44,9 @@ function Home() {
   const favorites = entries.filter((e) => e.favorite);
   const hours = entries.reduce((sum, e) => sum + (e.hours ?? 0), 0);
   const signedIn = mounted && Boolean(user);
-  const name = user?.displayName?.split(" ")[0];
+  const name =
+    user?.displayName?.trim().split(/\s+/)[0] ||
+    user?.primaryEmail?.split("@")[0];
   const rails = featured.data ?? FEATURED_SEED;
   const slides = heroSlides(mounted ? playing : [], rails);
   const tintSource = playing[0]?.catalogId ?? slides[0]?.id;
@@ -228,6 +230,7 @@ function CatalogRail({ rail }: { rail: FeaturedRail }) {
           coverUrl={g.coverUrl}
           headerUrl={g.headerUrl}
           capsuleUrl={g.capsuleUrl}
+          metacritic={g.metacritic}
           priority={i < 6}
         />
       ))}
@@ -246,30 +249,21 @@ function LibraryCard({ entry: e }: { entry: GameEntry }) {
       score={e.score}
       hours={e.hours}
       favorite={e.favorite}
+      metacritic={e.metacritic}
     />
   );
 }
 
 function HomeHello({ name }: { name?: string }) {
-  const now = new Date();
-  const hour = now.getHours();
-  const alt = (now.getDate() + hour) % 2 === 0;
+  const hour = new Date().getHours();
   const hello =
     hour >= 5 && hour < 12
-      ? alt
-        ? "Rise and shine"
-        : "Good morning"
+      ? "Rise and shine"
       : hour >= 12 && hour < 17
-        ? alt
-          ? "Happy snacking"
-          : "Good afternoon"
+        ? "Happy snacking"
         : hour >= 17 && hour < 21
-          ? alt
-            ? "Keep it chill"
-            : "Good evening"
-          : alt
-            ? "You're up late"
-            : "Goodnight";
+          ? "Keep it chill"
+          : "You're up late";
   const initial = name?.charAt(0).toUpperCase() || "S";
   return (
     <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { GamePeek } from "@/components/game-peek";
+import { MetacriticBadge } from "@/components/game-card";
 import { usePeek } from "@/hooks/use-peek";
 import type { CatalogGame } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -31,19 +32,8 @@ function targetLeft(el: HTMLDivElement, child: HTMLElement) {
   return child.offsetLeft - (el.clientWidth - child.clientWidth) / 2;
 }
 
-function scoreLabel(score: number | null) {
-  if (score == null) return null;
-  return (score / 10).toFixed(1);
-}
-
 function ScoreBadge({ score }: { score: number | null }) {
-  const label = scoreLabel(score);
-  if (!label) return null;
-  return (
-    <span className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-semibold text-white">
-      ★ {label}
-    </span>
-  );
+  return <MetacriticBadge score={score} />;
 }
 
 function TitleOverlay({ title }: { title: string }) {

@@ -169,6 +169,7 @@ export type SteamSearchHit = {
   title: string;
   released: string;
   capsule: string | null;
+  metacritic: number | null;
 };
 
 export function decodeSteamHtml(value: string): string {
@@ -210,11 +211,14 @@ export function parseSteamSearchHtml(html: string): SteamSearchHit[] {
       /<img[^>]+src="([^"]+)"/i.exec(row);
     const capsuleRaw = imgMatch ? decodeSteamHtml(imgMatch[1]) : "";
     const capsule = capsuleRaw.replace(/&/g, "&") || null;
+    const scoreMatch = /search_metascore[^>]*>\s*(\d{2,3})/.exec(row);
+    const metascore = scoreMatch ? Number(scoreMatch[1]) : NaN;
     out.push({
       steamId,
       title,
       released: decodeSteamHtml(releasedMatch?.[1] ?? ""),
       capsule,
+      metacritic: Number.isFinite(metascore) ? metascore : null,
     });
   }
   return out;
@@ -280,7 +284,7 @@ export function steamCardFromSearchHit(hit: SteamSearchHit): CatalogGame {
     headerUrl: heroUrl(hit.steamId),
     capsuleUrl: capsule,
     platforms: [],
-    metacritic: null,
+    metacritic: hit.metacritic ?? null,
   };
 }
 
@@ -797,12 +801,6 @@ export async function fetchSteamFeatured(): Promise<FeaturedRail[]> {
     keep: "all" | "recent" | "upcoming";
   }[] = [
     {
-      id: "popular",
-      title: "Popular",
-      params: "sort_by=Reviews_DESC",
-      keep: "all",
-    },
-    {
       id: "top_sellers",
       title: "Trending",
       params: "filter=globaltopsellers",
@@ -955,6 +953,9 @@ export async function refreshFeaturedWith(
     /* PlayStation rail is extra */
   }
   if (!rails.length) rails = FEATURED_SEED;
+  if (!rails.some((rail) => rail.id === "popular")) {
+    rails = [{ ...FEATURED_SEED[0]! }, ...rails];
+  }
   rails = rails.map((rail) => ({
     ...rail,
     games: collapseEditions(dedupeGames(rail.games)).slice(0, 12),

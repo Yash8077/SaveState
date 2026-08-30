@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../open_game.dart';
+import '../widgets/game_card.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? q;
@@ -279,30 +280,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       Positioned(
                         top: 6.0,
                         right: 6.0,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6.0,
-                            vertical: 2.0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getMetacriticColor(game.metacritic!),
-                            borderRadius: BorderRadius.circular(6.0),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.4),
-                                blurRadius: 4.0,
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            '${game.metacritic}',
-                            style: const TextStyle(
-                              fontSize: 10.0,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
+                        child: MetacriticBadge(score: game.metacritic!),
                       ),
                   ],
                 ),
@@ -326,12 +304,6 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       ),
     );
-  }
-
-  Color _getMetacriticColor(int score) {
-    if (score >= 75) return const Color(0xFF16A34A);
-    if (score >= 50) return const Color(0xFFD97706);
-    return const Color(0xFFDC2626);
   }
 
   Widget _buildInitialState(ColorScheme colorScheme) {

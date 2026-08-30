@@ -103,6 +103,7 @@ function SearchPage() {
                   capsuleUrl={g.capsuleUrl}
                   status={entry?.status}
                   score={entry?.score}
+                  metacritic={g.metacritic}
                   size="grid"
                   priority={i < 6}
                 />

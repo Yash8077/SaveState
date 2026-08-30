@@ -14,6 +14,33 @@ import {
 import type { Status } from "@/lib/types";
 import { cn, formatHours } from "@/lib/utils";
 
+export function metacriticColor(score: number) {
+  if (score >= 75) return "bg-[#22c55e]";
+  if (score >= 50) return "bg-[#eab308]";
+  return "bg-[#ef4444]";
+}
+
+export function MetacriticBadge({
+  score,
+  className,
+}: {
+  score?: number | null;
+  className?: string;
+}) {
+  if (score == null || score <= 0) return null;
+  return (
+    <span
+      className={cn(
+        "absolute top-1.5 right-1.5 z-10 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-white shadow-md",
+        metacriticColor(score),
+        className,
+      )}
+    >
+      {score}
+    </span>
+  );
+}
+
 export function GameRail({
   title,
   action,
@@ -45,6 +72,7 @@ export function GameCard({
   hours,
   favorite,
   badge,
+  metacritic,
   size = "rail",
   priority = false,
 }: {
@@ -58,6 +86,7 @@ export function GameCard({
   hours?: number | null;
   favorite?: boolean;
   badge?: string;
+  metacritic?: number | null;
   size?: "rail" | "grid";
   priority?: boolean;
 }) {
@@ -108,24 +137,32 @@ export function GameCard({
             : "w-full",
         )}
       >
-        <Poster
-          title={title}
-          coverUrl={coverUrl}
-          headerUrl={headerUrl}
-          capsuleUrl={capsuleUrl}
-          priority={priority}
-          className="aspect-2/3 w-full rounded-lg"
-        />
-        {badge ? (
-          <span className="absolute top-1.5 left-1.5 rounded-sm bg-bg/80 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-accent">
-            {badge}
-          </span>
-        ) : null}
-        {favorite ? (
-          <span className="absolute top-1.5 right-1.5 grid size-6 place-items-center rounded-full bg-bg/75 text-accent">
-            <Star className="size-3.5 fill-current" />
-          </span>
-        ) : null}
+        <div className="relative">
+          <Poster
+            title={title}
+            coverUrl={coverUrl}
+            headerUrl={headerUrl}
+            capsuleUrl={capsuleUrl}
+            priority={priority}
+            className="aspect-2/3 w-full rounded-lg"
+          />
+          {badge ? (
+            <span className="absolute top-1.5 left-1.5 rounded-sm bg-bg/80 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-accent">
+              {badge}
+            </span>
+          ) : null}
+          {favorite ? (
+            <span
+              className={cn(
+                "absolute left-1.5 grid size-6 place-items-center rounded-full bg-bg/75 text-accent",
+                badge ? "top-8" : "top-1.5",
+              )}
+            >
+              <Star className="size-3.5 fill-current" />
+            </span>
+          ) : null}
+          <MetacriticBadge score={metacritic} />
+        </div>
         <p className="mt-1.5 line-clamp-2 text-xs font-medium leading-snug text-fg">
           {title}
         </p>

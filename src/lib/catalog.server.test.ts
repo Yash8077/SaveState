@@ -232,9 +232,9 @@ describe("refreshFeatured uses Steam plus a PlayStation rail", () => {
     assert.equal(igdbFeaturedStarted, true);
     assert.deepEqual(
       rails.map((r) => r.id),
-      ["top_sellers", "playstation"],
+      ["popular", "top_sellers", "playstation"],
     );
-    assert.equal(rails[0]?.games[0]?.id, "steam_1");
+    assert.equal(rails[1]?.games[0]?.id, "steam_1");
   });
 
   it("keeps Steam rails when the PlayStation rail fails", async () => {
@@ -253,7 +253,7 @@ describe("refreshFeatured uses Steam plus a PlayStation rail", () => {
     });
     assert.deepEqual(
       rails.map((r) => r.id),
-      ["specials"],
+      ["popular", "specials"],
     );
   });
 
@@ -271,7 +271,7 @@ describe("refreshFeatured uses Steam plus a PlayStation rail", () => {
     });
     assert.deepEqual(
       rails.map((r) => r.id),
-      ["playstation"],
+      ["popular", "playstation"],
     );
   });
 
@@ -298,7 +298,7 @@ describe("refreshFeatured uses Steam plus a PlayStation rail", () => {
     assert.equal(playstationStarted, true);
     assert.deepEqual(
       rails.map((r) => r.id),
-      ["specials", "playstation"],
+      ["popular", "specials", "playstation"],
     );
   });
 });
@@ -365,6 +365,7 @@ describe("Steam search ranking", () => {
   <div class="search_capsule"><img src="https://cdn.example/apps/1245620/capsule_231x87.jpg" ></div>
   <span class="title">ELDEN RING</span>
   <div class="search_released responsive_secondrow">Feb 24, 2022</div>
+  <div class="col search_metascore responsive_hidden">94</div>
 </a>
 <a href="https://store.steampowered.com/bundle/99/Fake/" class="search_result_row ds_collapse_flag" data-ds-bundleid="99">
   <span class="title">Bundle Junk</span>
@@ -380,6 +381,7 @@ describe("Steam search ranking", () => {
       ["ELDEN RING", "How to Fish"],
     );
     assert.equal(hits[0]?.capsule, "https://cdn.example/apps/1245620/capsule_231x87.jpg");
+    assert.equal(hits[0]?.metacritic, 94);
     assert.match(hits[1]?.capsule ?? "", /8f65bb2b78d37a9147aa79c970a51610e6955bf1/);
     assert.equal(steamReleaseKind("To be announced"), "upcoming");
     assert.equal(steamReleaseKind("Feb 24, 2022"), "old");
@@ -393,6 +395,7 @@ describe("Steam search ranking", () => {
       released: "Aug 20, 2026",
       capsule:
         "https://cdn.example/apps/4001890/8f65bb2b78d37a9147aa79c970a51610e6955bf1/capsule_231x87.jpg?t=1",
+      metacritic: null,
     });
     assert.match(game.coverUrl ?? "", /library_600x900\.jpg$/);
     assert.match(game.headerUrl ?? "", /library_hero\.jpg$/);
