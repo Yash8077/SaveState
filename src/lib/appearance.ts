@@ -7,21 +7,32 @@ export const ACCENTS = [
 ] as const;
 
 export type AccentId = (typeof ACCENTS)[number]["id"];
+export type ThemeMode = "system" | "light" | "dark";
 
 export type Appearance = {
+  mode: ThemeMode;
   oled: boolean;
   accent: AccentId;
+  grain: boolean;
+  bloom: boolean;
 };
 
 const KEY = "savestate-appearance";
 
 export const DEFAULT_APPEARANCE: Appearance = {
+  mode: "dark",
   oled: false,
   accent: "teal",
+  grain: false,
+  bloom: true,
 };
 
 function isAccent(value: unknown): value is AccentId {
   return ACCENTS.some((item) => item.id === value);
+}
+
+function isMode(value: unknown): value is ThemeMode {
+  return value === "system" || value === "light" || value === "dark";
 }
 
 export function loadAppearance(): Appearance {
@@ -30,8 +41,11 @@ export function loadAppearance(): Appearance {
     if (!raw) return DEFAULT_APPEARANCE;
     const parsed = JSON.parse(raw) as Partial<Appearance>;
     return {
+      mode: isMode(parsed.mode) ? parsed.mode : "dark",
       oled: Boolean(parsed.oled),
       accent: isAccent(parsed.accent) ? parsed.accent : "teal",
+      grain: Boolean(parsed.grain),
+      bloom: parsed.bloom !== false,
     };
   } catch {
     return DEFAULT_APPEARANCE;
@@ -43,8 +57,30 @@ export function saveAppearance(next: Appearance) {
   applyAppearance(next);
 }
 
-export function applyAppearance(next: Appearance) {
+export function systemPrefersDark(): boolean {
+  if (typeof window === "undefined") return true;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+export function isDarkAppearance(
+  next: Appearance,
+  systemDark = systemPrefersDark(),
+): boolean {
+  if (next.mode === "light") return false;
+  if (next.mode === "dark") return true;
+  return systemDark;
+}
+
+export function applyAppearance(
+  next: Appearance,
+  systemDark = systemPrefersDark(),
+) {
   const root = document.documentElement;
-  root.classList.toggle("oled", next.oled);
+  const dark = isDarkAppearance(next, systemDark);
+  root.classList.toggle("light", !dark);
+  root.classList.toggle("oled", dark && next.oled);
+  root.classList.toggle("grain", next.grain);
+  root.classList.toggle("bloom", next.bloom);
   root.dataset.accent = next.accent;
+  root.style.colorScheme = dark ? "dark" : "light";
 }

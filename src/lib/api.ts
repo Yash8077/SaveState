@@ -40,7 +40,7 @@ export function getCatalogGame(
   signal?: AbortSignal,
 ): Promise<CatalogDetails | null> {
   return catalogGet<CatalogDetails | null>(
-    `/api/catalog/game?id=${encodeURIComponent(id)}`,
+    `/api/catalog/game?id=${encodeURIComponent(id)}&rel=3`,
     signal,
   );
 }
