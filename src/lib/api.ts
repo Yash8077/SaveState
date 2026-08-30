@@ -15,6 +15,13 @@ import type {
   LibrarySnapshot,
 } from "@/lib/types";
 
+export const CATALOG_GAME_REL = "rel-4";
+export const CATALOG_GAME_STALE_MS = 10 * 60_000;
+
+export function catalogGameQueryKey(catalogId: string) {
+  return ["catalog-game", catalogId, CATALOG_GAME_REL] as const;
+}
+
 async function catalogGet<T>(url: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(url, {
     signal,
