@@ -106,17 +106,23 @@ const LOCAL_DEV_ORIGINS: string[] = [
 const baseURL = explicitBaseURL ?? {
   // Include loopback hosts so dynamic baseURL resolves for local email/password
   // (not only the preview wildcard).
-  allowedHosts: [...previewAllowedHosts, "localhost", "127.0.0.1", "[::1]"],
+  allowedHosts: [
+    ...previewAllowedHosts,
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "save-state-jade.vercel.app",
+    vercelProject,
+    vercelBranch,
+  ].filter((x): x is string => Boolean(x)),
   // `auto` → trust both http:// and https:// expansions of allowedHosts
   // (preview is https; local dev is http).
   protocol: "auto" as const,
-  fallback: "http://localhost:8080",
+  fallback: "https://save-state-jade.vercel.app",
 };
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
-const vercelProject = env("VERCEL_PROJECT_PRODUCTION_URL");
-const vercelBranch = env("VERCEL_BRANCH_URL");
 const trustedOrigins: string[] = [
   explicitBaseURL,
   vercelProject ? `https://${vercelProject}` : undefined,
