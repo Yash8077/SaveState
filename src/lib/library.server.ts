@@ -171,6 +171,7 @@ export async function addToLibraryRow(
       developers = excluded.developers,
       publishers = excluded.publishers,
       screenshots = excluded.screenshots,
+      status = excluded.status,
       updated_at = now()
     returning ${ENTRY_SELECT}`,
     [
