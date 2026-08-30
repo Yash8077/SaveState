@@ -1,5 +1,5 @@
 import type { CatalogDetails, CatalogGame, FeaturedRail } from "./types.ts";
-import { mergeFeaturedRails, searchSeed, slimCatalogGame } from "./catalog-seed.ts";
+import { mergeFeaturedRails, searchSeed, seedRelated, slimCatalogGame } from "./catalog-seed.ts";
 import {
   fetchIgdbDetails,
   fetchIgdbFeatured,
@@ -50,7 +50,8 @@ type SteamAppData = {
 let featuredCache: { at: number; rails: FeaturedRail[] } | null = null;
 const FEATURED_TTL_MS = 30 * 60 * 1000;
 const SEARCH_TTL_MS = 10 * 60 * 1000;
-const DETAILS_TTL_MS = 30 * 60 * 1000;
+const DETAILS_TTL_MS = 2 * 60 * 1000;
+const DETAILS_CACHE_VER = "rel-4";
 const FETCH_MS = 4000;
 const searchCache = new Map<string, { at: number; games: CatalogGame[] }>();
 const detailsCache = new Map<
@@ -287,7 +288,7 @@ export async function fetchSteamDetails(
     publishers: app.publishers ?? [],
     screenshots,
     website: app.website ?? null,
-    related: [],
+    related: seedRelated(steamCatalogId(steamId)),
   };
 }
 
@@ -305,23 +306,24 @@ async function runDetails(catalogId: string): Promise<CatalogDetails | null> {
 export async function fetchCatalogDetails(
   catalogId: string,
 ): Promise<CatalogDetails | null> {
-  const hit = detailsCache.get(catalogId);
+  const key = `${DETAILS_CACHE_VER}:${catalogId}`;
+  const hit = detailsCache.get(key);
   const now = Date.now();
   if (hit && now - hit.at < DETAILS_TTL_MS) return hit.data;
 
-  const pending = detailsInflight.get(catalogId);
+  const pending = detailsInflight.get(key);
   if (hit) {
     if (!pending) {
       const run = runDetails(catalogId)
         .then((data) => {
           trimCache(detailsCache, 200);
-          detailsCache.set(catalogId, { at: Date.now(), data });
+          detailsCache.set(key, { at: Date.now(), data });
           return data;
         })
         .finally(() => {
-          detailsInflight.delete(catalogId);
+          detailsInflight.delete(key);
         });
-      detailsInflight.set(catalogId, run);
+      detailsInflight.set(key, run);
     }
     return hit.data;
   }
@@ -330,13 +332,13 @@ export async function fetchCatalogDetails(
   const run = runDetails(catalogId)
     .then((data) => {
       trimCache(detailsCache, 200);
-      detailsCache.set(catalogId, { at: Date.now(), data });
+      detailsCache.set(key, { at: Date.now(), data });
       return data;
     })
     .finally(() => {
-      detailsInflight.delete(catalogId);
+      detailsInflight.delete(key);
     });
-  detailsInflight.set(catalogId, run);
+  detailsInflight.set(key, run);
   return run;
 }
 
