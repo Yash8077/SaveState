@@ -1,11 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  collapseEditions,
   dedupeGames,
   refreshFeaturedWith,
   runSearchWith,
 } from "./catalog.server.ts";
-import { FEATURED_SEED, searchSeed } from "./catalog-seed.ts";
 import type { CatalogGame, FeaturedRail } from "./types.ts";
 
 function game(id: string, title: string): CatalogGame {
@@ -21,87 +21,90 @@ function game(id: string, title: string): CatalogGame {
   };
 }
 
-describe("runSearch merge and fallback", () => {
-  it("prefers IGDB when it returns games, even if Steam also resolves", async () => {
+const emptySources = {
+  igdbReady: () => true,
+  searchIgdb: async () => [] as CatalogGame[],
+  searchSteam: async () => [] as CatalogGame[],
+};
+
+describe("runSearch uses one provider", () => {
+  it("does not call Steam when IGDB is selected", async () => {
     let steamStarted = false;
-    const igdbGame = game("igdb_1", "Elden Ring");
-    const result = await runSearchWith("elden", {
-      igdbReady: () => true,
-      searchIgdb: async () => [igdbGame, igdbGame],
-      searchSteam: async () => {
-        steamStarted = true;
-        return [game("steam_1245620", "ELDEN RING")];
+    const result = await runSearchWith(
+      "elden",
+      {
+        igdbReady: () => true,
+        searchIgdb: async () => [game("igdb_1", "Elden Ring")],
+        searchSteam: async () => {
+          steamStarted = true;
+          return [game("steam_1245620", "ELDEN RING")];
+        },
       },
-      searchSeed,
-    });
-    assert.equal(steamStarted, true);
+      "igdb",
+    );
+    assert.equal(steamStarted, false);
     assert.deepEqual(
       result.map((g) => g.id),
       ["igdb_1"],
     );
   });
 
-  it("starts Steam without waiting for a slow IGDB miss, then uses Steam", async () => {
-    let steamStarted = false;
-    let resolveIgdb!: (value: CatalogGame[]) => void;
-    const igdbP = new Promise<CatalogGame[]>((resolve) => {
-      resolveIgdb = resolve;
-    });
-    const pending = runSearchWith("elden", {
-      igdbReady: () => true,
-      searchIgdb: () => igdbP,
-      searchSteam: async () => {
-        steamStarted = true;
-        return [game("steam_1245620", "ELDEN RING")];
+  it("does not call IGDB when Steam is selected", async () => {
+    let igdbStarted = false;
+    const result = await runSearchWith(
+      "elden",
+      {
+        igdbReady: () => true,
+        searchIgdb: async () => {
+          igdbStarted = true;
+          return [game("igdb_1", "Elden Ring")];
+        },
+        searchSteam: async () => [game("steam_1245620", "ELDEN RING")],
       },
-      searchSeed,
-    });
-    await new Promise((r) => setTimeout(r, 15));
-    assert.equal(steamStarted, true);
-    resolveIgdb([]);
-    const result = await pending;
-    assert.equal(result[0]?.id, "steam_1245620");
-  });
-
-  it("falls back to seed data when IGDB and Steam both fail", async () => {
-    const result = await runSearchWith("elden", {
-      igdbReady: () => true,
-      searchIgdb: async () => {
-        throw new Error("igdb down");
-      },
-      searchSteam: async () => {
-        throw new Error("steam down");
-      },
-      searchSeed,
-    });
-    assert.ok(result.length > 0);
-    assert.ok(result.some((g) => /elden/i.test(g.title)));
-    assert.equal(new Set(result.map((g) => g.id)).size, result.length);
-  });
-
-  it("uses Steam when IGDB is not configured", async () => {
-    const result = await runSearchWith("portal", {
-      igdbReady: () => false,
-      searchIgdb: async () => {
-        throw new Error("should not be called");
-      },
-      searchSteam: async () => [game("steam_620", "Portal 2")],
-      searchSeed,
-    });
+      "steam",
+    );
+    assert.equal(igdbStarted, false);
     assert.deepEqual(
       result.map((g) => g.id),
-      ["steam_620"],
+      ["steam_1245620"],
     );
+  });
+
+  it("returns empty when the selected provider fails, without using the other", async () => {
+    const result = await runSearchWith(
+      "elden",
+      {
+        igdbReady: () => true,
+        searchIgdb: async () => {
+          throw new Error("igdb down");
+        },
+        searchSteam: async () => [game("steam_1245620", "ELDEN RING")],
+      },
+      "igdb",
+    );
+    assert.deepEqual(result, []);
+  });
+
+  it("returns empty when IGDB is selected but not configured", async () => {
+    const result = await runSearchWith("portal", {
+      ...emptySources,
+      igdbReady: () => false,
+      searchSteam: async () => [game("steam_620", "Portal 2")],
+    }, "igdb");
+    assert.deepEqual(result, []);
   });
 
   it("dedupes repeated catalog ids from a source", async () => {
     const dup = game("steam_620", "Portal 2");
-    const result = await runSearchWith("portal", {
-      igdbReady: () => false,
-      searchIgdb: async () => [],
-      searchSteam: async () => [dup, { ...dup }, game("steam_400", "Portal")],
-      searchSeed,
-    });
+    const result = await runSearchWith(
+      "portal",
+      {
+        igdbReady: () => false,
+        searchIgdb: async () => [],
+        searchSteam: async () => [dup, { ...dup }, game("steam_400", "Portal")],
+      },
+      "steam",
+    );
     assert.deepEqual(
       result.map((g) => g.id),
       ["steam_620", "steam_400"],
@@ -126,8 +129,37 @@ describe("runSearch merge and fallback", () => {
   });
 });
 
-describe("refreshFeatured merge and fallback", () => {
-  it("keeps IGDB rails when they arrive", async () => {
+describe("collapseEditions", () => {
+  it("drops DLC and subtitle editions when the base game is present", () => {
+    const out = collapseEditions([
+      game("steam_1091500", "Cyberpunk 2077"),
+      game("steam_2138330", "Cyberpunk 2077: Phantom Liberty"),
+      game("steam_1", "CybeRage"),
+      game("steam_2", "CybeRage: Red Line"),
+      game("steam_3", "CybeRage: Green Line"),
+      game("steam_4", "Bomb Rush Cyberfunk"),
+    ]);
+    assert.deepEqual(
+      out.map((g) => g.title),
+      ["Cyberpunk 2077", "CybeRage", "Bomb Rush Cyberfunk"],
+    );
+  });
+
+  it("keeps numbered sequels", () => {
+    const out = collapseEditions([
+      game("steam_400", "Portal"),
+      game("steam_620", "Portal 2"),
+    ]);
+    assert.deepEqual(
+      out.map((g) => g.title),
+      ["Portal", "Portal 2"],
+    );
+  });
+});
+
+describe("refreshFeatured uses one provider", () => {
+  it("keeps IGDB rails and does not fetch Steam", async () => {
+    let steamStarted = false;
     const live: FeaturedRail[] = [
       {
         id: "trending",
@@ -135,57 +167,73 @@ describe("refreshFeatured merge and fallback", () => {
         games: [game("igdb_99", "Hades")],
       },
     ];
-    const rails = await refreshFeaturedWith({
-      igdbReady: () => true,
-      fetchIgdbFeatured: async () => live,
-      fetchSteamFeatured: async () => [
-        {
-          id: "top_sellers",
-          title: "Top Sellers",
-          games: [game("steam_1", "How to Fish")],
+    const rails = await refreshFeaturedWith(
+      {
+        igdbReady: () => true,
+        fetchIgdbFeatured: async () => live,
+        fetchSteamFeatured: async () => {
+          steamStarted = true;
+          return [
+            {
+              id: "top_sellers",
+              title: "Top Sellers",
+              games: [game("steam_1", "How to Fish")],
+            },
+          ];
         },
-      ],
-    });
+      },
+      "igdb",
+    );
+    assert.equal(steamStarted, false);
     assert.equal(rails[0]?.id, "trending");
     assert.equal(rails[0]?.games[0]?.id, "igdb_99");
   });
 
-  it("falls back to seed data when both sources fail", async () => {
-    const rails = await refreshFeaturedWith({
-      igdbReady: () => true,
-      fetchIgdbFeatured: async () => {
-        throw new Error("igdb down");
+  it("returns empty rails when IGDB fails instead of mixing Steam", async () => {
+    const rails = await refreshFeaturedWith(
+      {
+        igdbReady: () => true,
+        fetchIgdbFeatured: async () => {
+          throw new Error("igdb down");
+        },
+        fetchSteamFeatured: async () => [
+          {
+            id: "top_sellers",
+            title: "Top Sellers",
+            games: [game("steam_1", "How to Fish")],
+          },
+        ],
       },
-      fetchSteamFeatured: async () => {
-        throw new Error("steam down");
-      },
-    });
-    assert.deepEqual(
-      rails.map((r) => r.id),
-      FEATURED_SEED.map((r) => r.id),
+      "igdb",
     );
-    assert.ok(rails[0]?.games.length);
+    assert.deepEqual(rails, []);
   });
 
-  it("prepends curated Popular onto Steam featured rails", async () => {
-    const rails = await refreshFeaturedWith({
-      igdbReady: () => false,
-      fetchIgdbFeatured: async () => [],
-      fetchSteamFeatured: async () => [
-        {
-          id: "top_sellers",
-          title: "Top Sellers",
-          games: [game("steam_1", "How to Fish")],
-        },
-        {
-          id: "specials",
-          title: "Specials",
-          games: [game("steam_2", "On Sale")],
-        },
-      ],
-    });
-    assert.equal(rails[0]?.id, "popular");
-    assert.ok(rails.some((r) => r.id === "specials"));
-    assert.ok(!rails.some((r) => r.id === "top_sellers"));
+  it("returns Steam rails only when Steam is selected", async () => {
+    const rails = await refreshFeaturedWith(
+      {
+        igdbReady: () => true,
+        fetchIgdbFeatured: async () => [
+          {
+            id: "trending",
+            title: "Trending",
+            games: [game("igdb_99", "Hades")],
+          },
+        ],
+        fetchSteamFeatured: async () => [
+          {
+            id: "specials",
+            title: "On sale",
+            games: [game("steam_2", "On Sale")],
+          },
+        ],
+      },
+      "steam",
+    );
+    assert.deepEqual(
+      rails.map((r) => r.id),
+      ["specials"],
+    );
+    assert.ok(!rails.some((r) => r.games[0]?.id.startsWith("igdb_")));
   });
 });
