@@ -46,18 +46,10 @@ function ScoreBadge({ score }: { score: number | null }) {
   );
 }
 
-function TitleRow({ game }: { game: CatalogGame }) {
-  const score = scoreLabel(game.metacritic);
+function TitleOverlay({ title }: { title: string }) {
   return (
-    <div className="mt-2 flex h-7 items-center justify-between gap-2">
-      <h2 className="min-w-0 truncate text-sm font-medium tracking-tight sm:text-base">
-        {game.title}
-      </h2>
-      {score ? (
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/20 px-2 py-0.5 text-[11px] font-semibold text-accent">
-          ★ {score}
-        </span>
-      ) : null}
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-8 pb-2.5">
+      <p className="truncate text-sm font-medium text-white">{title}</p>
     </div>
   );
 }
@@ -79,7 +71,6 @@ export function HeroCarousel({
   const n = games.length;
   const looped = loopGames(games);
   const origin = n > 1 ? n : 0;
-  const active = games[index] ?? games[0];
 
   function tracks() {
     return [phone.current, wide.current].filter(
@@ -230,19 +221,11 @@ export function HeroCarousel({
                   <div className="absolute inset-0 bg-subtle" />
                 )}
                 <ScoreBadge score={game.metacritic} />
+                <TitleOverlay title={game.title} />
               </Link>
             );
           })}
         </div>
-        {active ? (
-          <Link
-            to="/game/$catalogId"
-            params={{ catalogId: active.id }}
-            className="block px-0.5"
-          >
-            <TitleRow game={active} />
-          </Link>
-        ) : null}
         {n > 1 ? (
           <div className="mt-3 flex justify-center gap-1.5">
             {games.map((game, i) => (
@@ -283,8 +266,8 @@ export function HeroCarousel({
                   />
                 ) : null}
                 <ScoreBadge score={game.metacritic} />
+                <TitleOverlay title={game.title} />
               </div>
-              <TitleRow game={game} />
             </Link>
           );
         })}
