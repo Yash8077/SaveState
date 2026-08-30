@@ -6,12 +6,16 @@ class ListEditorResult {
   final int? score;
   final bool favorite;
   final bool remove;
+  final String? startedAt;
+  final String? finishedAt;
 
   const ListEditorResult({
     required this.status,
     this.score,
     this.favorite = false,
     this.remove = false,
+    this.startedAt,
+    this.finishedAt,
   });
 }
 
@@ -58,6 +62,8 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
   late GameStatus _status;
   int? _score;
   late bool _favorite;
+  String? _startedAt;
+  String? _finishedAt;
 
   @override
   void initState() {
@@ -66,6 +72,34 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
         widget.entry?.status ?? widget.initialStatus ?? GameStatus.playing;
     _score = widget.entry?.score;
     _favorite = widget.entry?.favorite ?? widget.favoriteHint;
+    _startedAt = _ymd(widget.entry?.startedAt);
+    _finishedAt = _ymd(widget.entry?.finishedAt);
+  }
+
+  String? _ymd(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    return raw.length >= 10 ? raw.substring(0, 10) : raw;
+  }
+
+  Future<void> _pick(bool start) async {
+    final current = DateTime.tryParse(start ? (_startedAt ?? '') : (_finishedAt ?? ''));
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current ?? now,
+      firstDate: DateTime(1970),
+      lastDate: DateTime(now.year + 3),
+    );
+    if (picked == null) return;
+    final value =
+        '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    setState(() {
+      if (start) {
+        _startedAt = value;
+      } else {
+        _finishedAt = value;
+      }
+    });
   }
 
   @override
@@ -80,123 +114,187 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
         20,
         16 + MediaQuery.viewInsetsOf(context).bottom,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            editing ? 'EDIT LIST' : 'ADD TO LIBRARY',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
-              color: cs.primary,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              editing ? 'EDIT LIST' : 'ADD TO LIBRARY',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+                color: cs.primary,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  widget.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.4,
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.4,
+                    ),
                   ),
                 ),
-              ),
-              IconButton.filledTonal(
-                onPressed: () => setState(() => _favorite = !_favorite),
-                icon: Icon(_favorite ? Icons.favorite : Icons.favorite_border),
-                color: _favorite ? cs.primary : cs.onSurfaceVariant,
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'Category',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: GameStatus.values.map((s) {
-              final selected = _status == s;
-              return ChoiceChip(
-                label: Text(s.label),
-                selected: selected,
-                onSelected: (_) => setState(() => _status = s),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'Score',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: List.generate(10, (i) {
-              final n = i + 1;
-              final selected = _score == n;
-              return ActionChip(
-                label: Text('$n'),
-                backgroundColor:
-                    selected ? cs.primary : cs.surfaceContainerHigh,
-                labelStyle: TextStyle(
-                  color: selected ? cs.onPrimary : cs.onSurface,
-                  fontWeight: FontWeight.w600,
+                IconButton.filledTonal(
+                  onPressed: () => setState(() => _favorite = !_favorite),
+                  icon: Icon(_favorite ? Icons.favorite : Icons.favorite_border),
+                  color: _favorite ? cs.primary : cs.onSurfaceVariant,
                 ),
-                onPressed: () =>
-                    setState(() => _score = _score == n ? null : n),
-              );
-            }),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              if (editing)
-                TextButton(
+              ],
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Category',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: GameStatus.values.map((s) {
+                final selected = _status == s;
+                return ChoiceChip(
+                  label: Text(s.label),
+                  selected: selected,
+                  onSelected: (_) => setState(() => _status = s),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Score',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: List.generate(10, (i) {
+                final n = i + 1;
+                final selected = _score == n;
+                return ActionChip(
+                  label: Text('$n'),
+                  backgroundColor:
+                      selected ? cs.primary : cs.surfaceContainerHigh,
+                  labelStyle: TextStyle(
+                    color: selected ? cs.onPrimary : cs.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  onPressed: () =>
+                      setState(() => _score = _score == n ? null : n),
+                );
+              }),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: _dateTile(
+                    cs,
+                    label: 'Start date',
+                    value: _startedAt,
+                    onTap: () => _pick(true),
+                    onClear: _startedAt == null
+                        ? null
+                        : () => setState(() => _startedAt = null),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _dateTile(
+                    cs,
+                    label: 'End date',
+                    value: _finishedAt,
+                    onTap: () => _pick(false),
+                    onClear: _finishedAt == null
+                        ? null
+                        : () => setState(() => _finishedAt = null),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                if (editing)
+                  TextButton(
+                    onPressed: () => Navigator.pop(
+                      context,
+                      ListEditorResult(
+                        status: _status,
+                        score: _score,
+                        favorite: _favorite,
+                        remove: true,
+                      ),
+                    ),
+                    child: const Text('Remove'),
+                  ),
+                const Spacer(),
+                FilledButton(
                   onPressed: () => Navigator.pop(
                     context,
                     ListEditorResult(
                       status: _status,
                       score: _score,
                       favorite: _favorite,
-                      remove: true,
+                      startedAt: _startedAt,
+                      finishedAt: _finishedAt,
                     ),
                   ),
-                  child: const Text('Remove'),
+                  child: Text(editing ? 'Save' : 'Add to library'),
                 ),
-              const Spacer(),
-              FilledButton(
-                onPressed: () => Navigator.pop(
-                  context,
-                  ListEditorResult(
-                    status: _status,
-                    score: _score,
-                    favorite: _favorite,
-                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dateTile(
+    ColorScheme cs, {
+    required String label,
+    required String? value,
+    required VoidCallback onTap,
+    VoidCallback? onClear,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          isDense: true,
+          border: const OutlineInputBorder(),
+          suffixIcon: onClear == null
+              ? const Icon(Icons.event, size: 18)
+              : IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: onClear,
                 ),
-                child: Text(editing ? 'Save' : 'Add to library'),
-              ),
-            ],
+        ),
+        child: Text(
+          value ?? 'Not set',
+          style: TextStyle(
+            color: value == null ? cs.onSurfaceVariant : cs.onSurface,
           ),
-        ],
+        ),
       ),
     );
   }

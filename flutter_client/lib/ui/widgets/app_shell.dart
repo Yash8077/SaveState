@@ -44,6 +44,11 @@ class AppShell extends StatelessWidget {
       appBar: AppBar(
         title: const Text('SaveState'),
         actions: [
+          IconButton(
+            tooltip: 'Settings',
+            onPressed: () => context.push('/settings'),
+            icon: const Icon(Icons.settings_outlined),
+          ),
           if (!auth.ready)
             const Padding(
               padding: EdgeInsets.only(right: 12),

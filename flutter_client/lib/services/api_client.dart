@@ -121,7 +121,7 @@ class ApiClient {
   Future<CatalogDetails?> getGameDetails(String catalogId) async {
     final decoded = await _send(
       'GET',
-      _u('/api/catalog/game', {'id': catalogId}),
+      _u('/api/catalog/game', {'id': catalogId, 'rel': '4'}),
     );
     if (decoded is Map<String, dynamic>) {
       return CatalogDetails.fromJson(decoded);
@@ -146,9 +146,11 @@ class ApiClient {
 
   Future<GameEntry> addToLibrary(
     CatalogGame game, {
-    String status = 'backlog',
+    String status = 'playing',
     int? score,
     bool favorite = false,
+    String? startedAt,
+    String? finishedAt,
     CatalogDetails? details,
   }) async {
     final decoded = await _send(
@@ -158,6 +160,10 @@ class ApiClient {
       body: {
         'catalogId': game.id,
         'status': status,
+        'score': score,
+        'favorite': favorite,
+        'startedAt': startedAt,
+        'finishedAt': finishedAt,
         'snapshot': {
           'title': details?.title ?? game.title,
           'coverUrl': details?.coverUrl ?? game.coverUrl,
@@ -174,10 +180,15 @@ class ApiClient {
       },
     );
     var entry = GameEntry.fromJson(decoded as Map<String, dynamic>);
-    if (score != null || favorite) {
+    if (score != null ||
+        favorite ||
+        startedAt != null ||
+        finishedAt != null) {
       entry = await updateEntry(entry.id, {
         if (score != null) 'score': score,
         'favorite': favorite,
+        if (startedAt != null) 'startedAt': startedAt,
+        if (finishedAt != null) 'finishedAt': finishedAt,
       });
     }
     return entry;
