@@ -7,6 +7,7 @@ import {
   parseSteamSearchHtml,
   rankRailGames,
   refreshFeaturedWith,
+  replaceWikiWithIgdb,
   runSearchWith,
   steamCardFromSearchHit,
   steamReleaseKind,
@@ -72,6 +73,28 @@ describe("runSearch merges IGDB and Steam", () => {
       result.map((g) => g.id),
       ["wiki_Astro_Bot", "steam_2232520"],
     );
+  });
+
+  it("promotes Wikipedia hits to IGDB so details keep DLC and related rails", async () => {
+    const result = await runSearchWith("astro bot", {
+      igdbReady: () => true,
+      searchIgdb: async () => [],
+      searchSteam: async () => [],
+      searchWiki: async () => [game("wiki_Astro_Bot", "Astro Bot")],
+      lookupIgdbByTitles: async () => [game("igdb_269510", "Astro Bot")],
+    });
+    assert.deepEqual(
+      result.map((g) => g.id),
+      ["igdb_269510"],
+    );
+  });
+
+  it("replaceWikiWithIgdb keeps Wikipedia when IGDB has no title match", () => {
+    const out = replaceWikiWithIgdb(
+      [game("wiki_Astro_Bot", "Astro Bot")],
+      [game("igdb_1", "Elden Ring")],
+    );
+    assert.equal(out[0]?.id, "wiki_Astro_Bot");
   });
 
   it("still returns Steam when IGDB throws", async () => {

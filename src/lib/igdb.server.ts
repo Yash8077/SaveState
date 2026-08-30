@@ -9,12 +9,13 @@ import { GAME_TYPE } from "./game-type.ts";
 
 export { GAME_TYPE } from "./game-type.ts";
 
-const FETCH_MS = 4000;
+const FETCH_MS = 8000;
 const IMG = "https://images.igdb.com/igdb/image/upload";
 
 type Token = { access: string; clientId: string; exp: number };
 let token: Token | null = null;
 let tokenInflight: Promise<Token> | null = null;
+let skipCachedToken = false;
 
 type IgdbImage = { image_id?: string };
 type IgdbCompany = {
@@ -59,9 +60,17 @@ export type IgdbGame = {
 };
 
 function credentials(): { id: string; secret: string } | null {
-  const id = process.env.TWITCH_CLIENT_ID || process.env.IGDB_CLIENT_ID || "";
-  const secret =
-    process.env.TWITCH_CLIENT_SECRET || process.env.IGDB_CLIENT_SECRET || "";
+  const id = (
+    process.env.TWITCH_CLIENT_ID ||
+    process.env.IGDB_CLIENT_ID ||
+    ""
+  ).trim();
+  const secret = (
+    process.env.TWITCH_CLIENT_SECRET ||
+    process.env.IGDB_CLIENT_SECRET ||
+    process.env.TWITCH_SECRET ||
+    ""
+  ).trim();
   if (!id || !secret) return null;
   return { id, secret };
 }
@@ -668,15 +677,18 @@ async function fetchTwitchToken(creds: { id: string; secret: string }): Promise<
 async function getToken(): Promise<Token> {
   const creds = credentials();
   if (!creds) throw new Error("IGDB is not configured");
-  if (token && tokenStillValid(token, creds.id)) return token;
+  if (!skipCachedToken && token && tokenStillValid(token, creds.id)) return token;
   if (tokenInflight) return tokenInflight;
 
   tokenInflight = (async () => {
-    const cached = await readTokenFromDb(creds.id);
-    if (cached && tokenStillValid(cached, creds.id)) {
-      token = cached;
-      return cached;
+    if (!skipCachedToken) {
+      const cached = await readTokenFromDb(creds.id);
+      if (cached && tokenStillValid(cached, creds.id)) {
+        token = cached;
+        return cached;
+      }
     }
+    skipCachedToken = false;
     const fresh = await fetchTwitchToken(creds);
     token = fresh;
     void writeTokenToDb(fresh);
@@ -686,6 +698,11 @@ async function getToken(): Promise<Token> {
   });
 
   return tokenInflight;
+}
+
+function invalidateToken() {
+  token = null;
+  skipCachedToken = true;
 }
 
 let ticks: number[] = [];
@@ -724,6 +741,10 @@ async function igdb<T>(path: string, body: string): Promise<T> {
     });
     if (res.ok) return (await res.json()) as T;
     lastError = new Error(`IGDB request failed (${res.status})`);
+    if (res.status === 401 || res.status === 403) {
+      invalidateToken();
+      continue;
+    }
     if (res.status !== 429 && res.status < 500) throw lastError;
   }
   throw lastError ?? new Error("IGDB request failed");
@@ -1000,46 +1021,112 @@ query games "top" {
   return rails;
 }
 
-/** IGDB platform ids: PS5 = 167, PS4 = 48. */
+export async function lookupIgdbByTitles(titles: string[]): Promise<CatalogGame[]> {
+  const names = [
+    ...new Set(
+      titles
+        .map((title) => title.replace(/\s*\(video game\)$/i, "").trim())
+        .filter((title) => title.length >= 2),
+    ),
+  ].slice(0, 16);
+  if (!names.length) return [];
+  try {
+    const quoted = names.map(quote).join(",");
+    const rows = await igdb<IgdbGame[]>(
+      "games",
+      `fields ${SEARCH_FIELDS}, first_release_date, aggregated_rating_count, hypes;
+       where name = (${quoted}) & ${SEARCH_WHERE};
+       limit 20;`,
+    );
+    return mapSearchHits(rows);
+  } catch {
+    return [];
+  }
+}
+
+/** IGDB platform ids: PS5 = 167, PS4 = 48, PC = 6. */
 export const PLAYSTATION_PLATFORM_IDS = "167,48";
 export const PLAYSTATION_PS5_ID = 167;
+export const PLAYSTATION_PC_ID = 6;
+export const PLAYSTATION_FRESH_SECONDS = 18 * 30 * 24 * 60 * 60;
+
+export const PLAYSTATION_FALLBACK_TITLES = [
+  "Astro Bot",
+  "Marvel's Spider-Man 2",
+  "Marvel's Wolverine",
+  "God of War Ragnarök",
+  "The Last of Us Part II",
+  "Ghost of Tsushima",
+  "Horizon Forbidden West",
+  "Returnal",
+  "Ratchet & Clank: Rift Apart",
+  "Gran Turismo 7",
+  "Stellar Blade",
+  "Final Fantasy VII Rebirth",
+  "Demon's Souls",
+  "Death Stranding 2: On the Beach",
+];
+
+export function playstationPopularBody(): string {
+  return `fields ${CARD_FIELDS};
+       where cover != null & version_parent = null & category = 0 & platforms = (${PLAYSTATION_PS5_ID}) & (game_type != ${GAME_TYPE.port} | game_type = null);
+       sort aggregated_rating_count desc;
+       limit 20;`;
+}
+
+export function playstationFreshBody(now = Date.now()): string {
+  const cutoff = Math.floor(now / 1000) - PLAYSTATION_FRESH_SECONDS;
+  return `fields ${CARD_FIELDS};
+       where cover != null & version_parent = null & category = 0 & platforms = (${PLAYSTATION_PS5_ID}) & platforms != (${PLAYSTATION_PC_ID}) & first_release_date > ${cutoff} & (game_type != ${GAME_TYPE.port} | game_type = null);
+       sort hypes desc;
+       limit 20;`;
+}
+
+export function mixPlaystationGames(
+  fresh: CatalogGame[],
+  popular: CatalogGame[],
+  limit = 12,
+): CatalogGame[] {
+  const out: CatalogGame[] = [];
+  const seen = new Set<string>();
+  const take = (game: CatalogGame | undefined) => {
+    if (!game?.coverUrl || seen.has(game.id)) return;
+    seen.add(game.id);
+    out.push(game);
+  };
+  let i = 0;
+  let j = 0;
+  while (out.length < limit && (i < fresh.length || j < popular.length)) {
+    if (i < fresh.length) take(fresh[i++]);
+    if (out.length >= limit) break;
+    if (j < popular.length) take(popular[j++]);
+  }
+  return out;
+}
 
 export async function fetchIgdbPlaystation(): Promise<FeaturedRail | null> {
   const [rated, hyped] = await Promise.all([
-    igdb<IgdbGame[]>(
-      "games",
-      `fields ${CARD_FIELDS};
-       where cover != null & ${SEARCH_WHERE} & platforms = (${PLAYSTATION_PS5_ID});
-       sort aggregated_rating_count desc;
-       limit 24;`,
-    ),
-    igdb<IgdbGame[]>(
-      "games",
-      `fields ${CARD_FIELDS};
-       where cover != null & ${SEARCH_WHERE} & platforms = (${PLAYSTATION_PS5_ID}) & hypes > 5;
-       sort hypes desc;
-       limit 16;`,
-    ),
+    igdb<IgdbGame[]>("games", playstationPopularBody()),
+    igdb<IgdbGame[]>("games", playstationFreshBody()),
   ]);
-  const games: CatalogGame[] = [];
-  const seen = new Set<string>();
-  const scored: { game: CatalogGame; score: number }[] = [];
-  for (const row of [...(hyped ?? []), ...(rated ?? [])]) {
-    const mapped = toGame(row);
-    if (!mapped?.coverUrl || seen.has(mapped.id)) continue;
-    seen.add(mapped.id);
-    scored.push({
-      game: slimCatalogGame(mapped),
-      score: popularityValue(row.hypes, row.aggregated_rating_count),
-    });
-  }
-  scored.sort((a, b) => b.score - a.score);
-  for (const row of scored) {
-    games.push(row.game);
-    if (games.length >= 12) break;
+  const toCards = (rows: IgdbGame[] | undefined) => {
+    const games: CatalogGame[] = [];
+    const seen = new Set<string>();
+    for (const row of rows ?? []) {
+      const mapped = toGame(row);
+      if (!mapped?.coverUrl || seen.has(mapped.id)) continue;
+      seen.add(mapped.id);
+      games.push(slimCatalogGame(mapped));
+    }
+    return games;
+  };
+  let games = mixPlaystationGames(toCards(hyped), toCards(rated));
+  if (games.length < 8) {
+    const fallback = await lookupIgdbByTitles(PLAYSTATION_FALLBACK_TITLES);
+    games = mixPlaystationGames(games, fallback.filter((game) => Boolean(game.coverUrl)));
   }
   if (!games.length) return null;
-  return { id: "playstation", title: "PlayStation", games };
+  return { id: "playstation", title: "PlayStation", games: games.slice(0, 12) };
 }
 
 export function popularityValue(

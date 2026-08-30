@@ -18,7 +18,11 @@ import {
   applyRelatedArt,
   dropCoverlessSimilar,
   relatedIdsMissingArt,
+  PLAYSTATION_PC_ID,
   PLAYSTATION_PS5_ID,
+  mixPlaystationGames,
+  playstationFreshBody,
+  playstationPopularBody,
   popularityValue,
 } from "./igdb.server.ts";
 
@@ -128,6 +132,37 @@ describe("IGDB field selection", () => {
 
   it("targets PlayStation 5, not only Steam PC ports", () => {
     assert.equal(PLAYSTATION_PS5_ID, 167);
+    assert.equal(PLAYSTATION_PC_ID, 6);
+    const popular = playstationPopularBody();
+    const fresh = playstationFreshBody(1_704_067_200_000);
+    assert.match(popular, /platforms = \(167\)/);
+    assert.match(popular, /game_type != 11/);
+    assert.match(fresh, /platforms != \(6\)/);
+    assert.match(fresh, /sort hypes desc/);
+  });
+});
+
+describe("mixPlaystationGames", () => {
+  it("interleaves new exclusives with popular PS5 titles", () => {
+    const card = (id: string, title: string): CatalogGame => ({
+      id,
+      steamId: null,
+      title,
+      coverUrl: `https://images.igdb.com/${id}.jpg`,
+      headerUrl: null,
+      capsuleUrl: null,
+      platforms: ["PS5"],
+      metacritic: null,
+    });
+    const mixed = mixPlaystationGames(
+      [card("igdb_1", "Astro Bot"), card("igdb_2", "Wolverine")],
+      [card("igdb_3", "God of War Ragnarök"), card("igdb_1", "Astro Bot")],
+      4,
+    );
+    assert.deepEqual(
+      mixed.map((g) => g.title),
+      ["Astro Bot", "God of War Ragnarök", "Wolverine"],
+    );
   });
 });
 

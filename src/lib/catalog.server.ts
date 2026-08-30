@@ -5,6 +5,8 @@ import {
   fetchIgdbPlaystation,
   igdbCatalogId,
   isIgdbReady,
+  lookupIgdbByTitles,
+  PLAYSTATION_FALLBACK_TITLES,
   searchIgdb,
 } from "./igdb.server.ts";
 import {
@@ -15,7 +17,7 @@ import { GAME_TYPE } from "./game-type.ts";
 import type { CatalogProvider } from "./catalog-provider.ts";
 import { upgradeSteamCapsule } from "./utils.ts";
 import { withSteamLibraryArt } from "./steam-assets.server.ts";
-import { fetchWikiDetails, searchWikipedia } from "./wikipedia.server.ts";
+import { fetchWikiDetails, parseWikiTitle, searchWikipedia } from "./wikipedia.server.ts";
 
 const UA =
   "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0.0.0 Mobile Safari/537.36";
@@ -62,7 +64,7 @@ let featuredCache: { at: number; rails: FeaturedRail[] } | null = null;
 const FEATURED_TTL_MS = 30 * 60 * 1000;
 const SEARCH_TTL_MS = 10 * 60 * 1000;
 const DETAILS_TTL_MS = 2 * 60 * 1000;
-const DETAILS_CACHE_VER = "rel-12";
+const DETAILS_CACHE_VER = "rel-13";
 const FETCH_MS = 4000;
 const searchCache = new Map<string, { at: number; games: CatalogGame[] }>();
 const detailsCache = new Map<
@@ -462,6 +464,17 @@ export function mergeSearchResults(
   return finishSearch(out).slice(0, 24);
 }
 
+export function replaceWikiWithIgdb(
+  games: CatalogGame[],
+  igdbGames: CatalogGame[],
+): CatalogGame[] {
+  if (!igdbGames.length) return games;
+  return games.map((game) => {
+    if (!game.id.startsWith("wiki_")) return game;
+    return pickBestTitleMatch(game.title, igdbGames) ?? game;
+  });
+}
+
 export async function searchSteam(query: string): Promise<CatalogGame[]> {
   const q = query.trim();
   if (q.length < 2) return [];
@@ -482,6 +495,7 @@ export type SearchSources = {
   searchIgdb: (q: string) => Promise<CatalogGame[]>;
   searchSteam: (q: string) => Promise<CatalogGame[]>;
   searchWiki?: (q: string) => Promise<CatalogGame[]>;
+  lookupIgdbByTitles?: (titles: string[]) => Promise<CatalogGame[]>;
 };
 
 export async function runSearchWith(
@@ -501,7 +515,17 @@ export async function runSearchWith(
     steamHits,
     wikiHits,
   ]);
-  return mergeSearchResults(igdbGames, steamGames, query, wikiGames);
+  let resolvedWiki = wikiGames;
+  if (wikiGames.length && sources.lookupIgdbByTitles) {
+    try {
+      const titles = wikiGames.map((game) => game.title);
+      const found = await sources.lookupIgdbByTitles(titles);
+      resolvedWiki = replaceWikiWithIgdb(wikiGames, found);
+    } catch {
+      resolvedWiki = wikiGames;
+    }
+  }
+  return mergeSearchResults(igdbGames, steamGames, query, resolvedWiki);
 }
 
 export async function runSearch(
@@ -515,6 +539,7 @@ export async function runSearch(
       searchIgdb,
       searchSteam,
       searchWiki: searchWikipedia,
+      lookupIgdbByTitles,
     },
     provider,
   );
@@ -669,6 +694,19 @@ async function runDetails(catalogId: string): Promise<CatalogDetails | null> {
     }
   }
   if (catalogId.startsWith("wiki_")) {
+    const title = parseWikiTitle(catalogId);
+    if (title && isIgdbReady()) {
+      try {
+        const hits = await lookupIgdbByTitles([title]);
+        const match = pickBestTitleMatch(title, hits);
+        if (match) {
+          const details = await fetchIgdbDetails(match.id);
+          if (details) return details;
+        }
+      } catch {
+        /* fall through to the Wikipedia page */
+      }
+    }
     try {
       return await fetchWikiDetails(catalogId);
     } catch {
@@ -808,19 +846,27 @@ export async function fetchPlaystationRail(): Promise<FeaturedRail | null> {
       const igdb = await fetchIgdbPlaystation();
       if (igdb?.games.length) return igdb;
     } catch {
-      /* Steam Sony ports / seed still show a rail */
+      /* try title lookup / Wikipedia next — never Steam PC ports */
+    }
+    try {
+      const named = await lookupIgdbByTitles(PLAYSTATION_FALLBACK_TITLES);
+      const games = named.filter((game) => Boolean(game.coverUrl)).slice(0, 12);
+      if (games.length) {
+        return { id: "playstation", title: "PlayStation", games };
+      }
+    } catch {
+      /* Wikipedia discovery below */
     }
   }
   try {
-    const rail = await fetchSteamSearchRail(
-      "playstation",
-      "PlayStation",
-      "term=playstation%20studios&filter=globaltopsellers",
-      "all",
+    const found = await Promise.all(
+      PLAYSTATION_FALLBACK_TITLES.slice(0, 8).map((title) =>
+        searchWikipedia(title).then((games) => games[0] ?? null),
+      ),
     );
-    if (rail?.games.length) {
-      const [painted] = await applyArtToRails([rail]);
-      return painted ?? rail;
+    const games = found.filter((game): game is CatalogGame => Boolean(game));
+    if (games.length) {
+      return { id: "playstation", title: "PlayStation", games: games.slice(0, 12) };
     }
   } catch {
     /* seed last */
