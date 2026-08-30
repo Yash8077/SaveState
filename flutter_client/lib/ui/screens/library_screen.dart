@@ -68,12 +68,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
-  String _formatCoverUrl(String? url) {
-    if (url == null || url.isEmpty) return '';
-    if (url.startsWith('//')) return 'https:$url';
-    return url.replaceFirst('t_cover_big', 't_cover_big_2x');
-  }
-
   Color _getStatusColor(GameStatus status) {
     switch (status) {
       case GameStatus.playing:
@@ -489,7 +483,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
         final entry = entries[index];
         final statusColor = _getStatusColor(entry.status);
         final statusLabel = _getStatusLabel(entry.status);
-        final formattedCoverUrl = _formatCoverUrl(entry.coverUrl ?? entry.headerUrl);
+        final formattedCoverUrl = entry.coverUrl != null
+            ? (normalizeArtUrl(entry.coverUrl) ?? '')
+            : (normalizeArtUrl(entry.headerUrl) ?? '');
 
         return Card(
           margin: EdgeInsets.zero,

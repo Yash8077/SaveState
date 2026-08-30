@@ -15,11 +15,22 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   List<FeaturedRail> _featuredRails = [];
+  List<CatalogGame> _playing = [];
+  List<CatalogGame> _backlog = [];
 
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  CatalogGame _asCard(GameEntry entry) {
+    return CatalogGame(
+      id: entry.catalogId,
+      title: entry.title,
+      coverUrl: entry.coverUrl,
+      headerUrl: entry.headerUrl,
+    );
   }
 
   Future<void> _loadData() async {
@@ -30,11 +41,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final apiClient = context.read<ApiClient>();
-      final rails = await apiClient.getFeaturedRails();
+      final featured = apiClient.getFeaturedRails();
+      List<GameEntry> library = const [];
+      try {
+        library = await apiClient.getLibrary();
+      } on ApiException catch (e) {
+        if (e.status != 401) rethrow;
+      }
+      final rails = await featured;
 
       if (mounted) {
         setState(() {
           _featuredRails = rails;
+          _playing = library
+              .where((e) => e.status == GameStatus.playing)
+              .map(_asCard)
+              .toList();
+          _backlog = library
+              .where((e) => e.status == GameStatus.backlog)
+              .map(_asCard)
+              .toList();
           _isLoading = false;
         });
       }
@@ -64,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBody(ColorScheme colorScheme) {
+    final theme = Theme.of(context);
     if (_isLoading) {
       return const _HomeScreenSkeleton();
     }
@@ -83,7 +110,33 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.only(bottom: 32.0),
         children: [
           _buildGreetingHeader(colorScheme),
-          if (_featuredRails.isEmpty)
+          if (_playing.isNotEmpty)
+            GameRailWidget(title: 'Continue playing', games: _playing),
+          if (_backlog.isNotEmpty)
+            GameRailWidget(title: 'Planning to play', games: _backlog),
+          if (_featuredRails.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Browse',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Popular Steam lists, plus PlayStation',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (_featuredRails.isEmpty && _playing.isEmpty && _backlog.isEmpty)
             _buildEmptyState(colorScheme)
           else
             ..._featuredRails.map(

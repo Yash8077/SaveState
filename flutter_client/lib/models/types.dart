@@ -107,6 +107,22 @@ class CatalogGame {
       metacritic: metacritic ?? this.metacritic,
     );
   }
+
+  String? get artUrl =>
+      normalizeArtUrl(coverUrl) ??
+      normalizeArtUrl(headerUrl) ??
+      normalizeArtUrl(capsuleUrl);
+}
+
+String? normalizeArtUrl(String? url) {
+  if (url == null) return null;
+  final trimmed = url.trim();
+  if (trimmed.isEmpty) return null;
+  if (trimmed.startsWith('//')) return 'https:$trimmed';
+  if (trimmed.startsWith('http://')) {
+    return 'https://${trimmed.substring(7)}';
+  }
+  return trimmed;
 }
 
 class CatalogDetails extends CatalogGame {

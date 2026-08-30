@@ -254,7 +254,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
 
     final game = _game!;
-    final banner = game.headerUrl ?? game.coverUrl ?? game.capsuleUrl;
+    final banner = game.artUrl ?? game.headerUrl ?? game.coverUrl ?? game.capsuleUrl;
     final auth = context.watch<AuthController>();
     final bloom = context.watch<ThemeController>().bloom;
     final inLibrary = _entry != null;
@@ -338,9 +338,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                           child: SizedBox(
                             width: 92,
                             height: 128,
-                            child: game.coverUrl != null
+                            child: game.artUrl != null
                                 ? CachedNetworkImage(
-                                    imageUrl: game.coverUrl!,
+                                    imageUrl: game.artUrl!,
                                     fit: BoxFit.cover,
                                   )
                                 : ColoredBox(
@@ -461,8 +461,14 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               ),
             ),
           ),
-          if (game.related.any((rail) => rail.games.isNotEmpty))
-            SliverToBoxAdapter(child: _RelationsRail(rails: game.related)),
+          if (_RelationsRail.hasGames(game.related, _RelationsRail.sequelDlcIds))
+            SliverToBoxAdapter(
+              child: _RelationsRail(
+                rails: game.related,
+                title: 'Prequels, sequels & DLC',
+                ids: _RelationsRail.sequelDlcIds,
+              ),
+            ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -537,13 +543,17 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                         scrollDirection: Axis.horizontal,
                         itemCount: game.screenshots.length,
                         separatorBuilder: (_, __) => const SizedBox(width: 10),
-                        itemBuilder: (context, i) => ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: AspectRatio(
-                            aspectRatio: 16 / 9,
-                            child: CachedNetworkImage(
-                              imageUrl: game.screenshots[i],
-                              fit: BoxFit.cover,
+                        itemBuilder: (context, i) => GestureDetector(
+                          onTap: () =>
+                              _openScreenshot(context, game.screenshots, i),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: AspectRatio(
+                              aspectRatio: 16 / 9,
+                              child: CachedNetworkImage(
+                                imageUrl: game.screenshots[i],
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                         ),
@@ -553,9 +563,58 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 ),
               ),
             ),
+          if (_RelationsRail.hasGames(game.related, _RelationsRail.relatedIds))
+            SliverToBoxAdapter(
+              child: _RelationsRail(
+                rails: game.related,
+                title: 'Similar games',
+                ids: _RelationsRail.relatedIds,
+              ),
+            ),
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
+    );
+  }
+
+  Future<void> _openScreenshot(
+    BuildContext context,
+    List<String> shots,
+    int index,
+  ) async {
+    if (index < 0 || index >= shots.length) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black87,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(12),
+          child: Stack(
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 4,
+                  child: CachedNetworkImage(
+                    imageUrl: shots[index],
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 0,
+                right: 0,
+                child: IconButton.filledTonal(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -796,7 +855,22 @@ class _RelatedItem {
 
 class _RelationsRail extends StatelessWidget {
   final List<FeaturedRail> rails;
-  const _RelationsRail({required this.rails});
+  final String title;
+  final Set<String> ids;
+  const _RelationsRail({
+    required this.rails,
+    required this.title,
+    required this.ids,
+  });
+
+  static const sequelDlcIds = <String>{'dlc', 'prequel', 'sequel'};
+  static const relatedIds = <String>{
+    'series',
+    'original',
+    'franchise',
+    'remakes',
+    'similar',
+  };
 
   static const _badges = <String, String>{
     'prequel': 'Prequel',
@@ -809,10 +883,15 @@ class _RelationsRail extends StatelessWidget {
     'similar': 'Similar',
   };
 
+  static bool hasGames(List<FeaturedRail> rails, Set<String> ids) {
+    return rails.any((rail) => ids.contains(rail.id) && rail.games.isNotEmpty);
+  }
+
   List<_RelatedItem> get items {
     final seen = <String>{};
     final out = <_RelatedItem>[];
     for (final rail in rails) {
+      if (!ids.contains(rail.id)) continue;
       final badge = _badges[rail.id] ?? rail.title;
       for (final game in rail.games) {
         if (!seen.add(game.id)) continue;
@@ -832,11 +911,11 @@ class _RelationsRail extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: Text(
-              'Related',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              title,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
           ),
           SizedBox(
@@ -863,9 +942,9 @@ class _RelationsRail extends StatelessWidget {
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
-                                child: item.game.coverUrl != null
+                                child: item.game.artUrl != null
                                     ? CachedNetworkImage(
-                                        imageUrl: item.game.coverUrl!,
+                                        imageUrl: item.game.artUrl!,
                                         fit: BoxFit.cover,
                                       )
                                     : ColoredBox(color: cs.surfaceContainerHighest),

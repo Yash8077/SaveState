@@ -22,6 +22,7 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   bool _hasSearched = false;
+  int _searchGen = 0;
 
   @override
   void initState() {
@@ -40,9 +41,9 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _onSearchChanged(String query) {
-    setState(() {}); // Updates clear button visibility in SearchBar
+    setState(() {});
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+    _debounceTimer = Timer(const Duration(milliseconds: 180), () {
       _performSearch(query.trim());
     });
   }
@@ -59,6 +60,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _performSearch(String query) async {
+    final gen = ++_searchGen;
     if (query.isEmpty) {
       setState(() {
         _results = [];
@@ -77,31 +79,18 @@ class _SearchScreenState extends State<SearchScreen> {
 
     try {
       final results = await context.read<ApiClient>().searchGames(query);
-      if (mounted) {
-        setState(() {
-          _results = results;
-          _isLoading = false;
-        });
-      }
+      if (!mounted || gen != _searchGen) return;
+      setState(() {
+        _results = results;
+        _isLoading = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
-      }
+      if (!mounted || gen != _searchGen) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
     }
-  }
-
-  String? _formatCoverUrl(String? url) {
-    if (url == null || url.isEmpty) return null;
-    String formatted = url.startsWith('//') ? 'https:$url' : url;
-    if (formatted.contains('t_thumb')) {
-      formatted = formatted.replaceFirst('t_thumb', 't_cover_big_2x');
-    } else if (formatted.contains('t_cover_big')) {
-      formatted = formatted.replaceFirst('t_cover_big', 't_cover_big_2x');
-    }
-    return formatted;
   }
 
   @override
@@ -173,7 +162,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildContent(ColorScheme colorScheme) {
-    if (_isLoading) {
+    if (_isLoading && _results.isEmpty) {
       return const _SearchSkeletonGrid();
     }
 
@@ -207,7 +196,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildGameCard(CatalogGame game, ColorScheme colorScheme) {
-    final coverUrl = _formatCoverUrl(game.coverUrl);
+    final coverUrl = game.artUrl;
 
     return Material(
       color: Colors.transparent,

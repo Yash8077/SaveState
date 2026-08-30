@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Heart, Plus } from "lucide-react";
+import { Check, Heart, Plus, X } from "lucide-react";
+import { createPortal } from "react-dom";
 import { Poster } from "@/components/poster";
 import { StatusBadge } from "@/components/status-badge";
 import { TrackerPanel } from "@/components/tracker-panel";
@@ -17,7 +18,11 @@ import {
 } from "@/lib/api";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { seedRelated } from "@/lib/catalog-seed";
-import { flattenRelated } from "@/lib/related";
+import {
+  flattenRelated,
+  RELATED_RAIL_IDS,
+  SEQUEL_DLC_RAIL_IDS,
+} from "@/lib/related";
 import { STATUS_LABEL, type Status } from "@/lib/types";
 import { cn, steamPortraitUrl } from "@/lib/utils";
 
@@ -41,6 +46,7 @@ function GamePage() {
   }>(["catalog-preview", catalogId]);
   const [editorOpen, setEditorOpen] = useState(false);
   const [favoriteHint, setFavoriteHint] = useState(false);
+  const [shotIndex, setShotIndex] = useState<number | null>(null);
 
   const details = useQuery({
     queryKey: catalogGameQueryKey(catalogId),
@@ -65,9 +71,11 @@ function GamePage() {
   const screenshots =
     (entry?.screenshots?.length ? entry.screenshots : catalog?.screenshots) ??
     [];
-  const related = flattenRelated(
-    catalog?.related?.length ? catalog.related : seedRelated(catalogId),
-  );
+  const relatedRails =
+    catalog?.related?.length ? catalog.related : seedRelated(catalogId);
+  const sequelDlc = flattenRelated(relatedRails, SEQUEL_DLC_RAIL_IDS);
+  const relatedSimilar = flattenRelated(relatedRails, RELATED_RAIL_IDS);
+  const relatedLoading = details.isLoading && !isCustom;
   const releaseDate = entry?.releaseDate ?? catalog?.releaseDate;
   const metacritic = entry?.metacritic ?? catalog?.metacritic;
   const banner = headerUrl || coverUrl;
@@ -153,6 +161,7 @@ function GamePage() {
           <img
             src={banner}
             alt=""
+            referrerPolicy="no-referrer"
             className="size-full object-cover object-center"
           />
         ) : null}
@@ -259,17 +268,10 @@ function GamePage() {
           </div>
         ) : null}
 
-        {related.length ? (
-          <RelatedRail cards={related} />
-        ) : details.isLoading && !isCustom ? (
-          <section className="mt-6 space-y-3">
-            <h2 className="text-base font-medium">Related</h2>
-            <div className="rail-scroll">
-              {Array.from({ length: 5 }, (_, i) => (
-                <Skeleton key={i} className="h-36 w-[7.25rem] shrink-0 rounded-lg sm:w-[8.25rem]" />
-              ))}
-            </div>
-          </section>
+        {sequelDlc.length ? (
+          <RelatedRail title="Prequels, sequels & DLC" cards={sequelDlc} />
+        ) : relatedLoading ? (
+          <RelatedSkeleton title="Prequels, sequels & DLC" />
         ) : null}
 
         <div className="mt-6 grid gap-4 pb-4 expanded:grid-cols-[minmax(0,1fr)_22rem] expanded:items-start">
@@ -308,19 +310,39 @@ function GamePage() {
           <section className="pb-4">
             <h2 className="mb-3 text-base font-medium">Screenshots</h2>
             <div className="rail-scroll">
-              {screenshots.map((src) => (
-                <img
+              {screenshots.map((src, i) => (
+                <button
                   key={src}
-                  src={src}
-                  alt=""
-                  loading="lazy"
-                  className="h-36 snap-start rounded-lg object-cover sm:h-48"
-                />
+                  type="button"
+                  onClick={() => setShotIndex(i)}
+                  className="shrink-0 rounded-lg bg-transparent p-0"
+                  aria-label={`View screenshot ${i + 1}`}
+                >
+                  <img
+                    src={src}
+                    alt=""
+                    loading="lazy"
+                    className="h-36 snap-start rounded-lg object-cover sm:h-48"
+                  />
+                </button>
               ))}
             </div>
           </section>
         ) : null}
+
+        {relatedSimilar.length ? (
+          <RelatedRail title="Similar games" cards={relatedSimilar} />
+        ) : relatedLoading ? (
+          <RelatedSkeleton title="Similar games" />
+        ) : null}
       </div>
+
+      {shotIndex != null && screenshots[shotIndex] ? (
+        <ScreenshotLightbox
+          src={screenshots[shotIndex]}
+          onClose={() => setShotIndex(null)}
+        />
+      ) : null}
 
       {editorOpen ? (
         <ListEditor
@@ -355,13 +377,15 @@ function GamePage() {
 }
 
 function RelatedRail({
+  title,
   cards,
 }: {
+  title: string;
   cards: ReturnType<typeof flattenRelated>;
 }) {
   return (
-    <section className="mt-6">
-      <GameRail title="Related">
+    <section className="mt-6 pb-4">
+      <GameRail title={title}>
         {cards.map((g) => (
           <GameCard
             key={`${g.relationId}-${g.id}`}
@@ -374,6 +398,64 @@ function RelatedRail({
         ))}
       </GameRail>
     </section>
+  );
+}
+
+function RelatedSkeleton({ title }: { title: string }) {
+  return (
+    <section className="mt-6 space-y-3 pb-4">
+      <h2 className="text-base font-medium">{title}</h2>
+      <div className="rail-scroll">
+        {Array.from({ length: 5 }, (_, i) => (
+          <Skeleton
+            key={i}
+            className="h-36 w-[7.25rem] shrink-0 rounded-lg sm:w-[8.25rem]"
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ScreenshotLightbox({
+  src,
+  onClose,
+}: {
+  src: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-bg/90 p-4"
+      onClick={onClose}
+      role="presentation"
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close screenshot"
+        className="absolute top-3 right-3 grid size-11 place-items-center rounded-full bg-elevated text-fg"
+      >
+        <X className="size-5" />
+      </button>
+      <img
+        src={src}
+        alt=""
+        className="max-h-[90vh] max-w-[92vw] object-contain"
+        onClick={(event) => event.stopPropagation()}
+      />
+    </div>,
+    document.body,
   );
 }
 

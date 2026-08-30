@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn, normalizeArtUrl } from "@/lib/utils";
 
 export function Poster({
   title,
@@ -15,9 +15,10 @@ export function Poster({
   sizes?: string;
   priority?: boolean;
 }) {
-  const primary = coverUrl || headerUrl || null;
-  const fallback =
-    coverUrl && headerUrl && coverUrl !== headerUrl ? headerUrl : null;
+  const cover = normalizeArtUrl(coverUrl);
+  const header = normalizeArtUrl(headerUrl);
+  const primary = cover || header || null;
+  const fallback = cover && header && cover !== header ? header : null;
   const [src, setSrc] = useState<string | null>(primary);
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export function Poster({
           loading={priority ? "eager" : "lazy"}
           fetchPriority={priority ? "high" : "low"}
           decoding="async"
+          referrerPolicy="no-referrer"
           className="size-full object-cover object-center outline outline-1 -outline-offset-1 outline-white/10"
           onError={() => {
             if (fallback && src !== fallback) setSrc(fallback);

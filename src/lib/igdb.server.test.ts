@@ -1,13 +1,24 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import type { CatalogGame, FeaturedRail } from "./types.ts";
 import {
   CARD_FIELDS,
   DETAIL_FIELDS,
+  GAME_TYPE,
   SEARCH_FIELDS,
+  SEARCH_WHERE,
+  buildIgdbContainsBody,
+  buildIgdbSearchBody,
   igdbCatalogId,
+  mapSearchHits,
   relatedRails,
+  searchNeedle,
   toGame,
   withWikidataFallback,
+  applyRelatedArt,
+  dropCoverlessSimilar,
+  relatedIdsMissingArt,
+  popularityValue,
 } from "./igdb.server.ts";
 
 describe("toGame mapping", () => {
@@ -68,8 +79,26 @@ describe("IGDB field selection", () => {
   it("keeps search payloads slim", () => {
     assert.match(SEARCH_FIELDS, /name/);
     assert.match(SEARCH_FIELDS, /cover\.image_id/);
+    assert.match(SEARCH_FIELDS, /game_type/);
+    assert.match(SEARCH_FIELDS, /category/);
     assert.doesNotMatch(SEARCH_FIELDS, /summary/);
     assert.doesNotMatch(SEARCH_FIELDS, /involved_companies/);
+  });
+
+  it("filters DLC, expansions, and bundles out of search", () => {
+    assert.match(SEARCH_WHERE, /game_type = \(0,4,8,9,10,11\)/);
+    assert.match(SEARCH_WHERE, /category = \(0,4,8,9,10,11\)/);
+    assert.match(SEARCH_WHERE, /game_type = null/);
+  });
+
+  it("uses a contains query so partial titles match", () => {
+    const body = buildIgdbContainsBody("eld");
+    assert.ok(body);
+    assert.match(body, /name ~ \*"eld"\*/);
+    assert.match(body, /version_parent = null/);
+    assert.equal(buildIgdbSearchBody("el"), null);
+    assert.ok(buildIgdbSearchBody("elden")?.startsWith('search "elden"'));
+    assert.equal(searchNeedle('el*den "ring"'), "el den ring");
   });
 
   it("includes card fields used for rails and extra fields only on details", () => {
@@ -210,6 +239,62 @@ describe("related rails", () => {
   });
 });
 
+describe("related art hydration", () => {
+  const bare = (id: string, title: string): CatalogGame => ({
+    id,
+    steamId: null,
+    title,
+    coverUrl: null,
+    headerUrl: null,
+    capsuleUrl: null,
+    platforms: [],
+    metacritic: null,
+  });
+  const art = (id: string, title: string): CatalogGame => ({
+    ...bare(id, title),
+    coverUrl: `https://images.igdb.com/igdb/image/upload/t_cover_big/${id}.jpg`,
+  });
+
+  it("lists IGDB ids that still need a cover", () => {
+    const rails: FeaturedRail[] = [
+      { id: "similar", title: "Similar games", games: [bare("igdb_9", "Planet Alpha"), art("igdb_2", "Has art")] },
+      { id: "prequel", title: "Prequel", games: [art("igdb_1", "Rescue Mission")] },
+    ];
+    assert.deepEqual(relatedIdsMissingArt(rails), [9]);
+  });
+
+  it("fills missing covers from a follow-up card fetch", () => {
+    const rails: FeaturedRail[] = [
+      { id: "similar", title: "Similar games", games: [bare("igdb_9", "Planet Alpha")] },
+    ];
+    const out = applyRelatedArt(rails, [art("igdb_9", "Planet Alpha")]);
+    assert.equal(
+      out[0]?.games[0]?.coverUrl,
+      "https://images.igdb.com/igdb/image/upload/t_cover_big/igdb_9.jpg",
+    );
+  });
+
+  it("drops similar rows that still have no art", () => {
+    const rails: FeaturedRail[] = [
+      { id: "similar", title: "Similar games", games: [bare("igdb_9", "Planet Alpha"), art("igdb_10", "Gears")] },
+      { id: "prequel", title: "Prequel", games: [bare("igdb_1", "Rescue Mission")] },
+    ];
+    const out = dropCoverlessSimilar(rails);
+    assert.deepEqual(
+      out.find((r) => r.id === "similar")?.games.map((g) => g.title),
+      ["Gears"],
+    );
+    assert.equal(out.find((r) => r.id === "prequel")?.games[0]?.title, "Rescue Mission");
+  });
+});
+
+describe("popularityValue", () => {
+  it("weights hype above raw rating counts so upcoming hits rank first", () => {
+    assert.ok(popularityValue(80, 10) > popularityValue(0, 500));
+    assert.equal(popularityValue(undefined, undefined), 0);
+  });
+});
+
 describe("withWikidataFallback", () => {
   const card = (id: number, title: string) => ({
     id: `igdb_${id}`,
@@ -339,5 +424,65 @@ describe("withWikidataFallback", () => {
       cards: async () => ({ byId: new Map(), bySlug: new Map() }),
     });
     assert.deepEqual(out, rails);
+  });
+});
+
+describe("search DLC filter", () => {
+  it("returns only the main_game row when DLC/expansion/bundle share the title", () => {
+    const hits = mapSearchHits([
+      {
+        id: 1,
+        name: "Ghost of Yotei",
+        game_type: GAME_TYPE.main_game,
+        cover: { image_id: "main" },
+      },
+      {
+        id: 2,
+        name: "Ghost of Yotei",
+        game_type: GAME_TYPE.bundle,
+        parent_game: 1,
+        cover: { image_id: "deluxe" },
+      },
+      {
+        id: 3,
+        name: "Ghost of Yotei",
+        game_type: GAME_TYPE.dlc_addon,
+        parent_game: 1,
+        cover: { image_id: "dlc" },
+      },
+      {
+        id: 4,
+        name: "Ghost of Yotei",
+        game_type: GAME_TYPE.expansion,
+        parent_game: 1,
+        cover: { image_id: "exp" },
+      },
+    ]);
+    assert.deepEqual(
+      hits.map((g) => [g.id, g.title]),
+      [["igdb_1", "Ghost of Yotei"]],
+    );
+  });
+
+  it("falls back to category when game_type is missing", () => {
+    const hits = mapSearchHits([
+      {
+        id: 10,
+        name: "Breath of the Wild",
+        category: GAME_TYPE.main_game,
+        cover: { image_id: "botw" },
+      },
+      {
+        id: 11,
+        name: "The Master Trials",
+        category: GAME_TYPE.expansion,
+        parent_game: 10,
+        cover: { image_id: "dlc" },
+      },
+    ]);
+    assert.deepEqual(
+      hits.map((g) => g.id),
+      ["igdb_10"],
+    );
   });
 });

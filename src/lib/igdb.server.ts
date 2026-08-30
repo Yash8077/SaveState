@@ -5,6 +5,9 @@ import {
   prependPrequelSequel,
 } from "./related.ts";
 import { fetchWikidataRelations } from "./wikidata.server.ts";
+import { GAME_TYPE } from "./game-type.ts";
+
+export { GAME_TYPE } from "./game-type.ts";
 
 const FETCH_MS = 4000;
 const IMG = "https://images.igdb.com/igdb/image/upload";
@@ -28,9 +31,13 @@ export type IgdbGame = {
   summary?: string;
   first_release_date?: number;
   aggregated_rating?: number;
+  aggregated_rating_count?: number;
+  total_rating_count?: number;
+  hypes?: number;
   category?: number;
+  game_type?: number;
   url?: string;
-  cover?: IgdbImage;
+  cover?: IgdbImage | number;
   genres?: { name?: string }[];
   platforms?: { name?: string; abbreviation?: string }[];
   screenshots?: IgdbImage[];
@@ -41,8 +48,8 @@ export type IgdbGame = {
   franchise?: IgdbGroup | number;
   franchises?: Array<IgdbGroup | number>;
   similar_games?: IgdbGame[];
-  parent_game?: IgdbGame;
-  version_parent?: IgdbGame;
+  parent_game?: IgdbGame | number;
+  version_parent?: IgdbGame | number;
   dlcs?: IgdbGame[];
   expansions?: IgdbGame[];
   expanded_games?: IgdbGame[];
@@ -72,12 +79,36 @@ export function parseIgdbId(catalogId: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
+// IGDB moved GameCategoryEnum onto the `game_types` table (`game_type`).
+// Docs (api-docs.igdb.com/#migration-enums-to-tables): "All current enum
+// values will remain the same in the new table structure. Only the field
+// names are changing, not the values they contain." Confirmed against
+// api-docs.igdb.com/#game-type and the deprecated Game enums table.
+
+export const SEARCH_KEEP_GAME_TYPES = new Set<number>([
+  GAME_TYPE.main_game,
+  GAME_TYPE.standalone_expansion,
+  GAME_TYPE.remake,
+  GAME_TYPE.remaster,
+  GAME_TYPE.expanded_game,
+  GAME_TYPE.port,
+]);
+
+const SEARCH_KEEP_IDS = [...SEARCH_KEEP_GAME_TYPES].join(",");
+
+export const SEARCH_WHERE = `version_parent = null & (game_type = (${SEARCH_KEEP_IDS}) | (game_type = null & (category = (${SEARCH_KEEP_IDS}) | category = null)))`;
+
 function img(id: string | undefined, size: string): string | null {
   return id ? `${IMG}/t_${size}/${id}.jpg` : null;
 }
 
+function coverImageId(cover: IgdbImage | number | undefined): string | undefined {
+  if (!cover || typeof cover === "number") return undefined;
+  return cover.image_id;
+}
+
 function quote(value: string): string {
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  return JSON.stringify(value);
 }
 
 function unixDate(unix?: number): string | null {
@@ -116,12 +147,49 @@ function companies(
   return out;
 }
 
+function parentCatalogId(value: IgdbGame | number | undefined): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return igdbCatalogId(value);
+  }
+  if (value && typeof value === "object" && typeof value.id === "number") {
+    return igdbCatalogId(value.id);
+  }
+  return null;
+}
+
+function numericType(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+export function gameKind(game: IgdbGame): number | null {
+  return numericType(game.game_type) ?? numericType(game.category);
+}
+
+export function isSearchableGame(game: IgdbGame): boolean {
+  const kind = gameKind(game);
+  if (kind == null) return true;
+  return SEARCH_KEEP_GAME_TYPES.has(kind);
+}
+
+export function mapSearchHits(rows: IgdbGame[] | null | undefined): CatalogGame[] {
+  const seen = new Set<string>();
+  const games: CatalogGame[] = [];
+  for (const row of rows ?? []) {
+    if (!isSearchableGame(row)) continue;
+    const mapped = toGame(row, "cover_big");
+    if (!mapped || seen.has(mapped.id)) continue;
+    seen.add(mapped.id);
+    games.push(slimCatalogGame(mapped));
+  }
+  return games;
+}
+
 export function toGame(
   game: IgdbGame,
   coverSize = "cover_big",
 ): CatalogGame | null {
   if (!game.id || !game.name) return null;
-  const cover = img(game.cover?.image_id, coverSize);
+  const cover = img(coverImageId(game.cover), coverSize);
   const header =
     img(game.screenshots?.[0]?.image_id, "screenshot_med") || cover;
   const rating = game.aggregated_rating;
@@ -137,6 +205,8 @@ export function toGame(
       typeof rating === "number" && Number.isFinite(rating)
         ? Math.round(rating)
         : null,
+    parentGameId: parentCatalogId(game.parent_game),
+    gameType: gameKind(game),
   };
 }
 
@@ -161,6 +231,114 @@ function mapRelatedList(
     if (out.length >= limit) break;
   }
   return out;
+}
+
+export function relatedIdsMissingArt(rails: FeaturedRail[]): number[] {
+  const ids: number[] = [];
+  const seen = new Set<number>();
+  for (const rail of rails) {
+    for (const game of rail.games) {
+      if (game.coverUrl || game.headerUrl) continue;
+      const id = parseIgdbId(game.id);
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
+export function relatedIgdbIds(rails: FeaturedRail[]): number[] {
+  const ids: number[] = [];
+  const seen = new Set<number>();
+  for (const rail of rails) {
+    for (const game of rail.games) {
+      const id = parseIgdbId(game.id);
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
+export function applyRelatedArt(
+  rails: FeaturedRail[],
+  cards: CatalogGame[],
+): FeaturedRail[] {
+  if (!cards.length) return rails;
+  const byId = new Map(cards.map((game) => [game.id, game]));
+  return rails.map((rail) => ({
+    ...rail,
+    games: rail.games.map((game) => {
+      const filled = byId.get(game.id);
+      if (!filled) return game;
+      return {
+        ...game,
+        title: game.title || filled.title,
+        coverUrl: filled.coverUrl ?? game.coverUrl,
+        headerUrl: filled.headerUrl ?? game.headerUrl,
+        capsuleUrl: filled.capsuleUrl ?? game.capsuleUrl,
+      };
+    }),
+  }));
+}
+
+export function dropCoverlessSimilar(rails: FeaturedRail[]): FeaturedRail[] {
+  return rails
+    .map((rail) => {
+      if (rail.id !== "similar" && rail.id !== "franchise") return rail;
+      return {
+        ...rail,
+        games: rail.games.filter((game) => game.coverUrl || game.headerUrl),
+      };
+    })
+    .filter((rail) => rail.games.length > 0);
+}
+
+async function hydrateRelatedCovers(
+  rails: FeaturedRail[],
+): Promise<FeaturedRail[]> {
+  const fetchIds = relatedIdsMissingArt(rails);
+  if (!fetchIds.length) return dropCoverlessSimilar(rails);
+  try {
+    const rows = await igdb<IgdbGame[]>(
+      "games",
+      `fields name, cover.image_id, screenshots.image_id;
+       where id = (${fetchIds.join(",")});
+       limit ${Math.min(50, fetchIds.length)};`,
+    );
+    const cards: CatalogGame[] = [];
+    for (const row of rows ?? []) {
+      const mapped = toGame(row, "cover_big");
+      if (mapped) cards.push(slimCatalogGame(mapped));
+    }
+    return dropCoverlessSimilar(applyRelatedArt(rails, cards));
+  } catch {
+    return dropCoverlessSimilar(rails);
+  }
+}
+
+async function hydrateSimilarGames(game: IgdbGame): Promise<IgdbGame> {
+  const similar = asGames(game.similar_games);
+  const ids = similar
+    .map((row) => row.id)
+    .filter((id): id is number => typeof id === "number" && Number.isFinite(id));
+  if (!ids.length) return game;
+  const needsFetch = similar.some((row) => !row.name || !coverImageId(row.cover));
+  if (!needsFetch) return game;
+  try {
+    const rows = await igdb<IgdbGame[]>(
+      "games",
+      `fields name, cover.image_id, screenshots.image_id, first_release_date;
+       where id = (${ids.slice(0, 20).join(",")});
+       limit 20;`,
+    );
+    if (!rows?.length) return game;
+    return { ...game, similar_games: rows };
+  } catch {
+    return game;
+  }
 }
 
 function asGroup(value: unknown): IgdbGroup | null {
@@ -293,21 +471,21 @@ export function relatedRails(game: IgdbGame): FeaturedRail[] {
     "dlc",
     "DLC & expansions",
     mapRelatedList(
-      [
+      asGames([
         ...(game.expansions ?? []),
         ...(game.dlcs ?? []),
         ...(game.standalone_expansions ?? []),
         ...(game.expanded_games ?? []),
-      ],
+      ]),
       self,
     ),
   );
   push(
     "remakes",
     "Remakes & remasters",
-    mapRelatedList([...(game.remakes ?? []), ...(game.remasters ?? [])], self),
+    mapRelatedList(asGames([...(game.remakes ?? []), ...(game.remasters ?? [])]), self),
   );
-  push("similar", "Similar games", mapRelatedList(game.similar_games, self));
+  push("similar", "Similar games", mapRelatedList(asGames(game.similar_games), self));
   return rails;
 }
 
@@ -551,12 +729,115 @@ async function igdb<T>(path: string, body: string): Promise<T> {
   throw lastError ?? new Error("IGDB request failed");
 }
 
-export const SEARCH_FIELDS = "name, cover.image_id";
+export const SEARCH_FIELDS = "name, cover.image_id, game_type, category, parent_game";
 export const CARD_FIELDS =
-  "name, cover.image_id, first_release_date, aggregated_rating";
+  "name, cover.image_id, first_release_date, aggregated_rating, aggregated_rating_count, hypes";
 const REL_NEST =
   "name, cover.image_id, first_release_date, category";
 export const DETAIL_FIELDS = `${CARD_FIELDS}, platforms.abbreviation, platforms.name, genres.name, slug, summary, url, screenshots.image_id, involved_companies.company.name, involved_companies.developer, involved_companies.publisher, websites.url, websites.category, collection.id, collection.name, collections.id, collections.name, similar_games.${REL_NEST}, parent_game.${REL_NEST}, version_parent.${REL_NEST}, dlcs.${REL_NEST}, expansions.${REL_NEST}, expanded_games.${REL_NEST}, remakes.${REL_NEST}, remasters.${REL_NEST}, standalone_expansions.${REL_NEST}, franchise.name, franchise.games.${REL_NEST}, franchises.name, franchises.games.${REL_NEST}`;
+
+/** IGDB `external_games.category` for Steam store apps. */
+export const IGDB_STEAM_CATEGORY = 1;
+
+export function searchNeedle(raw: string): string {
+  return raw
+    .replace(/[\n\r*"\\()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+export function buildIgdbSearchBody(query: string): string | null {
+  const q = searchNeedle(query);
+  if (q.length < 3) return null;
+  return `search ${quote(q)}; fields ${SEARCH_FIELDS}; where ${SEARCH_WHERE}; limit 24;`;
+}
+
+export function buildIgdbContainsBody(query: string): string | null {
+  const q = searchNeedle(query);
+  if (q.length < 2) return null;
+  return `fields ${SEARCH_FIELDS}; where name ~ *${quote(q)}* & ${SEARCH_WHERE}; limit 24; sort aggregated_rating_count desc;`;
+}
+
+type ExternalGame = {
+  id?: number;
+  uid?: string;
+  category?: number;
+  game?: number | IgdbGame;
+};
+
+function steamGameId(row: ExternalGame | undefined): number | null {
+  if (!row) return null;
+  if (typeof row.game === "number" && Number.isFinite(row.game)) return row.game;
+  if (row.game && typeof row.game === "object" && typeof row.game.id === "number") {
+    return row.game.id;
+  }
+  return null;
+}
+
+export async function lookupIgdbIdBySteamId(
+  steamId: number,
+): Promise<number | null> {
+  if (!Number.isFinite(steamId) || steamId <= 0) return null;
+  try {
+    const rows = await igdb<ExternalGame[]>(
+      "external_games",
+      `fields game, uid;
+       where uid = ${quote(String(Math.trunc(steamId)))} & category = ${IGDB_STEAM_CATEGORY};
+       limit 8;`,
+    );
+    for (const row of rows ?? []) {
+      const id = steamGameId(row);
+      if (id) return id;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export async function lookupIgdbBySteamIds(
+  steamIds: number[],
+): Promise<CatalogGame[]> {
+  const ids = [
+    ...new Set(
+      steamIds.filter((id) => Number.isFinite(id) && id > 0).map(Math.trunc),
+    ),
+  ].slice(0, 20);
+  if (!ids.length) return [];
+  try {
+    const uids = ids.map((id) => quote(String(id))).join(",");
+    const rows = await igdb<ExternalGame[]>(
+      "external_games",
+      `fields game, uid;
+       where uid = (${uids}) & category = ${IGDB_STEAM_CATEGORY};
+       limit 50;`,
+    );
+    const gameIds = [
+      ...new Set(
+        (rows ?? []).map(steamGameId).filter((id): id is number => id != null),
+      ),
+    ];
+    if (!gameIds.length) return [];
+    const games = await igdb<IgdbGame[]>(
+      "games",
+      `fields ${SEARCH_FIELDS};
+       where id = (${gameIds.join(",")});
+       limit 20;`,
+    );
+    const out: CatalogGame[] = [];
+    const seen = new Set<string>();
+    for (const row of games ?? []) {
+      const mapped = toGame(row, "cover_big");
+      if (!mapped || seen.has(mapped.id)) continue;
+      seen.add(mapped.id);
+      out.push(slimCatalogGame(mapped));
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
 
 function collectionIds(game: IgdbGame): number[] {
   const ids: number[] = [];
@@ -608,21 +889,19 @@ async function hydrateCollections(game: IgdbGame): Promise<IgdbGame> {
 }
 
 export async function searchIgdb(query: string): Promise<CatalogGame[]> {
-  const q = query.replace(/[\n\r]/g, " ").trim().slice(0, 80);
+  const q = searchNeedle(query);
   if (q.length < 2) return [];
-  const rows = await igdb<IgdbGame[]>(
-    "games",
-    `search ${quote(q)}; fields ${SEARCH_FIELDS}; where version_parent = null; limit 12;`,
+  const bodies = [buildIgdbContainsBody(q), buildIgdbSearchBody(q)].filter(
+    (body): body is string => Boolean(body),
   );
-  const seen = new Set<string>();
-  const games: CatalogGame[] = [];
-  for (const row of rows ?? []) {
-    const game = toGame(row, "cover_big");
-    if (!game || seen.has(game.id)) continue;
-    seen.add(game.id);
-    games.push(slimCatalogGame(game));
+  const rows: IgdbGame[] = [];
+  const settled = await Promise.allSettled(
+    bodies.map((body) => igdb<IgdbGame[]>("games", body)),
+  );
+  for (const result of settled) {
+    if (result.status === "fulfilled") rows.push(...(result.value ?? []));
   }
-  return games;
+  return mapSearchHits(rows);
 }
 
 export async function fetchIgdbDetails(
@@ -637,7 +916,7 @@ export async function fetchIgdbDetails(
   );
   const game = rows?.[0];
   if (!game) return null;
-  const filled = await hydrateCollections(game);
+  const filled = await hydrateSimilarGames(await hydrateCollections(game));
   const base = toGame(filled, "cover_big");
   if (!base) return null;
   const shots = (filled.screenshots ?? [])
@@ -647,7 +926,9 @@ export async function fetchIgdbDetails(
   const site =
     filled.websites?.find((w) => w.category === 1)?.url || filled.url || null;
   const release = filled.first_release_date ?? 0;
-  const related = await withWikidataFallback(filled, relatedRails(filled));
+  const related = await hydrateRelatedCovers(
+    await withWikidataFallback(filled, relatedRails(filled)),
+  );
   return {
     ...base,
     summary: filled.summary ?? "",
@@ -671,27 +952,27 @@ export async function fetchIgdbFeatured(): Promise<FeaturedRail[]> {
   const body = `
 query games "trending" {
   fields ${CARD_FIELDS};
-  where cover != null & version_parent = null & category = 0 & aggregated_rating_count > 30;
+  where cover != null & version_parent = null & category = 0 & aggregated_rating_count > 80;
   sort aggregated_rating_count desc;
-  limit 12;
+  limit 16;
 };
 query games "new" {
   fields ${CARD_FIELDS};
-  where cover != null & version_parent = null & category = 0 & first_release_date > ${now - 90 * day} & first_release_date <= ${now};
-  sort first_release_date desc;
-  limit 12;
+  where cover != null & version_parent = null & category = 0 & first_release_date > ${now - 90 * day} & first_release_date <= ${now} & aggregated_rating_count > 10;
+  sort aggregated_rating_count desc;
+  limit 16;
 };
 query games "soon" {
   fields ${CARD_FIELDS};
-  where cover != null & version_parent = null & category = 0 & first_release_date > ${now} & first_release_date < ${now + 180 * day};
-  sort first_release_date asc;
-  limit 12;
+  where cover != null & version_parent = null & category = 0 & first_release_date > ${now} & first_release_date < ${now + 540 * day} & hypes > 8;
+  sort hypes desc;
+  limit 16;
 };
 query games "top" {
   fields ${CARD_FIELDS};
-  where cover != null & version_parent = null & category = 0 & aggregated_rating > 80 & aggregated_rating_count > 20;
-  sort aggregated_rating desc;
-  limit 12;
+  where cover != null & version_parent = null & category = 0 & aggregated_rating > 80 & aggregated_rating_count > 40;
+  sort aggregated_rating_count desc;
+  limit 16;
 };
 `;
   const rows = await igdb<MultiRow[]>("multiquery", body);
@@ -717,4 +998,144 @@ query games "top" {
     if (games.length) rails.push({ id: key, title, games });
   }
   return rails;
+}
+
+/** IGDB platform ids: PS5 = 167, PS4 = 48. */
+export const PLAYSTATION_PLATFORM_IDS = "167,48";
+
+export async function fetchIgdbPlaystation(): Promise<FeaturedRail | null> {
+  const rows = await igdb<IgdbGame[]>(
+    "games",
+    `fields ${CARD_FIELDS};
+     where cover != null & version_parent = null & category = 0 & platforms = (${PLAYSTATION_PLATFORM_IDS}) & aggregated_rating_count > 40;
+     sort aggregated_rating_count desc;
+     limit 16;`,
+  );
+  const games: CatalogGame[] = [];
+  const seen = new Set<string>();
+  for (const row of rows ?? []) {
+    const mapped = toGame(row, "cover_big");
+    if (!mapped?.coverUrl || seen.has(mapped.id)) continue;
+    seen.add(mapped.id);
+    games.push(slimCatalogGame(mapped));
+  }
+  if (!games.length) return null;
+  return { id: "playstation", title: "PlayStation", games };
+}
+
+export function popularityValue(
+  hypes?: number | null,
+  ratingCount?: number | null,
+): number {
+  const h = typeof hypes === "number" && Number.isFinite(hypes) ? hypes : 0;
+  const r =
+    typeof ratingCount === "number" && Number.isFinite(ratingCount) ? ratingCount : 0;
+  return h * 40 + r;
+}
+
+/** Most-hyped unreleased games, used to keep Coming soon free of no-name titles. */
+export async function fetchIgdbAnticipated(): Promise<CatalogGame[]> {
+  const now = Math.floor(Date.now() / 1000);
+  const rows = await igdb<IgdbGame[]>(
+    "games",
+    `fields ${CARD_FIELDS};
+     where cover != null & version_parent = null & category = 0 & first_release_date > ${now} & hypes > 15;
+     sort hypes desc;
+     limit 16;`,
+  );
+  const games: CatalogGame[] = [];
+  const seen = new Set<string>();
+  for (const row of rows ?? []) {
+    const mapped = toGame(row, "cover_big");
+    if (!mapped?.coverUrl || seen.has(mapped.id)) continue;
+    seen.add(mapped.id);
+    games.push(slimCatalogGame(mapped));
+  }
+  return games;
+}
+
+export async function fetchPopularityScores(
+  games: CatalogGame[],
+): Promise<Map<string, number>> {
+  const scores = new Map<string, number>();
+  const igdbIds: number[] = [];
+  const steamIds: number[] = [];
+  const steamToCatalog = new Map<number, string>();
+  for (const game of games) {
+    const igdbId = parseIgdbId(game.id);
+    if (igdbId) igdbIds.push(igdbId);
+    if (game.steamId) {
+      steamIds.push(game.steamId);
+      steamToCatalog.set(game.steamId, game.id);
+    }
+  }
+  const uniqueIgdb = [...new Set(igdbIds)].slice(0, 50);
+  const uniqueSteam = [...new Set(steamIds)].slice(0, 50);
+
+  if (uniqueIgdb.length) {
+    try {
+      const rows = await igdb<IgdbGame[]>(
+        "games",
+        `fields hypes, aggregated_rating_count, total_rating_count;
+         where id = (${uniqueIgdb.join(",")});
+         limit ${uniqueIgdb.length};`,
+      );
+      for (const row of rows ?? []) {
+        if (!row.id) continue;
+        scores.set(
+          igdbCatalogId(row.id),
+          popularityValue(
+            row.hypes,
+            (row.aggregated_rating_count ?? 0) + (row.total_rating_count ?? 0),
+          ),
+        );
+      }
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  if (uniqueSteam.length) {
+    try {
+      const uids = uniqueSteam.map((id) => quote(String(id))).join(",");
+      const ext = await igdb<ExternalGame[]>(
+        "external_games",
+        `fields uid, game;
+         where uid = (${uids}) & category = ${IGDB_STEAM_CATEGORY};
+         limit 50;`,
+      );
+      const gameIdToSteam = new Map<number, number>();
+      for (const row of ext ?? []) {
+        const gid = steamGameId(row);
+        const uid = row.uid ? Number(row.uid) : NaN;
+        if (gid && Number.isFinite(uid)) gameIdToSteam.set(gid, uid);
+      }
+      const gids = [...gameIdToSteam.keys()];
+      if (gids.length) {
+        const rows = await igdb<IgdbGame[]>(
+          "games",
+          `fields hypes, aggregated_rating_count, total_rating_count;
+           where id = (${gids.join(",")});
+           limit ${Math.min(50, gids.length)};`,
+        );
+        for (const row of rows ?? []) {
+          if (!row.id) continue;
+          const steamId = gameIdToSteam.get(row.id);
+          const catalogId = steamId != null ? steamToCatalog.get(steamId) : undefined;
+          if (!catalogId) continue;
+          scores.set(
+            catalogId,
+            popularityValue(
+              row.hypes,
+              (row.aggregated_rating_count ?? 0) + (row.total_rating_count ?? 0),
+            ),
+          );
+        }
+      }
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  return scores;
 }
