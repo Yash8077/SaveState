@@ -118,6 +118,7 @@ class CatalogDetails extends CatalogGame {
   final List<String> publishers;
   final List<String> screenshots;
   final String? website;
+  final List<FeaturedRail> related;
 
   const CatalogDetails({
     required super.id,
@@ -136,6 +137,7 @@ class CatalogDetails extends CatalogGame {
     this.publishers = const [],
     this.screenshots = const [],
     this.website,
+    this.related = const [],
   });
 
   factory CatalogDetails.fromJson(Map<String, dynamic> json) {
@@ -171,6 +173,10 @@ class CatalogDetails extends CatalogGame {
               .toList() ??
           const [],
       website: json['website'] as String?,
+      related: (json['related'] as List<dynamic>?)
+              ?.map((e) => FeaturedRail.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
     );
   }
 
@@ -186,6 +192,7 @@ class CatalogDetails extends CatalogGame {
       'publishers': publishers,
       'screenshots': screenshots,
       'website': website,
+      'related': related.map((e) => e.toJson()).toList(),
     });
     return map;
   }

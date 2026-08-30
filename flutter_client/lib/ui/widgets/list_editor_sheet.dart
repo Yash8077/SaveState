@@ -19,21 +19,36 @@ Future<ListEditorResult?> showListEditorSheet({
   required BuildContext context,
   required String title,
   GameEntry? entry,
+  bool favoriteHint = false,
+  GameStatus? initialStatus,
 }) {
   return showModalBottomSheet<ListEditorResult>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     useSafeArea: true,
-    builder: (context) => ListEditorSheet(title: title, entry: entry),
+    builder: (context) => ListEditorSheet(
+      title: title,
+      entry: entry,
+      favoriteHint: favoriteHint,
+      initialStatus: initialStatus,
+    ),
   );
 }
 
 class ListEditorSheet extends StatefulWidget {
   final String title;
   final GameEntry? entry;
+  final bool favoriteHint;
+  final GameStatus? initialStatus;
 
-  const ListEditorSheet({super.key, required this.title, this.entry});
+  const ListEditorSheet({
+    super.key,
+    required this.title,
+    this.entry,
+    this.favoriteHint = false,
+    this.initialStatus,
+  });
 
   @override
   State<ListEditorSheet> createState() => _ListEditorSheetState();
@@ -47,9 +62,10 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
   @override
   void initState() {
     super.initState();
-    _status = widget.entry?.status ?? GameStatus.backlog;
+    _status =
+        widget.entry?.status ?? widget.initialStatus ?? GameStatus.playing;
     _score = widget.entry?.score;
-    _favorite = widget.entry?.favorite ?? false;
+    _favorite = widget.entry?.favorite ?? widget.favoriteHint;
   }
 
   @override
@@ -69,12 +85,12 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            editing ? 'Edit list' : 'Add to library',
+            editing ? 'EDIT LIST' : 'ADD TO LIBRARY',
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.4,
-              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+              color: cs.primary,
             ),
           ),
           const SizedBox(height: 6),
@@ -101,8 +117,12 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
           ),
           const SizedBox(height: 18),
           Text(
-            'Status',
-            style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+            'Category',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: cs.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -120,7 +140,11 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
           const SizedBox(height: 18),
           Text(
             'Score',
-            style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: cs.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -131,7 +155,8 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
               final selected = _score == n;
               return ActionChip(
                 label: Text('$n'),
-                backgroundColor: selected ? cs.primary : cs.surfaceContainerHigh,
+                backgroundColor:
+                    selected ? cs.primary : cs.surfaceContainerHigh,
                 labelStyle: TextStyle(
                   color: selected ? cs.onPrimary : cs.onSurface,
                   fontWeight: FontWeight.w600,
