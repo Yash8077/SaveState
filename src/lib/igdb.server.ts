@@ -1,5 +1,10 @@
 import type { CatalogDetails, CatalogGame, FeaturedRail } from "./types.ts";
 import { slimCatalogGame } from "./catalog-seed.ts";
+import {
+  needsPrequelSequelFallback,
+  prependPrequelSequel,
+} from "./related.ts";
+import { fetchWikidataRelations } from "./wikidata.server.ts";
 
 const FETCH_MS = 4000;
 const IMG = "https://images.igdb.com/igdb/image/upload";
@@ -306,6 +311,115 @@ export function relatedRails(game: IgdbGame): FeaturedRail[] {
   return rails;
 }
 
+export type WikidataCardIndex = {
+  byId: Map<number, CatalogGame>;
+  bySlug: Map<string, CatalogGame>;
+};
+
+export type WikidataRailDeps = {
+  relations: (
+    igdbId: number,
+    slug?: string | null,
+  ) => Promise<{
+    prequelIgdbId: number | null;
+    sequelIgdbId: number | null;
+    prequelSlug?: string | null;
+    sequelSlug?: string | null;
+  }>;
+  cards: (query: {
+    ids: number[];
+    slugs: string[];
+  }) => Promise<WikidataCardIndex>;
+};
+
+export async function withWikidataFallback(
+  game: IgdbGame,
+  rails: FeaturedRail[],
+  deps?: WikidataRailDeps,
+): Promise<FeaturedRail[]> {
+  if (!needsPrequelSequelFallback(rails) || !game.id) return rails;
+  try {
+    const lookup =
+      deps?.relations ??
+      ((id: number, slug?: string | null) => fetchWikidataRelations(id, fetch, slug));
+    const loadCards = deps?.cards ?? fetchIgdbCards;
+    const rel = await lookup(game.id, game.slug);
+    const prequelId =
+      rel.prequelIgdbId && rel.prequelIgdbId !== game.id
+        ? rel.prequelIgdbId
+        : null;
+    const sequelId =
+      rel.sequelIgdbId && rel.sequelIgdbId !== game.id ? rel.sequelIgdbId : null;
+    const prequelSlug = rel.prequelSlug?.trim() || null;
+    const sequelSlug = rel.sequelSlug?.trim() || null;
+    const ids = [...new Set([prequelId, sequelId].filter((id): id is number => id != null))];
+    const slugs = [
+      ...new Set([prequelSlug, sequelSlug].filter((s): s is string => Boolean(s))),
+    ];
+    if (!ids.length && !slugs.length) return rails;
+    const cards = await loadCards({ ids, slugs });
+    const pick = (id: number | null, slug: string | null): CatalogGame | null => {
+      if (id != null && cards.byId.has(id)) return cards.byId.get(id) ?? null;
+      if (slug && cards.bySlug.has(slug)) return cards.bySlug.get(slug) ?? null;
+      return null;
+    };
+    const prequel = pick(prequelId, prequelSlug);
+    const sequel = pick(sequelId, sequelSlug);
+    if (!prequel && !sequel) return rails;
+    return prependPrequelSequel(rails, prequel, sequel);
+  } catch {
+    return rails;
+  }
+}
+
+async function fetchIgdbCards(query: {
+  ids: number[];
+  slugs: string[];
+}): Promise<WikidataCardIndex> {
+  const empty: WikidataCardIndex = { byId: new Map(), bySlug: new Map() };
+  const ids = [
+    ...new Set(
+      (query.ids ?? []).filter((id) => Number.isFinite(id) && id > 0).map(Math.trunc),
+    ),
+  ];
+  const slugs = [
+    ...new Set(
+      (query.slugs ?? [])
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => /^[a-z0-9][a-z0-9_-]{0,120}$/.test(s)),
+    ),
+  ];
+  if (!ids.length && !slugs.length) return empty;
+  const clauses: string[] = [];
+  if (ids.length) clauses.push(`id = (${ids.join(",")})`);
+  if (slugs.length) {
+    const quoted = slugs
+      .map((s) => '"' + s.replace(/"/g, "") + '"')
+      .join(",");
+    clauses.push("slug = (" + quoted + ")");
+  }
+  try {
+    const rows = await igdb<IgdbGame[]>(
+      "games",
+      `fields ${CARD_FIELDS}, slug;
+       where ${clauses.join(" | ")};
+       limit ${Math.min(8, ids.length + slugs.length)};`,
+    );
+    const byId = new Map<number, CatalogGame>();
+    const bySlug = new Map<string, CatalogGame>();
+    for (const row of rows ?? []) {
+      const mapped = toGame(row, "cover_big");
+      if (!mapped || !row.id) continue;
+      const card = slimCatalogGame(mapped);
+      byId.set(row.id, card);
+      if (row.slug) bySlug.set(row.slug.toLowerCase(), card);
+    }
+    return { byId, bySlug };
+  } catch {
+    return empty;
+  }
+}
+
 function tokenStillValid(row: Token, clientId: string): boolean {
   return row.clientId === clientId && row.exp > Date.now() + 60_000;
 }
@@ -533,6 +647,7 @@ export async function fetchIgdbDetails(
   const site =
     filled.websites?.find((w) => w.category === 1)?.url || filled.url || null;
   const release = filled.first_release_date ?? 0;
+  const related = await withWikidataFallback(filled, relatedRails(filled));
   return {
     ...base,
     summary: filled.summary ?? "",
@@ -544,7 +659,7 @@ export async function fetchIgdbDetails(
     screenshots: shots,
     website: site,
     headerUrl: shots[0] || base.headerUrl,
-    related: relatedRails(filled),
+    related,
   };
 }
 
