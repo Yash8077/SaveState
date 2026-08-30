@@ -28,7 +28,6 @@ class ApiClient {
   Map<String, String> _headers({bool json = false}) {
     final h = <String, String>{
       'Accept': 'application/json',
-      // Required on auth POSTs; harmless on catalog GETs.
       'Origin': origin,
     };
     if (json) h['Content-Type'] = 'application/json';
@@ -145,7 +144,13 @@ class ApiClient {
     return const [];
   }
 
-  Future<GameEntry> addToLibrary(CatalogGame game, {String status = 'backlog'}) async {
+  Future<GameEntry> addToLibrary(
+    CatalogGame game, {
+    String status = 'backlog',
+    int? score,
+    bool favorite = false,
+    CatalogDetails? details,
+  }) async {
     final decoded = await _send(
       'POST',
       _u('/api/library'),
@@ -154,21 +159,28 @@ class ApiClient {
         'catalogId': game.id,
         'status': status,
         'snapshot': {
-          'title': game.title,
-          'coverUrl': game.coverUrl,
-          'headerUrl': game.headerUrl,
-          'summary': null,
-          'releaseDate': null,
-          'platforms': game.platforms,
-          'genres': <String>[],
-          'metacritic': game.metacritic,
-          'developers': <String>[],
-          'publishers': <String>[],
-          'screenshots': <String>[],
+          'title': details?.title ?? game.title,
+          'coverUrl': details?.coverUrl ?? game.coverUrl,
+          'headerUrl': details?.headerUrl ?? game.headerUrl,
+          'summary': details?.summary,
+          'releaseDate': details?.releaseDate,
+          'platforms': details?.platforms ?? game.platforms,
+          'genres': details?.genres ?? <String>[],
+          'metacritic': details?.metacritic ?? game.metacritic,
+          'developers': details?.developers ?? <String>[],
+          'publishers': details?.publishers ?? <String>[],
+          'screenshots': details?.screenshots ?? <String>[],
         },
       },
     );
-    return GameEntry.fromJson(decoded as Map<String, dynamic>);
+    var entry = GameEntry.fromJson(decoded as Map<String, dynamic>);
+    if (score != null || favorite) {
+      entry = await updateEntry(entry.id, {
+        if (score != null) 'score': score,
+        'favorite': favorite,
+      });
+    }
+    return entry;
   }
 
   Future<GameEntry> updateEntry(int id, Map<String, dynamic> updates) async {
@@ -267,8 +279,6 @@ class ApiClient {
   Future<void> signOut() async {
     try {
       await _send('POST', _u('/api/auth/sign-out'), jsonBody: true, body: {});
-    } catch (_) {
-      // Token is dropped locally either way.
-    }
+    } catch (_) {}
   }
 }
