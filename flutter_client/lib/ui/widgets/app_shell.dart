@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../state/auth_controller.dart';
+import 'save_state_mark.dart';
 
 class AppShell extends StatelessWidget {
   final Widget child;
@@ -42,7 +43,14 @@ class AppShell extends StatelessWidget {
     final auth = context.watch<AuthController>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SaveState'),
+        titleSpacing: 8,
+        title: const Row(
+          children: [
+            SaveStateMark(size: 28),
+            SizedBox(width: 10),
+            Text('SaveState'),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: 'Settings',

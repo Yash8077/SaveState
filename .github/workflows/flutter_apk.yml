@@ -42,6 +42,9 @@ jobs:
       - name: Allow network in release APK
         run: python3 tool/ensure_internet_permission.py
 
+      - name: Install themed launcher icons
+        run: python3 tool/apply_brand_icons.py
+
       - name: Build APK
         run: flutter build apk --release
 

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
+import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -46,10 +47,10 @@ function Login() {
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center bg-bg px-5 py-10 text-fg pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
       <Link
         to="/"
-        className="grid size-12 place-items-center rounded-xl bg-accent text-lg font-medium text-accent-fg"
+        className="grid size-14 place-items-center rounded-2xl bg-subtle"
         aria-label="SaveState home"
       >
-        S
+        <BrandMark className="size-10" title="SaveState" />
       </Link>
       <h1 className="mt-5 text-3xl font-medium tracking-tight">
         {mode === "signin" ? "Sign in" : "Create account"}

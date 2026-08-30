@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
+import '../widgets/save_state_mark.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -62,10 +63,12 @@ class _LoginScreenState extends State<LoginScreen> {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            Text(
-              'Same account as save-state-jade.vercel.app. Your library syncs.',
-              style: TextStyle(color: cs.onSurfaceVariant),
-            ),
+          const SaveStateMark(size: 64),
+          const SizedBox(height: 16),
+          Text(
+            'Same account as save-state-jade.vercel.app. Your library syncs.',
+            style: TextStyle(color: cs.onSurfaceVariant),
+          ),
             const SizedBox(height: 24),
             if (_signup)
               TextField(

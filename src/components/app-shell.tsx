@@ -11,6 +11,7 @@ import {
   Search,
   Settings,
 } from "lucide-react";
+import { BrandMark } from "@/components/brand-mark";
 import { UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useMounted } from "@/hooks/use-mounted";
@@ -126,10 +127,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="sticky top-0 hidden h-dvh w-20 shrink-0 flex-col items-center gap-1 bg-elevated py-3 min-[600px]:flex short:py-1">
         <Link
           to="/"
-          className="mb-2 grid size-12 place-items-center rounded-xl bg-accent text-lg font-medium text-accent-fg"
+          className="mb-2 grid size-12 place-items-center rounded-xl bg-subtle"
           aria-label="SaveState home"
         >
-          S
+          <BrandMark className="size-9" title="SaveState" />
         </Link>
         {NAV.map((item) => (
           <NavItem

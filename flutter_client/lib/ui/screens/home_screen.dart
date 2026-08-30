@@ -4,6 +4,7 @@ import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../../state/home_layout_controller.dart';
 import '../widgets/game_rail.dart';
+import '../widgets/save_state_mark.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -208,16 +209,12 @@ class _HomeScreenState extends State<HomeScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10.0),
+                  padding: const EdgeInsets.all(8.0),
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(14.0),
                   ),
-                  child: Icon(
-                    Icons.sports_esports_rounded,
-                    color: colorScheme.onPrimaryContainer,
-                    size: 24.0,
-                  ),
+                  child: SaveStateMark(size: 28),
                 ),
                 const SizedBox(width: 14.0),
                 Expanded(

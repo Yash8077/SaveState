@@ -6,6 +6,7 @@ import {
   type ThemeMode,
 } from "@/lib/appearance";
 import { HomeLayoutEditor } from "@/components/home-layout-editor";
+import { BrandMark } from "@/components/brand-mark";
 import { useAppearance } from "@/components/appearance-provider";
 import { FEATURED_SEED } from "@/lib/catalog-seed";
 import { tintForCatalog } from "@/lib/tints";
@@ -245,10 +246,17 @@ function SettingsPage() {
           Material You
         </p>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          On the website, Dynamic pulls a restrained accent from the home
-          banner. The Android app can also take color from the wallpaper on
-          Android 12+.
+          Dynamic tints the cartridge mark, favicon, and chrome from the home
+          banner. On Android 12+ the app also reads your wallpaper, and on
+          Android 13+ the home-screen icon can follow Material You if Themed
+          icons is enabled in wallpaper settings.
         </p>
+        <div className="mt-4 flex items-center gap-3 rounded-xl bg-subtle px-3 py-3">
+          <BrandMark className="size-10" />
+          <p className="text-xs text-faint">
+            Preview — the screen glow uses your current accent.
+          </p>
+        </div>
       </section>
 
       <section className="rounded-xl bg-elevated p-4 sm:p-5">

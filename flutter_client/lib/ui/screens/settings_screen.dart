@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../state/auth_controller.dart';
 import '../../state/home_layout_controller.dart';
 import '../../state/theme_controller.dart';
+import '../widgets/save_state_mark.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -92,6 +93,18 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => theme.setDynamicColor(!theme.useDynamicColor),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: CircleAvatar(
+              backgroundColor: cs.surfaceContainerHighest,
+              child: const SaveStateMark(size: 26),
+            ),
+            title: const Text('Themed icon'),
+            subtitle: const Text(
+              'The cartridge glow follows your wallpaper when Dynamic is on. On Android 13+ enable Themed icons in wallpaper settings to tint the home-screen icon too.',
+            ),
           ),
           const SizedBox(height: 18),
           Text(

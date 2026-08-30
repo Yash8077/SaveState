@@ -7,9 +7,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { brandFaviconSvg } from "@/lib/brand";
 import {
   DEFAULT_APPEARANCE,
   applyAppearance,
+  isDarkAppearance,
   loadAppearance,
   saveAppearance,
   type Appearance,
@@ -43,13 +45,16 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
       undefined,
       appearance.dynamic ? dynamicAccent : null,
     );
+    syncThemedFavicon(appearance);
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () =>
+    const onChange = () => {
       applyAppearance(
         appearance,
         media.matches,
         appearance.dynamic ? dynamicAccent : null,
       );
+      syncThemedFavicon(appearance, media.matches);
+    };
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
   }, [appearance, dynamicAccent]);
@@ -78,4 +83,22 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
 
 export function useAppearance() {
   return useContext(AppearanceContext);
+}
+
+function syncThemedFavicon(next: Appearance, systemDark?: boolean) {
+  if (typeof document === "undefined") return;
+  const dark = isDarkAppearance(next, systemDark);
+  const accent =
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--color-accent")
+      .trim() || "#4fd8c4";
+  const href = `data:image/svg+xml,${encodeURIComponent(brandFaviconSvg(accent, dark))}`;
+  let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "icon";
+    document.head.appendChild(link);
+  }
+  link.type = "image/svg+xml";
+  link.href = href;
 }
