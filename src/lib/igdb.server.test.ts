@@ -5,6 +5,7 @@ import {
   DETAIL_FIELDS,
   SEARCH_FIELDS,
   igdbCatalogId,
+  relatedRails,
   toGame,
 } from "./igdb.server.ts";
 
@@ -84,8 +85,68 @@ describe("IGDB field selection", () => {
     assert.match(DETAIL_FIELDS, /genres\.name/);
     assert.match(DETAIL_FIELDS, /platforms\.name/);
     assert.match(DETAIL_FIELDS, /screenshots\.image_id/);
+    assert.match(DETAIL_FIELDS, /similar_games\./);
+    assert.match(DETAIL_FIELDS, /collection\.games\./);
+    assert.match(DETAIL_FIELDS, /parent_game\./);
     assert.doesNotMatch(CARD_FIELDS, /summary/);
     assert.doesNotMatch(CARD_FIELDS, /involved_companies/);
     assert.ok(DETAIL_FIELDS.startsWith(CARD_FIELDS));
+  });
+});
+
+describe("related rails", () => {
+  it("splits a collection into prequel / sequel by release date", () => {
+    const rails = relatedRails({
+      id: 2,
+      name: "Middle",
+      first_release_date: 100,
+      collection: {
+        name: "The Saga",
+        games: [
+          { id: 3, name: "Sequel", first_release_date: 200, cover: { image_id: "c" } },
+          { id: 2, name: "Middle", first_release_date: 100, cover: { image_id: "b" } },
+          { id: 1, name: "Prequel", first_release_date: 50, cover: { image_id: "a" } },
+        ],
+      },
+      similar_games: [{ id: 9, name: "Like it", cover: { image_id: "s" } }],
+      parent_game: { id: 1, name: "Prequel", cover: { image_id: "a" } },
+    });
+    assert.deepEqual(
+      rails.map((r) => r.id),
+      ["original", "sequel", "similar"],
+    );
+    assert.equal(rails.find((r) => r.id === "original")?.games[0]?.title, "Prequel");
+    assert.deepEqual(
+      rails.find((r) => r.id === "sequel")?.games.map((g) => g.title),
+      ["Sequel"],
+    );
+  });
+
+  it("labels earlier and later collection games when there is no parent", () => {
+    const rails = relatedRails({
+      id: 2,
+      name: "Middle",
+      first_release_date: 100,
+      collection: {
+        name: "The Saga",
+        games: [
+          { id: 1, name: "Prequel", first_release_date: 50, cover: { image_id: "a" } },
+          { id: 2, name: "Middle", first_release_date: 100, cover: { image_id: "b" } },
+          { id: 3, name: "Sequel", first_release_date: 200, cover: { image_id: "c" } },
+        ],
+      },
+    });
+    assert.deepEqual(
+      rails.map((r) => r.id),
+      ["prequel", "sequel"],
+    );
+    assert.deepEqual(
+      rails.find((r) => r.id === "prequel")?.games.map((g) => g.title),
+      ["Prequel"],
+    );
+    assert.deepEqual(
+      rails.find((r) => r.id === "sequel")?.games.map((g) => g.title),
+      ["Sequel"],
+    );
   });
 });
