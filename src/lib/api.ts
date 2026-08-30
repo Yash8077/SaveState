@@ -35,9 +35,10 @@ async function catalogGet<T>(url: string, signal?: AbortSignal): Promise<T> {
 export function searchGames(
   q: string,
   signal?: AbortSignal,
+  provider: "igdb" | "steam" = "igdb",
 ): Promise<CatalogGame[]> {
   return catalogGet<CatalogGame[]>(
-    `/api/catalog/search?q=${encodeURIComponent(q)}`,
+    `/api/catalog/search?q=${encodeURIComponent(q)}&provider=${provider}`,
     signal,
   );
 }
@@ -54,8 +55,12 @@ export function getCatalogGame(
 
 export function getFeaturedRails(
   signal?: AbortSignal,
+  provider: "igdb" | "steam" = "igdb",
 ): Promise<FeaturedRail[]> {
-  return catalogGet<FeaturedRail[]>("/api/catalog/featured", signal);
+  return catalogGet<FeaturedRail[]>(
+    `/api/catalog/featured?provider=${provider}`,
+    signal,
+  );
 }
 
 export const listLibrary = createServerFn({ method: "GET" })

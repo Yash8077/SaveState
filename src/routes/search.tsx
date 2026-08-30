@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
@@ -7,11 +7,10 @@ import { CustomGameForm } from "@/components/custom-game-form";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { searchGames } from "@/lib/api";
-import { searchSeed } from "@/lib/catalog-seed";
+import { useCatalogSource, CatalogSourceSwitch } from "@/components/catalog-provider";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useLibrary } from "@/hooks/use-library";
 import { StatusBadge } from "@/components/status-badge";
-import type { CatalogGame } from "@/lib/types";
 
 type SearchParams = { q?: string };
 
@@ -22,12 +21,6 @@ export const Route = createFileRoute("/search")({
   component: SearchPage,
 });
 
-function pickGames(live: CatalogGame[] | undefined, seed: CatalogGame[]) {
-  if (live && live.length) return live;
-  if (seed.length) return seed;
-  return live ?? [];
-}
-
 function SearchPage() {
   const { q = "" } = Route.useSearch();
   const [draft, setDraft] = useState(q);
@@ -36,6 +29,7 @@ function SearchPage() {
   const { user } = useCurrentUserState();
   const library = useLibrary();
   const navigate = Route.useNavigate();
+  const { provider } = useCatalogSource();
 
   useEffect(() => {
     setDraft(q);
@@ -56,19 +50,18 @@ function SearchPage() {
     return () => window.clearTimeout(handle);
   }, [debounced, q, navigate]);
 
-  const local = useMemo(() => searchSeed(debounced), [debounced]);
   const ready = debounced.trim().length >= 2;
 
   const results = useQuery({
-    queryKey: ["search", debounced],
-    queryFn: ({ signal }) => searchGames(debounced, signal),
+    queryKey: ["search", provider, debounced],
+    queryFn: ({ signal }) => searchGames(debounced, signal, provider),
     enabled: ready,
     staleTime: 10 * 60_000,
     gcTime: 30 * 60_000,
     placeholderData: (previous) => previous,
   });
 
-  const games = pickGames(results.data, local);
+  const games = results.data ?? [];
   const byCatalog = new Map(
     (library.data ?? []).map((e) => [e.catalogId, e] as const),
   );
@@ -85,6 +78,13 @@ function SearchPage() {
           autoFocus
           className="h-12 rounded-full border-0 bg-subtle pr-4 pl-11"
         />
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-faint">
+          Searching {provider === "steam" ? "Steam" : "IGDB"}
+        </p>
+        <CatalogSourceSwitch />
       </div>
 
       {showSkeleton ? (

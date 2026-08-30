@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useAppearance } from "@/components/appearance-provider";
+import { CatalogSourceSwitch, useCatalogSource } from "@/components/catalog-provider";
 import { GameCard, GameRail } from "@/components/game-card";
 import { HeroCarousel } from "@/components/hero-carousel";
 import { useLibrary } from "@/hooks/use-library";
@@ -20,9 +21,10 @@ function Home() {
   const { user } = useCurrentUserState();
   const library = useLibrary();
   const { appearance, setDynamicAccent } = useAppearance();
+  const { provider } = useCatalogSource();
   const featured = useQuery({
-    queryKey: ["featured"],
-    queryFn: ({ signal }) => getFeaturedRails(signal),
+    queryKey: ["featured", provider],
+    queryFn: ({ signal }) => getFeaturedRails(signal, provider),
     staleTime: 30 * 60_000,
     placeholderData: FEATURED_SEED,
     enabled: mounted,
@@ -145,6 +147,17 @@ function Home() {
           </Link>
         </div>
       ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-medium tracking-tight">Browse</h2>
+          <p className="text-xs text-faint">
+            {provider === "steam" ? "Steam Store" : "IGDB"} only — sources stay
+            separate.
+          </p>
+        </div>
+        <CatalogSourceSwitch />
+      </div>
 
       {rails.map((rail, railIndex) => (
         <GameRail key={rail.id} title={rail.title}>
