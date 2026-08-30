@@ -4,6 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import type { GameEntry } from "@/lib/types";
 
+function dateValue(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return raw.slice(0, 10);
+}
+
 export function TrackerPanel({
   entry,
   saving,
@@ -22,8 +27,8 @@ export function TrackerPanel({
 }) {
   const [notes, setNotes] = useState(entry.notes ?? "");
   const [hours, setHours] = useState(entry.hours?.toString() ?? "");
-  const [startedAt, setStartedAt] = useState(entry.startedAt ?? "");
-  const [finishedAt, setFinishedAt] = useState(entry.finishedAt ?? "");
+  const [startedAt, setStartedAt] = useState(dateValue(entry.startedAt));
+  const [finishedAt, setFinishedAt] = useState(dateValue(entry.finishedAt));
 
   return (
     <div className="rounded-xl bg-elevated p-4 sm:p-5">
@@ -52,26 +57,28 @@ export function TrackerPanel({
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <label className="block text-sm text-muted">
-          Started
+          Start date
           <Input
             className="mt-1.5"
             type="date"
             value={startedAt}
             onChange={(e) => {
-              setStartedAt(e.target.value);
-              void onSave({ startedAt: e.target.value || null });
+              const next = e.target.value;
+              setStartedAt(next);
+              void onSave({ startedAt: next || null });
             }}
           />
         </label>
         <label className="block text-sm text-muted">
-          Finished
+          End date
           <Input
             className="mt-1.5"
             type="date"
             value={finishedAt}
             onChange={(e) => {
-              setFinishedAt(e.target.value);
-              void onSave({ finishedAt: e.target.value || null });
+              const next = e.target.value;
+              setFinishedAt(next);
+              void onSave({ finishedAt: next || null });
             }}
           />
         </label>

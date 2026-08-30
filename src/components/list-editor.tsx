@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { STATUSES, STATUS_LABEL, type Status } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -8,7 +9,14 @@ export type ListEditorValue = {
   status: Status;
   score: number | null;
   favorite: boolean;
+  startedAt: string | null;
+  finishedAt: string | null;
 };
+
+function dateValue(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return raw.slice(0, 10);
+}
 
 export function ListEditor({
   title,
@@ -28,12 +36,20 @@ export function ListEditor({
   const [status, setStatus] = useState<Status>(initial?.status ?? "playing");
   const [score, setScore] = useState<number | null>(initial?.score ?? null);
   const [favorite, setFavorite] = useState(Boolean(initial?.favorite));
+  const [startedAt, setStartedAt] = useState(dateValue(initial?.startedAt));
+  const [finishedAt, setFinishedAt] = useState(dateValue(initial?.finishedAt));
   const [busy, setBusy] = useState(false);
 
   async function submit() {
     setBusy(true);
     try {
-      await onSave({ status, score, favorite });
+      await onSave({
+        status,
+        score,
+        favorite,
+        startedAt: startedAt || null,
+        finishedAt: finishedAt || null,
+      });
     } finally {
       setBusy(false);
     }
@@ -45,7 +61,7 @@ export function ListEditor({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-t-2xl bg-elevated p-5 sm:rounded-2xl"
+        className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-elevated p-5 sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border sm:hidden" />
@@ -101,6 +117,27 @@ export function ListEditor({
               {n}
             </button>
           ))}
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <label className="block text-sm text-muted">
+            Start date
+            <Input
+              className="mt-1.5"
+              type="date"
+              value={startedAt}
+              onChange={(e) => setStartedAt(e.target.value)}
+            />
+          </label>
+          <label className="block text-sm text-muted">
+            End date
+            <Input
+              className="mt-1.5"
+              type="date"
+              value={finishedAt}
+              onChange={(e) => setFinishedAt(e.target.value)}
+            />
+          </label>
         </div>
 
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
