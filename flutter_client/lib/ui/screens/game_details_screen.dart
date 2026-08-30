@@ -255,7 +255,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
 
     final game = _game!;
-    final banner = game.artUrl ?? game.headerUrl ?? game.coverUrl ?? game.capsuleUrl;
+    final posterUrl = pickPortraitCover(
+      [game.coverUrl, game.capsuleUrl, game.headerUrl],
+    );
+    final banner = game.headerUrl ?? posterUrl;
     final auth = context.watch<AuthController>();
     final bloom = context.watch<ThemeController>().bloom;
     final inLibrary = _entry != null;
@@ -339,10 +342,28 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                           child: SizedBox(
                             width: 92,
                             height: 128,
-                            child: game.artUrl != null
+                            child: posterUrl != null
                                 ? CachedNetworkImage(
-                                    imageUrl: game.artUrl!,
-                                    fit: BoxFit.cover,
+                                    imageUrl: posterUrl,
+                                    fit: isLandscapeArt(posterUrl)
+                                        ? BoxFit.contain
+                                        : BoxFit.cover,
+                                    errorWidget: (context, url, error) {
+                                      final fallback = game.headerUrl ??
+                                          game.capsuleUrl;
+                                      if (fallback != null && fallback != url) {
+                                        return CachedNetworkImage(
+                                          imageUrl: fallback,
+                                          fit: isLandscapeArt(fallback)
+                                              ? BoxFit.contain
+                                              : BoxFit.cover,
+                                        );
+                                      }
+                                      return ColoredBox(
+                                        color: cs.surfaceContainerHigh,
+                                        child: const Icon(Icons.videogame_asset),
+                                      );
+                                    },
                                   )
                                 : ColoredBox(
                                     color: cs.surfaceContainerHigh,

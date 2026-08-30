@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../state/auth_controller.dart';
-import '../../state/catalog_controller.dart';
+import '../../state/home_layout_controller.dart';
 import '../../state/theme_controller.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -12,7 +12,6 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeController>();
     final auth = context.watch<AuthController>();
-    final catalog = context.watch<CatalogController>();
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -20,47 +19,6 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          _sectionLabel('Catalog'),
-          const SizedBox(height: 10),
-          Text(
-            'Source',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Browse and search one catalog at a time. Results are never mixed.',
-            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _modeCard(
-                context,
-                label: 'IGDB',
-                subtitle: 'Covers & series',
-                selected: catalog.provider == CatalogProvider.igdb,
-                preview: LinearGradient(
-                  colors: [cs.primaryContainer, cs.surface],
-                ),
-                onTap: () => catalog.setProvider(CatalogProvider.igdb),
-              ),
-              const SizedBox(width: 8),
-              _modeCard(
-                context,
-                label: 'Steam',
-                subtitle: 'Store catalog',
-                selected: catalog.provider == CatalogProvider.steam,
-                preview: const LinearGradient(
-                  colors: [Color(0xFF1B2838), Color(0xFF66C0F4)],
-                ),
-                onTap: () => catalog.setProvider(CatalogProvider.steam),
-              ),
-            ],
-          ),
-          const SizedBox(height: 28),
           _sectionLabel('Appearance & Interface'),
           const SizedBox(height: 14),
           Text(
@@ -205,6 +163,15 @@ class SettingsScreen extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 28),
+          _sectionLabel('Home layout'),
+          const SizedBox(height: 8),
+          Text(
+            'Show, hide, and drag to reorder homepage sections. Empty lists stay hidden.',
+            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          const _HomeLayoutEditor(),
+          const SizedBox(height: 28),
           _sectionLabel('Account'),
           const SizedBox(height: 8),
           ListTile(
@@ -307,6 +274,48 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _HomeLayoutEditor extends StatelessWidget {
+  const _HomeLayoutEditor();
+
+  @override
+  Widget build(BuildContext context) {
+    final layout = context.watch<HomeLayoutController>();
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: layout.reset,
+            child: const Text('Reset'),
+          ),
+        ),
+        ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: layout.sections.length,
+          onReorder: layout.reorder,
+          itemBuilder: (context, index) {
+            final row = layout.sections[index];
+            return ListTile(
+              key: ValueKey(row.id),
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.drag_handle, color: cs.onSurfaceVariant),
+              title: Text(homeSectionTitles[row.id] ?? row.id),
+              subtitle: Text(homeSectionHints[row.id] ?? 'Catalog rail'),
+              trailing: Switch(
+                value: row.enabled,
+                onChanged: (value) => layout.toggle(row.id, value),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

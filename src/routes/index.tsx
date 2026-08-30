@@ -1,17 +1,24 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useAppearance } from "@/components/appearance-provider";
 import { GameCard, GameRail } from "@/components/game-card";
 import { HeroCarousel } from "@/components/hero-carousel";
+import { useHomeLayout } from "@/components/home-layout-provider";
 import { useLibrary } from "@/hooks/use-library";
 import { useMounted } from "@/hooks/use-mounted";
 import { getFeaturedRails } from "@/lib/api";
 import { FEATURED_SEED } from "@/lib/catalog-seed";
 import { heroSlides } from "@/lib/hero";
+import {
+  isCatalogSection,
+  mergeHomeLayout,
+  type HomeSectionPref,
+} from "@/lib/home-layout";
 import { tintForCatalog } from "@/lib/tints";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { formatHours } from "@/lib/utils";
+import type { FeaturedRail, GameEntry } from "@/lib/types";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -20,8 +27,9 @@ function Home() {
   const { user } = useCurrentUserState();
   const library = useLibrary();
   const { appearance, setDynamicAccent } = useAppearance();
+  const layout = useHomeLayout();
   const featured = useQuery({
-    queryKey: ["featured", "rel-13"],
+    queryKey: ["featured", "rel-14"],
     queryFn: ({ signal }) => getFeaturedRails(signal),
     staleTime: 30 * 60_000,
     placeholderData: FEATURED_SEED,
@@ -39,6 +47,10 @@ function Home() {
   const rails = featured.data ?? FEATURED_SEED;
   const slides = heroSlides(mounted ? playing : [], FEATURED_SEED);
   const tintSource = playing[0]?.catalogId ?? slides[0]?.id;
+  const sections = useMemo(
+    () => mergeHomeLayout(layout.sections, rails.map((rail) => rail.id)),
+    [layout.sections, rails],
+  );
 
   useEffect(() => {
     if (!appearance.dynamic) return;
@@ -46,83 +58,36 @@ function Home() {
     setDynamicAccent(tintForCatalog(tintSource));
   }, [appearance.dynamic, tintSource, setDynamicAccent]);
 
+  const railsById = new Map(rails.map((rail) => [rail.id, rail]));
+  const firstCatalogId =
+    sections.find(
+      (row) =>
+        row.enabled &&
+        (isCatalogSection(row.id) || railsById.has(row.id)) &&
+        (railsById.get(row.id)?.games.length ?? 0) > 0,
+    )?.id ?? null;
+
   return (
     <div className="page-in space-y-7">
-      {slides.length ? <HeroCarousel games={slides} /> : null}
-
-      {!signedIn && mounted ? (
-        <header>
-          <h2 className="text-2xl font-medium tracking-tight">Your games</h2>
-          <p className="mt-1 text-sm text-muted">
-            Log what you play. Syncs across phones and tablets.
-          </p>
-        </header>
-      ) : null}
-
-      {signedIn ? (
-        <div>
-          <p className="text-sm text-muted">
-            {name ? `Welcome back, ${name}` : "Welcome back"}
-            {hours > 0 ? ` · ${formatHours(hours)} logged` : ""}
-          </p>
-          <div className="chip-scroll mt-2">
-            <Stat label="Playing" value={String(playing.length)} />
-            <Stat label="Beaten" value={String(beaten.length)} />
-            <Stat label="Backlog" value={String(backlog.length)} />
-            <Stat label="Favorites" value={String(favorites.length)} />
-          </div>
-        </div>
-      ) : null}
-
-      {playing.length ? (
-        <GameRail
-          title="Continue playing"
-          action={
-            <Link to="/library" className="text-sm font-medium text-accent">
-              All
-            </Link>
-          }
-        >
-          {playing.map((e) => (
-            <GameCard
-              key={e.id}
-              catalogId={e.catalogId}
-              title={e.title}
-              coverUrl={e.coverUrl}
-              headerUrl={e.headerUrl}
-              status={e.status}
-              score={e.score}
-              hours={e.hours}
-              favorite={e.favorite}
-            />
-          ))}
-        </GameRail>
-      ) : null}
-
-      {backlog.length ? (
-        <GameRail
-          title="Planning to play"
-          action={
-            <Link to="/library" className="text-sm font-medium text-accent">
-              Library
-            </Link>
-          }
-        >
-          {backlog.slice(0, 16).map((e) => (
-            <GameCard
-              key={e.id}
-              catalogId={e.catalogId}
-              title={e.title}
-              coverUrl={e.coverUrl}
-              headerUrl={e.headerUrl}
-              status={e.status}
-              favorite={e.favorite}
-            />
-          ))}
-        </GameRail>
-      ) : null}
-
-      {signedIn && !library.isLoading && entries.length === 0 ? (
+      {sections.map((section) =>
+        renderHomeSection(section, {
+          signedIn,
+          mounted,
+          name,
+          hours,
+          playing,
+          backlog,
+          beaten,
+          favorites,
+          slides,
+          railsById,
+          firstCatalogId,
+        }),
+      )}
+      {signedIn &&
+      !library.isLoading &&
+      entries.length === 0 &&
+      sections.some((row) => row.enabled && (row.id === "playing" || row.id === "backlog")) ? (
         <div className="rounded-xl bg-elevated px-4 py-8 text-center">
           <p className="text-lg font-medium">Library is empty</p>
           <p className="mt-1 text-sm text-muted">
@@ -136,30 +101,147 @@ function Home() {
           </Link>
         </div>
       ) : null}
+    </div>
+  );
+}
 
-      <div>
-        <h2 className="text-lg font-medium tracking-tight">Browse</h2>
-        <p className="text-xs text-faint">
-          Steam charts by popularity, plus PlayStation 5.
-        </p>
-      </div>
-
-      {rails.map((rail, railIndex) => (
-        <GameRail key={rail.id} title={rail.title}>
-          {rail.games.map((g, i) => (
-            <GameCard
-              key={`${rail.id}-${g.id}`}
-              catalogId={g.id}
-              title={g.title}
-              coverUrl={g.coverUrl}
-              headerUrl={g.headerUrl}
-              capsuleUrl={g.capsuleUrl}
-              priority={railIndex === 0 && i < 6}
-            />
+function renderHomeSection(
+  section: HomeSectionPref,
+  ctx: {
+    signedIn: boolean;
+    mounted: boolean;
+    name?: string;
+    hours: number;
+    playing: GameEntry[];
+    backlog: GameEntry[];
+    beaten: GameEntry[];
+    favorites: GameEntry[];
+    slides: ReturnType<typeof heroSlides>;
+    railsById: Map<string, FeaturedRail>;
+    firstCatalogId: string | null;
+  },
+) {
+  if (!section.enabled) return null;
+  switch (section.id) {
+    case "hero":
+      return ctx.slides.length ? (
+        <HeroCarousel key="hero" games={ctx.slides} />
+      ) : null;
+    case "stats":
+      if (!ctx.signedIn && ctx.mounted) {
+        return (
+          <header key="guest">
+            <h2 className="text-2xl font-medium tracking-tight">Your games</h2>
+            <p className="mt-1 text-sm text-muted">
+              Log what you play. Syncs across phones and tablets.
+            </p>
+          </header>
+        );
+      }
+      if (!ctx.signedIn) return null;
+      return (
+        <div key="stats">
+          <p className="text-sm text-muted">
+            {ctx.name ? `Welcome back, ${ctx.name}` : "Welcome back"}
+            {ctx.hours > 0 ? ` · ${formatHours(ctx.hours)} logged` : ""}
+          </p>
+          <div className="chip-scroll mt-2">
+            <Stat label="Playing" value={String(ctx.playing.length)} />
+            <Stat label="Beaten" value={String(ctx.beaten.length)} />
+            <Stat label="Backlog" value={String(ctx.backlog.length)} />
+            <Stat label="Favorites" value={String(ctx.favorites.length)} />
+          </div>
+        </div>
+      );
+    case "playing":
+      if (!ctx.playing.length) return null;
+      return (
+        <GameRail
+          key="playing"
+          title="Continue playing"
+          action={
+            <Link to="/library" className="text-sm font-medium text-accent">
+              All
+            </Link>
+          }
+        >
+          {ctx.playing.map((e) => (
+            <LibraryCard key={e.id} entry={e} />
           ))}
         </GameRail>
+      );
+    case "backlog":
+      if (!ctx.backlog.length) return null;
+      return (
+        <GameRail
+          key="backlog"
+          title="Planning to play"
+          action={
+            <Link to="/library" className="text-sm font-medium text-accent">
+              Library
+            </Link>
+          }
+        >
+          {ctx.backlog.slice(0, 16).map((e) => (
+            <LibraryCard key={e.id} entry={e} />
+          ))}
+        </GameRail>
+      );
+    default: {
+      if (!isCatalogSection(section.id) && !ctx.railsById.has(section.id)) {
+        return null;
+      }
+      const rail = ctx.railsById.get(section.id);
+      if (!rail?.games.length) return null;
+      const heading =
+        section.id === ctx.firstCatalogId ? (
+          <div key="browse-head">
+            <h2 className="text-lg font-medium tracking-tight">Browse</h2>
+            <p className="text-xs text-faint">
+              Steam charts by popularity, plus PlayStation 5.
+            </p>
+          </div>
+        ) : null;
+      return (
+        <div key={rail.id} className="space-y-7">
+          {heading}
+          <CatalogRail rail={rail} />
+        </div>
+      );
+    }
+  }
+}
+
+function CatalogRail({ rail }: { rail: FeaturedRail }) {
+  return (
+    <GameRail title={rail.title}>
+      {rail.games.map((g, i) => (
+        <GameCard
+          key={`${rail.id}-${g.id}`}
+          catalogId={g.id}
+          title={g.title}
+          coverUrl={g.coverUrl}
+          headerUrl={g.headerUrl}
+          capsuleUrl={g.capsuleUrl}
+          priority={i < 6}
+        />
       ))}
-    </div>
+    </GameRail>
+  );
+}
+
+function LibraryCard({ entry: e }: { entry: GameEntry }) {
+  return (
+    <GameCard
+      catalogId={e.catalogId}
+      title={e.title}
+      coverUrl={e.coverUrl}
+      headerUrl={e.headerUrl}
+      status={e.status}
+      score={e.score}
+      hours={e.hours}
+      favorite={e.favorite}
+    />
   );
 }
 

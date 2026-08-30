@@ -4,6 +4,7 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'services/api_client.dart';
 import 'state/auth_controller.dart';
 import 'state/catalog_controller.dart';
+import 'state/home_layout_controller.dart';
 import 'state/theme_controller.dart';
 import 'router.dart';
 
@@ -12,6 +13,7 @@ void main() {
   final auth = AuthController(api);
   final theme = ThemeController();
   final catalog = CatalogController();
+  final homeLayout = HomeLayoutController();
   runApp(
     MultiProvider(
       providers: [
@@ -19,8 +21,14 @@ void main() {
         ChangeNotifierProvider<AuthController>.value(value: auth),
         ChangeNotifierProvider<ThemeController>.value(value: theme),
         ChangeNotifierProvider<CatalogController>.value(value: catalog),
+        ChangeNotifierProvider<HomeLayoutController>.value(value: homeLayout),
       ],
-      child: SaveStateApp(auth: auth, theme: theme, catalog: catalog),
+      child: SaveStateApp(
+        auth: auth,
+        theme: theme,
+        catalog: catalog,
+        homeLayout: homeLayout,
+      ),
     ),
   );
 }
@@ -29,11 +37,13 @@ class SaveStateApp extends StatefulWidget {
   final AuthController auth;
   final ThemeController theme;
   final CatalogController catalog;
+  final HomeLayoutController homeLayout;
   const SaveStateApp({
     super.key,
     required this.auth,
     required this.theme,
     required this.catalog,
+    required this.homeLayout,
   });
 
   @override
@@ -47,6 +57,7 @@ class _SaveStateAppState extends State<SaveStateApp> {
     widget.auth.load();
     widget.theme.load();
     widget.catalog.load();
+    widget.homeLayout.load();
   }
 
   @override

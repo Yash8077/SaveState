@@ -115,7 +115,7 @@ class ApiClient {
   Future<List<FeaturedRail>> getFeaturedRails() async {
     final decoded = await _send(
       'GET',
-      _u('/api/catalog/featured', {'rel': '13'}),
+      _u('/api/catalog/featured', {'rel': '14'}),
     );
     if (decoded is! List) return const [];
     return decoded
@@ -126,7 +126,7 @@ class ApiClient {
   Future<CatalogDetails?> getGameDetails(String catalogId) async {
     final decoded = await _send(
       'GET',
-      _u('/api/catalog/game', {'id': catalogId, 'rel': '13'}),
+      _u('/api/catalog/game', {'id': catalogId, 'rel': '14'}),
     );
     if (decoded is Map<String, dynamic>) {
       return CatalogDetails.fromJson(decoded);

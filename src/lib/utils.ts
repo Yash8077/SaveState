@@ -40,6 +40,17 @@ export function isLandscapeArt(url: string | null | undefined): boolean {
   );
 }
 
+export function pickPortraitCover(
+  ...urls: Array<string | null | undefined>
+): string | null {
+  const normalized = urls
+    .map((url) => normalizeArtUrl(url))
+    .filter((url): url is string => Boolean(url));
+  return (
+    normalized.find((url) => !isLandscapeArt(url)) ?? normalized[0] ?? null
+  );
+}
+
 export function upgradeSteamCapsule(url: string | null | undefined): string | null {
   const normalized = normalizeArtUrl(url);
   if (!normalized) return null;

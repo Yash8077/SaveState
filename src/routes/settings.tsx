@@ -5,6 +5,7 @@ import {
   type GrainIntensity,
   type ThemeMode,
 } from "@/lib/appearance";
+import { HomeLayoutEditor } from "@/components/home-layout-editor";
 import { useAppearance } from "@/components/appearance-provider";
 import { FEATURED_SEED } from "@/lib/catalog-seed";
 import { tintForCatalog } from "@/lib/tints";
@@ -48,11 +49,11 @@ function SettingsPage() {
       <div>
         <h1 className="text-2xl font-medium tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted">
-          Theme, accent, and surface effects. Player, reader, and extension
-          settings are not part of SaveState.
+          Theme, accent, home layout, and surface effects.
         </p>
       </div>
 
+      <HomeLayoutEditor />
       <section className="rounded-xl bg-elevated p-4 sm:p-5">
         <p className="flex items-center gap-2 text-sm font-medium text-muted">
           <Sun className="size-4" />

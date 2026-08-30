@@ -27,7 +27,7 @@ import {
   SEQUEL_DLC_RAIL_IDS,
 } from "@/lib/related";
 import { STATUS_LABEL, type Status } from "@/lib/types";
-import { cn, steamPortraitUrl } from "@/lib/utils";
+import { cn, pickPortraitCover } from "@/lib/utils";
 
 export const Route = createFileRoute("/game/$catalogId")({
   component: GamePage,
@@ -41,11 +41,11 @@ function GamePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const isCustom = catalogId.startsWith("custom_");
-  const portrait = steamPortraitUrl(catalogId);
   const preview = qc.getQueryData<{
     title?: string;
     coverUrl?: string | null;
     headerUrl?: string | null;
+    capsuleUrl?: string | null;
   }>(["catalog-preview", catalogId]);
   const [editorOpen, setEditorOpen] = useState(false);
   const [favoriteHint, setFavoriteHint] = useState(false);
@@ -61,8 +61,16 @@ function GamePage() {
   const entry = (library.data ?? []).find((e) => e.catalogId === catalogId);
   const catalog = details.data;
   const title = entry?.title ?? catalog?.title ?? preview?.title;
-  const coverUrl = portrait ?? entry?.coverUrl ?? catalog?.coverUrl ?? preview?.coverUrl;
-  const headerUrl = entry?.headerUrl ?? catalog?.headerUrl ?? preview?.headerUrl;
+  const coverUrl = pickPortraitCover(
+    catalog?.coverUrl,
+    entry?.coverUrl,
+    preview?.coverUrl,
+    catalog?.capsuleUrl,
+    preview?.capsuleUrl,
+  );
+  const headerUrl =
+    catalog?.headerUrl ?? entry?.headerUrl ?? preview?.headerUrl ?? null;
+  const capsuleUrl = catalog?.capsuleUrl ?? preview?.capsuleUrl ?? null;
   const summary = plainText(entry?.summary ?? catalog?.summary);
   const genres = (entry?.genres?.length ? entry.genres : catalog?.genres) ?? [];
   const platforms =
@@ -181,6 +189,7 @@ function GamePage() {
                 title={title ?? ""}
                 coverUrl={coverUrl}
                 headerUrl={headerUrl}
+                capsuleUrl={capsuleUrl}
                 className="aspect-2/3 w-full rounded-lg shadow-lg"
               />
             )}

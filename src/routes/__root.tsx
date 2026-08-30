@@ -11,6 +11,7 @@ import { Toaster } from "sonner";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { AppearanceProvider } from "@/components/appearance-provider";
+import { HomeLayoutProvider } from "@/components/home-layout-provider";
 import { CatalogProviderGate } from "@/components/catalog-provider";
 import { AppShell } from "@/components/app-shell";
 import appCss from "../styles.css?url";
@@ -91,6 +92,7 @@ function RootDocument() {
       <body className="bg-bg text-fg">
         <PreviewHostBridge />
         <AppearanceProvider>
+        <HomeLayoutProvider>
         <CatalogProviderGate>
         <AuthProvider>
           <QueryClientProvider client={queryClient}>
@@ -112,6 +114,7 @@ function RootDocument() {
           </QueryClientProvider>
         </AuthProvider>
         </CatalogProviderGate>
+        </HomeLayoutProvider>
         </AppearanceProvider>
         <Scripts />
       </body>

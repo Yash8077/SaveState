@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/types.dart';
 import '../../services/api_client.dart';
+import '../../state/home_layout_controller.dart';
 import '../widgets/game_rail.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -108,46 +109,77 @@ class _HomeScreenState extends State<HomeScreen> {
           parent: BouncingScrollPhysics(),
         ),
         padding: const EdgeInsets.only(bottom: 32.0),
-        children: [
-          _buildGreetingHeader(colorScheme),
-          if (_playing.isNotEmpty)
-            GameRailWidget(title: 'Continue playing', games: _playing),
-          if (_backlog.isNotEmpty)
-            GameRailWidget(title: 'Planning to play', games: _backlog),
-          if (_featuredRails.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Browse',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Popular Steam lists, plus PlayStation',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (_featuredRails.isEmpty && _playing.isEmpty && _backlog.isEmpty)
-            _buildEmptyState(colorScheme)
-          else
-            ..._featuredRails.map(
-              (rail) => GameRailWidget(
-                title: rail.title,
-                games: rail.games,
-              ),
-            ),
-        ],
+        children: _layoutChildren(theme, colorScheme),
       ),
     );
+  }
+
+  List<Widget> _layoutChildren(ThemeData theme, ColorScheme colorScheme) {
+    final layout = context.watch<HomeLayoutController>();
+    final sections = layout.mergeWith(_featuredRails.map((r) => r.id));
+    final railsById = {for (final rail in _featuredRails) rail.id: rail};
+    final out = <Widget>[];
+    var browseShown = false;
+
+    for (final section in sections) {
+      if (!section.enabled) continue;
+      switch (section.id) {
+        case 'hero':
+        case 'stats':
+          if (!out.any((w) => w.key == const ValueKey('home-stats'))) {
+            out.add(KeyedSubtree(
+              key: const ValueKey('home-stats'),
+              child: _buildGreetingHeader(colorScheme),
+            ));
+          }
+          break;
+        case 'playing':
+          if (_playing.isNotEmpty) {
+            out.add(GameRailWidget(title: 'Continue playing', games: _playing));
+          }
+          break;
+        case 'backlog':
+          if (_backlog.isNotEmpty) {
+            out.add(GameRailWidget(title: 'Planning to play', games: _backlog));
+          }
+          break;
+        default:
+          final rail = railsById[section.id];
+          if (rail == null || rail.games.isEmpty) break;
+          if (!browseShown) {
+            browseShown = true;
+            out.add(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Browse',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Popular Steam lists, plus PlayStation',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          out.add(GameRailWidget(title: rail.title, games: rail.games));
+      }
+    }
+
+    if (out.isEmpty) {
+      out.add(_buildEmptyState(colorScheme));
+    }
+    return out;
   }
 
   Widget _buildGreetingHeader(ColorScheme colorScheme) {

@@ -109,11 +109,17 @@ class CatalogGame {
   }
 
   String? get artUrl =>
-      normalizeArtUrl(coverUrl) ??
-      normalizeArtUrl(headerUrl) ??
-      upgradeSteamCapsule(capsuleUrl);
+      pickPortraitCover([coverUrl, capsuleUrl, headerUrl]);
 
   bool get artIsLandscape => isLandscapeArt(artUrl);
+}
+
+String? pickPortraitCover(List<String?> urls) {
+  final normalized = urls.map(normalizeArtUrl).whereType<String>().toList();
+  for (final url in normalized) {
+    if (!isLandscapeArt(url)) return url;
+  }
+  return normalized.isEmpty ? null : normalized.first;
 }
 
 String? normalizeArtUrl(String? url) {
