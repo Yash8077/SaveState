@@ -7,13 +7,21 @@ import 'save_state_mark.dart';
 class HomeGreeting extends StatelessWidget {
   const HomeGreeting({super.key});
 
+  /// AnymeX-style time greetings. Pair is stable for the hour.
   static String hello([DateTime? now]) {
-    final hour = (now ?? DateTime.now()).hour;
-    if (hour < 5) return 'Good night';
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    if (hour < 21) return 'Good evening';
-    return 'Good night';
+    final t = now ?? DateTime.now();
+    final hour = t.hour;
+    final alt = (t.day + hour).isEven;
+    if (hour >= 5 && hour < 12) {
+      return alt ? 'Rise and shine' : 'Good morning';
+    }
+    if (hour >= 12 && hour < 17) {
+      return alt ? 'Happy snacking' : 'Good afternoon';
+    }
+    if (hour >= 17 && hour < 21) {
+      return alt ? 'Keep it chill' : 'Good evening';
+    }
+    return alt ? "You're up late" : 'Goodnight';
   }
 
   @override
@@ -23,7 +31,9 @@ class HomeGreeting extends StatelessWidget {
     final auth = context.watch<AuthController>();
     final user = auth.user;
     final name = user?.name.trim().split(RegExp(r'\s+')).first;
-    final title = (name != null && name.isNotEmpty) ? name : 'SaveState';
+    final label = (name != null && name.isNotEmpty)
+        ? '${hello()} $name'
+        : hello();
     final initial =
         (name != null && name.isNotEmpty) ? name[0].toUpperCase() : null;
 
@@ -31,6 +41,23 @@ class HomeGreeting extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 10, 12, 2),
       child: Row(
         children: [
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ),
+          IconButton.filledTonal(
+            tooltip: 'Search',
+            onPressed: () => context.go('/search'),
+            icon: const Icon(Icons.search_rounded),
+          ),
+          const SizedBox(width: 4),
           Material(
             color: cs.primaryContainer,
             shape: const CircleBorder(),
@@ -54,36 +81,6 @@ class HomeGreeting extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
-                    height: 1.1,
-                  ),
-                ),
-                Text(
-                  hello(),
-                  maxLines: 1,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton.filledTonal(
-            tooltip: 'Search',
-            onPressed: () => context.go('/search'),
-            icon: const Icon(Icons.search_rounded),
           ),
         ],
       ),

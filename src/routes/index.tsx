@@ -251,37 +251,44 @@ function LibraryCard({ entry: e }: { entry: GameEntry }) {
 }
 
 function HomeHello({ name }: { name?: string }) {
-  const hour = new Date().getHours();
+  const now = new Date();
+  const hour = now.getHours();
+  const alt = (now.getDate() + hour) % 2 === 0;
   const hello =
-    hour < 5 || hour >= 21
-      ? "Good night"
-      : hour < 12
-        ? "Good morning"
-        : hour < 17
-          ? "Good afternoon"
-          : "Good evening";
+    hour >= 5 && hour < 12
+      ? alt
+        ? "Rise and shine"
+        : "Good morning"
+      : hour >= 12 && hour < 17
+        ? alt
+          ? "Happy snacking"
+          : "Good afternoon"
+        : hour >= 17 && hour < 21
+          ? alt
+            ? "Keep it chill"
+            : "Good evening"
+          : alt
+            ? "You're up late"
+            : "Goodnight";
   const initial = name?.charAt(0).toUpperCase() || "S";
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
+      <p className="min-w-0 flex-1 truncate text-lg font-medium tracking-tight">
+        {name ? `${hello} ${name}` : hello}
+      </p>
+      <Link
+        to="/search"
+        aria-label="Search"
+        className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-elevated text-fg"
+      >
+        <Search className="size-4" />
+      </Link>
       <Link
         to={name ? "/settings" : "/login"}
         aria-label={name ? "Settings" : "Sign in"}
         className="grid size-10 shrink-0 place-items-center rounded-full bg-accent/20 text-sm font-semibold text-accent"
       >
         {initial}
-      </Link>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-base font-medium tracking-tight">
-          {name || "SaveState"}
-        </p>
-        <p className="text-sm text-muted">{hello}</p>
-      </div>
-      <Link
-        to="/search"
-        aria-label="Search"
-        className="inline-flex size-10 items-center justify-center rounded-full bg-elevated text-fg"
-      >
-        <Search className="size-4" />
       </Link>
     </div>
   );
