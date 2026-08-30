@@ -47,7 +47,7 @@ class GameCardWidget extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () => context.go('/game/${game.id}'),
+          onTap: () => context.push('/game/${game.id}'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,

@@ -1,4 +1,4 @@
-name: savestate_client
+name: savestate
 description: "A synced game log. Track what you are playing, beating, and still meaning to start."
 publish_to: 'none'
 version: 1.0.0+1

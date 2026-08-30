@@ -201,7 +201,7 @@ class _SearchScreenState extends State<SearchScreen> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => context.go('/game/${game.id}'),
+        onTap: () => context.push('/game/${game.id}'),
         borderRadius: BorderRadius.circular(14.0),
         child: Container(
           decoration: BoxDecoration(

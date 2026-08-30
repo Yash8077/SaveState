@@ -10,33 +10,19 @@ import 'ui/screens/game_details_screen.dart';
 import 'ui/screens/settings_screen.dart';
 import 'ui/widgets/app_shell.dart';
 
-CustomTransitionPage<void> _fadeSlide(GoRouterState state, Widget child) {
-  return CustomTransitionPage<void>(
+final _rootKey = GlobalKey<NavigatorState>();
+
+/// Tab pages stay in the shell; no extra stack entry, so Android back
+/// is handled by [AppShell] (inner tab → Home, Home → launcher).
+CustomTransitionPage<void> _tabPage(GoRouterState state, Widget child) {
+  return NoTransitionPage<void>(
     key: state.pageKey,
     child: child,
-    transitionDuration: const Duration(milliseconds: 320),
-    reverseTransitionDuration: const Duration(milliseconds: 240),
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
-      );
-      return FadeTransition(
-        opacity: curved,
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.05),
-            end: Offset.zero,
-          ).animate(curved),
-          child: child,
-        ),
-      );
-    },
   );
 }
 
 final router = GoRouter(
+  navigatorKey: _rootKey,
   initialLocation: '/',
   routes: [
     ShellRoute(
@@ -47,11 +33,11 @@ final router = GoRouter(
         GoRoute(
           path: '/',
           pageBuilder: (context, state) =>
-              _fadeSlide(state, const HomeScreen()),
+              _tabPage(state, const HomeScreen()),
         ),
         GoRoute(
           path: '/search',
-          pageBuilder: (context, state) => _fadeSlide(
+          pageBuilder: (context, state) => _tabPage(
             state,
             SearchScreen(q: state.uri.queryParameters['q']),
           ),
@@ -59,30 +45,30 @@ final router = GoRouter(
         GoRoute(
           path: '/library',
           pageBuilder: (context, state) =>
-              _fadeSlide(state, const LibraryScreen()),
+              _tabPage(state, const LibraryScreen()),
         ),
         GoRoute(
           path: '/stats',
           pageBuilder: (context, state) =>
-              _fadeSlide(state, const StatsScreen()),
+              _tabPage(state, const StatsScreen()),
         ),
       ],
     ),
     GoRoute(
       path: '/login',
-      pageBuilder: (context, state) => _fadeSlide(state, const LoginScreen()),
+      parentNavigatorKey: _rootKey,
+      builder: (context, state) => const LoginScreen(),
     ),
     GoRoute(
       path: '/settings',
-      pageBuilder: (context, state) =>
-          _fadeSlide(state, const SettingsScreen()),
+      parentNavigatorKey: _rootKey,
+      builder: (context, state) => const SettingsScreen(),
     ),
     GoRoute(
       path: '/game/:id',
-      pageBuilder: (context, state) => _fadeSlide(
-        state,
-        GameDetailsScreen(id: state.pathParameters['id']!),
-      ),
+      parentNavigatorKey: _rootKey,
+      builder: (context, state) =>
+          GameDetailsScreen(id: state.pathParameters['id']!),
     ),
   ],
 );

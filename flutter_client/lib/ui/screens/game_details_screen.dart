@@ -224,30 +224,64 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
   }
 
+  void _leave() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/');
+    }
+  }
+
+  Widget _withBack(Widget child) {
+    final canPop = context.canPop();
+    return PopScope(
+      canPop: canPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _leave();
+      },
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
     if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(),
-        body: const Center(child: CircularProgressIndicator()),
+      return _withBack(
+        Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              onPressed: _leave,
+              icon: const Icon(Icons.arrow_back),
+            ),
+          ),
+          body: const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
     if (_error != null || _game == null) {
-      return Scaffold(
-        appBar: AppBar(),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(_error ?? 'Not found', textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                FilledButton(onPressed: _load, child: const Text('Try again')),
-              ],
+      return _withBack(
+        Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              onPressed: _leave,
+              icon: const Icon(Icons.arrow_back),
+            ),
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_error ?? 'Not found', textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  FilledButton(onPressed: _load, child: const Text('Try again')),
+                ],
+              ),
             ),
           ),
         ),
@@ -268,20 +302,15 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             ? _entry!.status.label.toUpperCase()
             : 'ADD TO LIBRARY';
 
-    return Scaffold(
+    return _withBack(
+      Scaffold(
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             pinned: true,
             expandedHeight: 280,
             leading: IconButton.filledTonal(
-              onPressed: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/');
-                }
-              },
+              onPressed: _leave,
               icon: const Icon(Icons.arrow_back),
             ),
             actions: [
@@ -596,6 +625,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
+    ),
     );
   }
 

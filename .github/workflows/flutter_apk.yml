@@ -42,6 +42,9 @@ jobs:
       - name: Allow network in release APK
         run: python3 tool/ensure_internet_permission.py
 
+      - name: Set app name and predictive back
+        run: python3 tool/patch_android_identity.py
+
       - name: Install themed launcher icons
         run: python3 tool/apply_brand_icons.py
 

@@ -41,7 +41,14 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
-    return Scaffold(
+    final index = _calculateSelectedIndex(context);
+    return PopScope(
+      canPop: index == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        context.go('/');
+      },
+      child: Scaffold(
       appBar: AppBar(
         titleSpacing: 8,
         title: const Row(
@@ -81,7 +88,27 @@ class AppShell extends StatelessWidget {
             ),
         ],
       ),
-      body: child,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 280),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.035),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          );
+        },
+        child: KeyedSubtree(
+          key: ValueKey(GoRouterState.of(context).uri.path),
+          child: child,
+        ),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _calculateSelectedIndex(context),
         onDestinationSelected: (index) => _onItemTapped(index, context),
@@ -108,6 +135,7 @@ class AppShell extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

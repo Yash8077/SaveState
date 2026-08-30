@@ -71,16 +71,8 @@ class _SaveStateAppState extends State<SaveStateApp> {
         return MaterialApp.router(
           title: 'SaveState',
           themeMode: theme.materialThemeMode,
-          theme: ThemeData(
-            useMaterial3: true,
-            colorScheme: lightColorScheme,
-            scaffoldBackgroundColor: lightColorScheme.surface,
-          ),
-          darkTheme: ThemeData(
-            useMaterial3: true,
-            colorScheme: darkColorScheme,
-            scaffoldBackgroundColor: darkColorScheme.surface,
-          ),
+          theme: _appTheme(lightColorScheme),
+          darkTheme: _appTheme(darkColorScheme),
           builder: (context, child) {
             final page = child ?? const SizedBox.shrink();
             if (!theme.grain) return page;
@@ -104,4 +96,21 @@ class _SaveStateAppState extends State<SaveStateApp> {
       },
     );
   }
+}
+
+ThemeData _appTheme(ColorScheme scheme) {
+  return ThemeData(
+    useMaterial3: true,
+    colorScheme: scheme,
+    scaffoldBackgroundColor: scheme.surface,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+        TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+      },
+    ),
+  );
 }
