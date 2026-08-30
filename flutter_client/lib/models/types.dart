@@ -130,3 +130,54 @@ class GameEntry {
     );
   }
 }
+
+class CatalogDetails extends CatalogGame {
+  final String summary;
+  final String? releaseDate;
+  final bool comingSoon;
+  final List<String> genres;
+  final List<String> developers;
+  final List<String> publishers;
+  final List<String> screenshots;
+  final String? website;
+
+  CatalogDetails({
+    required super.id,
+    super.steamId,
+    required super.title,
+    super.coverUrl,
+    super.headerUrl,
+    super.capsuleUrl,
+    required super.platforms,
+    super.metacritic,
+    required this.summary,
+    this.releaseDate,
+    this.comingSoon = false,
+    required this.genres,
+    required this.developers,
+    required this.publishers,
+    required this.screenshots,
+    this.website,
+  });
+
+  factory CatalogDetails.fromJson(Map<String, dynamic> json) {
+    return CatalogDetails(
+      id: json['id'] as String,
+      steamId: json['steamId'] as int?,
+      title: json['title'] as String,
+      coverUrl: json['coverUrl'] as String?,
+      headerUrl: json['headerUrl'] as String?,
+      capsuleUrl: json['capsuleUrl'] as String?,
+      platforms: (json['platforms'] as List<dynamic>?)?.cast<String>() ?? [],
+      metacritic: json['metacritic'] as int?,
+      summary: json['summary'] as String? ?? '',
+      releaseDate: json['releaseDate'] as String?,
+      comingSoon: json['comingSoon'] as bool? ?? false,
+      genres: (json['genres'] as List<dynamic>?)?.cast<String>() ?? [],
+      developers: (json['developers'] as List<dynamic>?)?.cast<String>() ?? [],
+      publishers: (json['publishers'] as List<dynamic>?)?.cast<String>() ?? [],
+      screenshots: (json['screenshots'] as List<dynamic>?)?.cast<String>() ?? [],
+      website: json['website'] as String?,
+    );
+  }
+}
