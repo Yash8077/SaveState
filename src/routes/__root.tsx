@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { AppearanceProvider } from "@/components/appearance-provider";
 import { AppShell } from "@/components/app-shell";
 import appCss from "../styles.css?url";
 
@@ -88,6 +89,7 @@ function RootDocument() {
       </head>
       <body className="bg-bg text-fg">
         <PreviewHostBridge />
+        <AppearanceProvider>
         <AuthProvider>
           <QueryClientProvider client={queryClient}>
             {isLogin ? (
@@ -107,6 +109,7 @@ function RootDocument() {
             />
           </QueryClientProvider>
         </AuthProvider>
+        </AppearanceProvider>
         <Scripts />
       </body>
     </html>
