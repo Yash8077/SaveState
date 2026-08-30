@@ -86,7 +86,9 @@ describe("IGDB field selection", () => {
     assert.match(DETAIL_FIELDS, /platforms\.name/);
     assert.match(DETAIL_FIELDS, /screenshots\.image_id/);
     assert.match(DETAIL_FIELDS, /similar_games\./);
-    assert.match(DETAIL_FIELDS, /collection\.games\./);
+    assert.match(DETAIL_FIELDS, /collection\.id/);
+    assert.match(DETAIL_FIELDS, /collections\.id/);
+    assert.match(DETAIL_FIELDS, /collections\.name/);
     assert.match(DETAIL_FIELDS, /parent_game\./);
     assert.doesNotMatch(CARD_FIELDS, /summary/);
     assert.doesNotMatch(CARD_FIELDS, /involved_companies/);
@@ -113,9 +115,12 @@ describe("related rails", () => {
     });
     assert.deepEqual(
       rails.map((r) => r.id),
-      ["original", "sequel", "similar"],
+      ["prequel", "sequel", "similar"],
     );
-    assert.equal(rails.find((r) => r.id === "original")?.games[0]?.title, "Prequel");
+    assert.deepEqual(
+      rails.find((r) => r.id === "prequel")?.games.map((g) => g.title),
+      ["Prequel"],
+    );
     assert.deepEqual(
       rails.find((r) => r.id === "sequel")?.games.map((g) => g.title),
       ["Sequel"],
@@ -148,5 +153,58 @@ describe("related rails", () => {
       rails.find((r) => r.id === "sequel")?.games.map((g) => g.title),
       ["Sequel"],
     );
+  });
+
+  it("uses collections[] when the legacy collection field is empty", () => {
+    const rails = relatedRails({
+      id: 1942,
+      name: "The Witcher 3",
+      first_release_date: 1431993600,
+      collections: [
+        {
+          name: "The Witcher",
+          games: [
+            {
+              id: 80,
+              name: "The Witcher",
+              first_release_date: 1190073600,
+              cover: { image_id: "w1" },
+              category: 0,
+            },
+            {
+              id: 81,
+              name: "The Witcher 2",
+              first_release_date: 1305590400,
+              cover: { image_id: "w2" },
+              category: 0,
+            },
+            {
+              id: 1942,
+              name: "The Witcher 3",
+              first_release_date: 1431993600,
+              cover: { image_id: "w3" },
+              category: 0,
+            },
+          ],
+        },
+      ],
+      similar_games: [{ id: 9, name: "Like it", cover: { image_id: "s" } }],
+    });
+    assert.equal(rails.find((r) => r.id === "prequel")?.title, "Prequel");
+    assert.deepEqual(
+      rails.find((r) => r.id === "prequel")?.games.map((g) => g.title),
+      ["The Witcher", "The Witcher 2"],
+    );
+    assert.equal(rails.find((r) => r.id === "similar")?.title, "Similar games");
+  });
+
+  it("does not treat id-only collection members as titled related games", () => {
+    const rails = relatedRails({
+      id: 1942,
+      name: "The Witcher 3",
+      first_release_date: 1431993600,
+      collections: [{ id: 12, games: [{ id: 80 }, { id: 81 }] }],
+    });
+    assert.equal(rails.find((r) => r.id === "prequel"), undefined);
   });
 });
