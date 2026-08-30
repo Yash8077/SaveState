@@ -29,6 +29,17 @@ export type IgdbGame = {
   screenshots?: IgdbImage[];
   involved_companies?: IgdbCompany[];
   websites?: IgdbWebsite[];
+  collection?: { name?: string; games?: IgdbGame[] };
+  franchises?: { name?: string; games?: IgdbGame[] }[];
+  similar_games?: IgdbGame[];
+  parent_game?: IgdbGame;
+  version_parent?: IgdbGame;
+  dlcs?: IgdbGame[];
+  expansions?: IgdbGame[];
+  expanded_games?: IgdbGame[];
+  remakes?: IgdbGame[];
+  remasters?: IgdbGame[];
+  standalone_expansions?: IgdbGame[];
 };
 
 function credentials(): { id: string; secret: string } | null {
@@ -118,6 +129,112 @@ export function toGame(
         ? Math.round(rating)
         : null,
   };
+}
+
+function mapRelatedList(
+  list: IgdbGame[] | undefined,
+  excludeId: number | undefined,
+  limit = 12,
+): CatalogGame[] {
+  const out: CatalogGame[] = [];
+  const seen = new Set<string>();
+  const sorted = [...(list ?? [])].sort((a, b) => {
+    const da = a.first_release_date ?? 0;
+    const db = b.first_release_date ?? 0;
+    return da - db;
+  });
+  for (const row of sorted) {
+    if (excludeId && row.id === excludeId) continue;
+    const game = toGame(row, "cover_big");
+    if (!game || seen.has(game.id)) continue;
+    seen.add(game.id);
+    out.push(slimCatalogGame(game));
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+export function relatedRails(game: IgdbGame): FeaturedRail[] {
+  const self = game.id;
+  const selfDate =
+    game.first_release_date ??
+    game.collection?.games?.find((g) => g.id === self)?.first_release_date ??
+    0;
+  const rails: FeaturedRail[] = [];
+  const seen = new Set<string>();
+
+  const push = (id: string, title: string, games: CatalogGame[]) => {
+    const unique = games.filter((g) => !seen.has(g.id));
+    for (const g of unique) seen.add(g.id);
+    if (unique.length) rails.push({ id, title, games: unique });
+  };
+
+  push(
+    "original",
+    "Original",
+    mapRelatedList(
+      [game.parent_game, game.version_parent].filter((g): g is IgdbGame =>
+        Boolean(g),
+      ),
+      self,
+      4,
+    ),
+  );
+
+  const collection = game.collection?.games ?? [];
+  const prequels: IgdbGame[] = [];
+  const sequels: IgdbGame[] = [];
+  const rest: IgdbGame[] = [];
+  for (const row of collection) {
+    if (self && row.id === self) continue;
+    const d = row.first_release_date ?? 0;
+    if (selfDate && d && d < selfDate) prequels.push(row);
+    else if (selfDate && d && d > selfDate) sequels.push(row);
+    else rest.push(row);
+  }
+  push("prequel", "Prequel", mapRelatedList(prequels, self));
+  push("sequel", "Sequel", mapRelatedList(sequels, self));
+
+  const seriesTitle = game.collection?.name
+    ? `In ${game.collection.name}`
+    : "In this series";
+  if (rest.length) {
+    push(
+      "series",
+      game.collection?.name
+        ? `Also in ${game.collection.name}`
+        : "In this series",
+      mapRelatedList(rest, self),
+    );
+  } else if (!prequels.length && !sequels.length) {
+    push("series", seriesTitle, mapRelatedList(collection, self));
+  }
+
+  if (!rails.some((r) => r.id === "prequel" || r.id === "sequel" || r.id === "series")) {
+    const franchiseGames = (game.franchises ?? []).flatMap((f) => f.games ?? []);
+    push("franchise", "Franchise", mapRelatedList(franchiseGames, self));
+  }
+
+  push(
+    "dlc",
+    "DLC & expansions",
+    mapRelatedList(
+      [
+        ...(game.expansions ?? []),
+        ...(game.dlcs ?? []),
+        ...(game.standalone_expansions ?? []),
+        ...(game.expanded_games ?? []),
+      ],
+      self,
+    ),
+  );
+  push(
+    "remakes",
+    "Remakes & remasters",
+    mapRelatedList([...(game.remakes ?? []), ...(game.remasters ?? [])], self),
+  );
+  push("similar", "Similar games", mapRelatedList(game.similar_games, self));
+  return rails;
 }
 
 function tokenStillValid(row: Token, clientId: string): boolean {
@@ -254,7 +371,9 @@ async function igdb<T>(path: string, body: string): Promise<T> {
 export const SEARCH_FIELDS = "name, cover.image_id";
 export const CARD_FIELDS =
   "name, cover.image_id, first_release_date, aggregated_rating";
-export const DETAIL_FIELDS = `${CARD_FIELDS}, platforms.abbreviation, platforms.name, genres.name, slug, summary, url, screenshots.image_id, involved_companies.company.name, involved_companies.developer, involved_companies.publisher, websites.url, websites.category`;
+const REL_NEST =
+  "name, cover.image_id, first_release_date";
+export const DETAIL_FIELDS = `${CARD_FIELDS}, platforms.abbreviation, platforms.name, genres.name, slug, summary, url, screenshots.image_id, involved_companies.company.name, involved_companies.developer, involved_companies.publisher, websites.url, websites.category, collection.name, collection.games.${REL_NEST}, similar_games.${REL_NEST}, parent_game.${REL_NEST}, version_parent.${REL_NEST}, dlcs.${REL_NEST}, expansions.${REL_NEST}, expanded_games.${REL_NEST}, remakes.${REL_NEST}, remasters.${REL_NEST}, standalone_expansions.${REL_NEST}, franchises.name, franchises.games.${REL_NEST}`;
 
 export async function searchIgdb(query: string): Promise<CatalogGame[]> {
   const q = query.replace(/[\n\r]/g, " ").trim().slice(0, 80);
@@ -306,6 +425,7 @@ export async function fetchIgdbDetails(
     screenshots: shots,
     website: site,
     headerUrl: shots[0] || base.headerUrl,
+    related: relatedRails(game),
   };
 }
 
@@ -335,35 +455,32 @@ query games "soon" {
 };
 query games "top" {
   fields ${CARD_FIELDS};
-  where cover != null & version_parent = null & category = 0 & aggregated_rating > 86 & aggregated_rating_count > 40;
+  where cover != null & version_parent = null & category = 0 & aggregated_rating > 80 & aggregated_rating_count > 20;
   sort aggregated_rating desc;
   limit 12;
 };
 `;
   const rows = await igdb<MultiRow[]>("multiquery", body);
   const titles: Record<string, string> = {
-    trending: "Trending",
+    trending: "Popular",
     new: "New releases",
     soon: "Coming soon",
-    top: "Top rated",
+    top: "Highly rated",
   };
   const rails: FeaturedRail[] = [];
-  for (const block of rows ?? []) {
-    const id = block.name || "";
+  for (const row of rows ?? []) {
+    const key = row.name ?? "";
+    const title = titles[key];
+    if (!title) continue;
     const games: CatalogGame[] = [];
     const seen = new Set<string>();
-    for (const row of block.result ?? []) {
-      const game = toGame(row, "cover_big");
-      if (!game || seen.has(game.id)) continue;
-      seen.add(game.id);
-      games.push(slimCatalogGame(game));
+    for (const game of row.result ?? []) {
+      const mapped = toGame(game, "cover_big");
+      if (!mapped || seen.has(mapped.id)) continue;
+      seen.add(mapped.id);
+      games.push(slimCatalogGame(mapped));
     }
-    if (!games.length) continue;
-    rails.push({ id, title: titles[id] || id, games });
+    if (games.length) rails.push({ id: key, title, games });
   }
   return rails;
-}
-
-if (credentials() && !process.env.NODE_TEST_CONTEXT) {
-  void getToken().catch(() => {});
 }
