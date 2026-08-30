@@ -1,10 +1,15 @@
+import { useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useAppearance } from "@/components/appearance-provider";
 import { GameCard, GameRail } from "@/components/game-card";
+import { HeroCarousel } from "@/components/hero-carousel";
 import { useLibrary } from "@/hooks/use-library";
 import { useMounted } from "@/hooks/use-mounted";
 import { getFeaturedRails } from "@/lib/api";
 import { FEATURED_SEED } from "@/lib/catalog-seed";
+import { heroSlides } from "@/lib/hero";
+import { tintForCatalog } from "@/lib/tints";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { formatHours } from "@/lib/utils";
 
@@ -14,6 +19,7 @@ function Home() {
   const mounted = useMounted();
   const { user } = useCurrentUserState();
   const library = useLibrary();
+  const { appearance, setDynamicAccent } = useAppearance();
   const featured = useQuery({
     queryKey: ["featured"],
     queryFn: ({ signal }) => getFeaturedRails(signal),
@@ -31,9 +37,19 @@ function Home() {
   const signedIn = mounted && Boolean(user);
   const name = user?.displayName?.split(" ")[0];
   const rails = featured.data ?? FEATURED_SEED;
+  const slides = heroSlides(mounted ? playing : [], FEATURED_SEED);
+  const tintSource = playing[0]?.catalogId ?? slides[0]?.id;
+
+  useEffect(() => {
+    if (!appearance.dynamic) return;
+    if (!tintSource) return;
+    setDynamicAccent(tintForCatalog(tintSource));
+  }, [appearance.dynamic, tintSource, setDynamicAccent]);
 
   return (
     <div className="space-y-7">
+      {slides.length ? <HeroCarousel games={slides} /> : null}
+
       {!signedIn && mounted ? (
         <header>
           <h2 className="text-2xl font-medium tracking-tight">Your games</h2>
@@ -150,9 +166,9 @@ function Home() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="shrink-0 rounded-full bg-elevated px-3.5 py-2">
-      <span className="text-sm font-medium tabular-nums">{value}</span>
-      <span className="ml-1.5 text-sm text-muted">{label}</span>
+    <div className="shrink-0 rounded-full bg-subtle px-3 py-1.5">
+      <span className="text-xs text-muted">{label}</span>
+      <span className="ml-1.5 text-sm font-medium tabular-nums">{value}</span>
     </div>
   );
 }
