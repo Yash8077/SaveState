@@ -6,6 +6,8 @@ import {
   type ThemeMode,
 } from "@/lib/appearance";
 import { useAppearance } from "@/components/appearance-provider";
+import { FEATURED_SEED } from "@/lib/catalog-seed";
+import { tintForCatalog } from "@/lib/tints";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings")({
@@ -13,9 +15,9 @@ export const Route = createFileRoute("/settings")({
 });
 
 const MODES: { id: ThemeMode; label: string; hint: string }[] = [
-  { id: "light", label: "Light", hint: "Soft paper surfaces" },
-  { id: "dark", label: "Dark", hint: "Soft charcoal" },
-  { id: "system", label: "System", hint: "Follow the device" },
+  { id: "light", label: "Light", hint: "Soft paper" },
+  { id: "dark", label: "Dark", hint: "Charcoal" },
+  { id: "system", label: "System", hint: "Follow device" },
 ];
 
 const GRAIN: { id: GrainIntensity; label: string }[] = [
@@ -25,7 +27,21 @@ const GRAIN: { id: GrainIntensity; label: string }[] = [
 ];
 
 function SettingsPage() {
-  const { appearance, setAppearance } = useAppearance();
+  const { appearance, setAppearance, setDynamicAccent } = useAppearance();
+
+  function setMode(mode: ThemeMode) {
+    setAppearance({ ...appearance, mode });
+  }
+
+  function setDynamic(next: boolean) {
+    setAppearance({ ...appearance, dynamic: next });
+    if (next) {
+      const seed = FEATURED_SEED[0]?.games[0]?.id;
+      if (seed) setDynamicAccent(tintForCatalog(seed));
+    } else {
+      setDynamicAccent(null);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-xl space-y-6 pb-8">
@@ -49,7 +65,7 @@ function SettingsPage() {
               <button
                 key={mode.id}
                 type="button"
-                onClick={() => setAppearance({ ...appearance, mode: mode.id })}
+                onClick={() => setMode(mode.id)}
                 className={cn(
                   "rounded-xl border px-2.5 py-3 text-left",
                   selected
@@ -73,6 +89,40 @@ function SettingsPage() {
             );
           })}
         </div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={appearance.mode === "light"}
+            onClick={() =>
+              setAppearance({ ...appearance, oled: !appearance.oled })
+            }
+            className={cn(
+              "rounded-xl border px-2.5 py-3 text-left",
+              appearance.oled && appearance.mode !== "light"
+                ? "border-accent bg-accent/10"
+                : "border-border bg-subtle",
+              appearance.mode === "light" && "opacity-50",
+            )}
+          >
+            <span className="oled-preview block h-16 rounded-lg ring-1 ring-border" />
+            <span className="mt-2 block text-sm font-medium">OLED</span>
+            <span className="text-xs text-faint">True black</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDynamic(!appearance.dynamic)}
+            className={cn(
+              "rounded-xl border px-2.5 py-3 text-left",
+              appearance.dynamic
+                ? "border-accent bg-accent/10"
+                : "border-border bg-subtle",
+            )}
+          >
+            <span className="dynamic-preview block h-16 rounded-lg ring-1 ring-border" />
+            <span className="mt-2 block text-sm font-medium">Dynamic</span>
+            <span className="text-xs text-faint">From home banner</span>
+          </button>
+        </div>
       </section>
 
       <section className="rounded-xl bg-elevated p-4 sm:p-5">
@@ -81,22 +131,6 @@ function SettingsPage() {
           Appearance
         </p>
         <label className="mt-3 flex min-h-12 items-center justify-between gap-3">
-          <span>
-            <span className="block text-sm font-medium">OLED</span>
-            <span className="text-xs text-faint">
-              True black background in dark mode
-            </span>
-          </span>
-          <input
-            type="checkbox"
-            checked={appearance.oled}
-            onChange={(e) =>
-              setAppearance({ ...appearance, oled: e.target.checked })
-            }
-            className="size-5 accent-[var(--color-accent)]"
-          />
-        </label>
-        <label className="flex min-h-12 items-center justify-between gap-3">
           <span>
             <span className="block text-sm font-medium">Bloom</span>
             <span className="text-xs text-faint">
@@ -165,21 +199,32 @@ function SettingsPage() {
           <Palette className="size-4" />
           Accent
         </p>
+        <p className="mt-1 text-xs text-faint">
+          {appearance.dynamic
+            ? "Preset chips are a fallback while Dynamic is on."
+            : "Used when Dynamic is off."}
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {ACCENTS.map((swatch) => {
-            const selected = appearance.accent === swatch.id;
+            const selected =
+              !appearance.dynamic && appearance.accent === swatch.id;
             return (
               <button
                 key={swatch.id}
                 type="button"
                 onClick={() =>
-                  setAppearance({ ...appearance, accent: swatch.id })
+                  setAppearance({
+                    ...appearance,
+                    accent: swatch.id,
+                    dynamic: false,
+                  })
                 }
                 className={cn(
                   "flex h-11 items-center gap-2 rounded-full border px-3 text-sm",
                   selected
                     ? "border-accent bg-accent/10"
                     : "border-border bg-subtle",
+                  appearance.dynamic && "opacity-60",
                 )}
               >
                 <span
@@ -196,11 +241,12 @@ function SettingsPage() {
       <section className="rounded-xl bg-elevated p-4 sm:p-5">
         <p className="flex items-center gap-2 text-sm font-medium text-muted">
           <Sparkles className="size-4" />
-          Android app
+          Material You
         </p>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          The app mirrors these theme options, plus Material You from the
-          wallpaper on Android 12+.
+          On the website, Dynamic pulls a restrained accent from the home
+          banner. The Android app can also take color from the wallpaper on
+          Android 12+.
         </p>
       </section>
 
