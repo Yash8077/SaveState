@@ -100,7 +100,14 @@ function Home() {
       ) : null}
 
       {backlog.length ? (
-        <GameRail title="Backlog">
+        <GameRail
+          title="Planning to play"
+          action={
+            <Link to="/library" className="text-sm font-medium text-accent">
+              Library
+            </Link>
+          }
+        >
           {backlog.slice(0, 16).map((e) => (
             <GameCard
               key={e.id}
@@ -110,22 +117,6 @@ function Home() {
               headerUrl={e.headerUrl}
               status={e.status}
               favorite={e.favorite}
-            />
-          ))}
-        </GameRail>
-      ) : null}
-
-      {beaten.length ? (
-        <GameRail title="Recently beaten">
-          {beaten.slice(0, 12).map((e) => (
-            <GameCard
-              key={e.id}
-              catalogId={e.catalogId}
-              title={e.title}
-              coverUrl={e.coverUrl}
-              headerUrl={e.headerUrl}
-              status={e.status}
-              score={e.score}
             />
           ))}
         </GameRail>
@@ -148,6 +139,9 @@ function Home() {
 
       <div>
         <h2 className="text-lg font-medium tracking-tight">Browse</h2>
+        <p className="text-xs text-faint">
+          Steam store rails, plus PlayStation from IGDB.
+        </p>
       </div>
 
       {rails.map((rail, railIndex) => (

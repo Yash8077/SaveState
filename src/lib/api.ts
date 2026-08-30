@@ -15,7 +15,7 @@ import type {
   LibrarySnapshot,
 } from "@/lib/types";
 
-export const CATALOG_GAME_REL = "rel-6";
+export const CATALOG_GAME_REL = "rel-7";
 export const CATALOG_GAME_STALE_MS = 10 * 60_000;
 
 export function catalogGameQueryKey(catalogId: string) {
@@ -47,7 +47,7 @@ export function getCatalogGame(
   signal?: AbortSignal,
 ): Promise<CatalogDetails | null> {
   return catalogGet<CatalogDetails | null>(
-    `/api/catalog/game?id=${encodeURIComponent(id)}&rel=6`,
+    `/api/catalog/game?id=${encodeURIComponent(id)}&rel=7`,
     signal,
   );
 }
