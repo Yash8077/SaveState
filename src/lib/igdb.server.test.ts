@@ -7,6 +7,7 @@ import {
   igdbCatalogId,
   relatedRails,
   toGame,
+  withWikidataFallback,
 } from "./igdb.server.ts";
 
 describe("toGame mapping", () => {
@@ -206,5 +207,137 @@ describe("related rails", () => {
       collections: [{ id: 12, games: [{ id: 80 }, { id: 81 }] }],
     });
     assert.equal(rails.find((r) => r.id === "prequel"), undefined);
+  });
+});
+
+describe("withWikidataFallback", () => {
+  const card = (id: number, title: string) => ({
+    id: `igdb_${id}`,
+    steamId: null,
+    title,
+    coverUrl: null,
+    headerUrl: null,
+    capsuleUrl: null,
+    platforms: [],
+    metacritic: null,
+  });
+
+  it("does not call Wikidata when collection split already produced prequels", async () => {
+    let called = 0;
+    const game = {
+      id: 2,
+      name: "Middle",
+      first_release_date: 100,
+      collection: {
+        name: "The Saga",
+        games: [
+          { id: 1, name: "Prequel", first_release_date: 50, cover: { image_id: "a" } },
+          { id: 2, name: "Middle", first_release_date: 100, cover: { image_id: "b" } },
+          { id: 3, name: "Sequel", first_release_date: 200, cover: { image_id: "c" } },
+        ],
+      },
+    };
+    const rails = relatedRails(game);
+    const out = await withWikidataFallback(game, rails, {
+      relations: async () => {
+        called += 1;
+        return { prequelIgdbId: 9, sequelIgdbId: 10 };
+      },
+      cards: async () => {
+        called += 1;
+        return { byId: new Map(), bySlug: new Map() };
+      },
+    });
+    assert.equal(called, 0);
+    assert.deepEqual(
+      out.map((r) => r.id),
+      rails.map((r) => r.id),
+    );
+  });
+
+  it("fills prequel and sequel rails from Wikidata when both buckets are empty", async () => {
+    let relationCalls = 0;
+    const game = {
+      id: 10,
+      name: "Standalone",
+      similar_games: [{ id: 99, name: "Like it", cover: { image_id: "s" } }],
+    };
+    const rails = relatedRails(game);
+    assert.equal(
+      rails.some((r) => r.id === "prequel" || r.id === "sequel"),
+      false,
+    );
+    const out = await withWikidataFallback(game, rails, {
+      relations: async (id) => {
+        relationCalls += 1;
+        assert.equal(id, 10);
+        return { prequelIgdbId: 1, sequelIgdbId: 2 };
+      },
+      cards: async ({ ids }) => {
+        assert.deepEqual([...ids].sort(), [1, 2]);
+        return {
+          byId: new Map([
+            [1, card(1, "Before")],
+            [2, card(2, "After")],
+          ]),
+          bySlug: new Map(),
+        };
+      },
+    });
+    assert.equal(relationCalls, 1);
+    assert.deepEqual(
+      out.map((r) => [r.id, r.games.map((g) => g.title)]),
+      [
+        ["prequel", ["Before"]],
+        ["sequel", ["After"]],
+        ["similar", ["Like it"]],
+      ],
+    );
+  });
+
+  it("resolves Wikidata slugs when numeric IGDB ids are missing", async () => {
+    const game = { id: 10, name: "Standalone", slug: "standalone" };
+    const rails = relatedRails(game);
+    const out = await withWikidataFallback(game, rails, {
+      relations: async (id, slug) => {
+        assert.equal(id, 10);
+        assert.equal(slug, "standalone");
+        return {
+          prequelIgdbId: null,
+          sequelIgdbId: null,
+          prequelSlug: "portal",
+          sequelSlug: "portal-2",
+        };
+      },
+      cards: async ({ slugs }) => {
+        assert.deepEqual([...slugs].sort(), ["portal", "portal-2"]);
+        return {
+          byId: new Map(),
+          bySlug: new Map([
+            ["portal", card(71, "Portal")],
+            ["portal-2", card(72, "Portal 2")],
+          ]),
+        };
+      },
+    });
+    assert.deepEqual(
+      out.map((r) => [r.id, r.games.map((g) => g.title)]),
+      [
+        ["prequel", ["Portal"]],
+        ["sequel", ["Portal 2"]],
+      ],
+    );
+  });
+
+  it("swallows Wikidata failures and keeps the original rails", async () => {
+    const game = { id: 10, name: "Standalone" };
+    const rails = relatedRails(game);
+    const out = await withWikidataFallback(game, rails, {
+      relations: async () => {
+        throw new Error("wikidata down");
+      },
+      cards: async () => ({ byId: new Map(), bySlug: new Map() }),
+    });
+    assert.deepEqual(out, rails);
   });
 });
