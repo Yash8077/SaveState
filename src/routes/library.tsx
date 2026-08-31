@@ -1,13 +1,37 @@
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { GameCard } from "@/components/game-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLibrary } from "@/hooks/use-library";
-import { STATUSES, STATUS_LABEL, type Status } from "@/lib/types";
+import { STATUSES, STATUS_LABEL, type GameEntry, type Status } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type LibrarySearch = { status?: Status | "all" | "favorites" };
+type LibrarySort = "name-asc" | "name-desc" | "hours-desc" | "hours-asc";
+
+const SORTS: { id: LibrarySort; label: string }[] = [
+  { id: "name-asc", label: "Name A–Z" },
+  { id: "name-desc", label: "Name Z–A" },
+  { id: "hours-desc", label: "Hours high–low" },
+  { id: "hours-asc", label: "Hours low–high" },
+];
+
+function sortEntries(entries: GameEntry[], sort: LibrarySort): GameEntry[] {
+  const list = [...entries];
+  list.sort((a, b) => {
+    if (sort === "name-asc") return a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+    if (sort === "name-desc") return b.title.localeCompare(a.title, undefined, { sensitivity: "base" });
+    const ah = a.hours;
+    const bh = b.hours;
+    if (ah == null && bh == null) return 0;
+    if (ah == null) return 1;
+    if (bh == null) return -1;
+    return sort === "hours-desc" ? bh - ah : ah - bh;
+  });
+  return list;
+}
 
 export const Route = createFileRoute("/library")({
   validateSearch: (search: Record<string, unknown>): LibrarySearch => ({
@@ -23,6 +47,7 @@ function LibraryPage() {
   const { user, isPending } = useCurrentUserState();
   const { status = "all" } = Route.useSearch();
   const library = useLibrary();
+  const [sort, setSort] = useState<LibrarySort>("name-asc");
 
   if (isPending) {
     return <LibrarySkeleton />;
@@ -30,11 +55,14 @@ function LibraryPage() {
   if (!user) return <RedirectToSignIn />;
 
   const entries = library.data ?? [];
-  const filtered = entries.filter((e) => {
-    if (status === "favorites") return e.favorite;
-    if (status === "all" || !status) return true;
-    return e.status === status;
-  });
+  const filtered = useMemo(() => {
+    const next = entries.filter((e) => {
+      if (status === "favorites") return e.favorite;
+      if (status === "all" || !status) return true;
+      return e.status === status;
+    });
+    return sortEntries(next, sort);
+  }, [entries, status, sort]);
 
   const filters: { id: LibrarySearch["status"]; label: string }[] = [
     { id: "all", label: "All" },
@@ -62,9 +90,25 @@ function LibraryPage() {
         ))}
       </div>
 
-      <p className="text-sm text-muted">
-        {filtered.length} title{filtered.length === 1 ? "" : "s"}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted">
+          {filtered.length} title{filtered.length === 1 ? "" : "s"}
+        </p>
+        <label className="flex items-center gap-2 text-sm text-muted">
+          Sort
+          <select
+            className="h-9 rounded-full bg-subtle px-3 text-sm text-fg"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as LibrarySort)}
+          >
+            {SORTS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       {library.isLoading ? <LibrarySkeleton /> : null}
 

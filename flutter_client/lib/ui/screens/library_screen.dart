@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -21,6 +22,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   bool _isAuthError = false;
   String _errorMessage = '';
   GameStatus? _selectedStatus; // null means 'All'
+  _LibrarySort _sort = _LibrarySort.nameAsc;
 
   @override
   void initState() {
@@ -105,8 +107,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   List<GameEntry> get _filteredEntries {
-    if (_selectedStatus == null) return _entries;
-    return _entries.where((entry) => entry.status == _selectedStatus).toList();
+    final list = _selectedStatus == null
+        ? List<GameEntry>.from(_entries)
+        : _entries.where((entry) => entry.status == _selectedStatus).toList();
+    list.sort((a, b) {
+      switch (_sort) {
+        case _LibrarySort.nameAsc:
+          return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        case _LibrarySort.nameDesc:
+          return b.title.toLowerCase().compareTo(a.title.toLowerCase());
+        case _LibrarySort.hoursDesc:
+        case _LibrarySort.hoursAsc:
+          final ah = a.hours;
+          final bh = b.hours;
+          if (ah == null && bh == null) return 0;
+          if (ah == null) return 1;
+          if (bh == null) return -1;
+          return _sort == _LibrarySort.hoursDesc
+              ? bh.compareTo(ah)
+              : ah.compareTo(bh);
+      }
+    });
+    return list;
   }
 
   int _countForStatus(GameStatus? status) {
@@ -151,6 +173,32 @@ class _LibraryScreenState extends State<LibraryScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
+        actions: [
+          PopupMenuButton<_LibrarySort>(
+            tooltip: 'Sort',
+            initialValue: _sort,
+            icon: const Icon(Icons.sort_rounded),
+            onSelected: (value) => setState(() => _sort = value),
+            itemBuilder: (context) => [
+              for (final option in _LibrarySort.values)
+                PopupMenuItem(
+                  value: option,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: _sort == option
+                            ? Icon(Icons.check_rounded,
+                                size: 18, color: colorScheme.primary)
+                            : null,
+                      ),
+                      Text(option.label),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
       body: _buildBody(theme, colorScheme),
     );
@@ -471,16 +519,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _buildGameGrid(List<GameEntry> entries, ColorScheme colorScheme) {
-    return GridView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.60,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 14,
-      ),
-      itemCount: entries.length,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = math.max(2, (constraints.maxWidth / 148).floor()).clamp(2, 8);
+        return GridView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            childAspectRatio: 0.58,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: entries.length,
       itemBuilder: (context, index) {
         final entry = entries[index];
         final statusColor = _getStatusColor(entry.status);
@@ -724,5 +775,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
         );
       },
     );
+      },
+    );
+  }
+}
+
+enum _LibrarySort { nameAsc, nameDesc, hoursDesc, hoursAsc }
+
+extension on _LibrarySort {
+  String get label {
+    switch (this) {
+      case _LibrarySort.nameAsc:
+        return 'Name A–Z';
+      case _LibrarySort.nameDesc:
+        return 'Name Z–A';
+      case _LibrarySort.hoursDesc:
+        return 'Hours high–low';
+      case _LibrarySort.hoursAsc:
+        return 'Hours low–high';
+    }
   }
 }

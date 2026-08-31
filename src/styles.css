@@ -397,7 +397,8 @@ html.bloom .hero-bloom {
 .poster-grid {
   display: grid;
   gap: 0.75rem 0.65rem;
-  grid-template-columns: repeat(auto-fill, minmax(7.8rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(7.8rem, 8.25rem));
+  justify-content: start;
 }
 
 @media (prefers-reduced-motion: reduce) {
