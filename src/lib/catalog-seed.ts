@@ -139,6 +139,33 @@ const RAW: ReadonlyArray<readonly [number, string]> = [
   [2669320, "EA SPORTS FC 25"],
 ];
 
+/** IGDB-style 0–100 totals for well-known Steam apps (live IGDB overwrites). */
+const STEAM_IGDB_RATING: Record<number, number> = {
+  1245620: 87, 2622380: 78, 1086940: 96, 1091500: 86, 292030: 93,
+  1174180: 95, 271590: 83, 3240220: 83, 2358720: 81, 1623730: 71,
+  553850: 83, 1145350: 89, 1145360: 93, 2379780: 90, 367520: 90,
+  1030300: 91, 413150: 91, 504230: 92, 620: 95, 400: 90, 220: 96,
+  105600: 83, 294100: 87, 427520: 90, 892970: 82, 814380: 90,
+  374320: 89, 570940: 85, 236430: 79, 1627720: 81, 1593500: 94,
+  2322010: 94, 1817070: 87, 2215430: 85, 1888930: 88, 2050650: 93,
+  2246340: 78, 582010: 88, 990080: 84, 730: 82, 570: 90, 1172470: 80,
+  578080: 83, 1085660: 85, 230410: 69, 381210: 71, 359550: 79,
+  252490: 69, 275850: 73, 255710: 85, 526870: 90, 548430: 85,
+  739630: 76, 945360: 78, 646570: 89, 268910: 88, 1794680: 87,
+  1426210: 88, 1966720: 72, 1903340: 92, 1771300: 88, 379430: 76,
+  2054970: 76, 1364780: 92, 2161700: 87, 524220: 88, 632470: 91,
+  753640: 85, 588650: 89, 1649240: 86, 870780: 82, 2197550: 89,
+  2124490: 87, 1196590: 84, 1551360: 92, 252950: 86, 289070: 88,
+  489830: 81, 377160: 84, 22380: 84, 435150: 93, 2183900: 79,
+  1888160: 85, 2767030: 78, 108600: 87, 391540: 92, 1671210: 86,
+  440: 92, 550: 89, 4000: 84, 546560: 93,
+};
+
+export function steamIgdbRating(steamId: number | null | undefined): number | null {
+  if (!steamId) return null;
+  return STEAM_IGDB_RATING[steamId] ?? null;
+}
+
 function toGame(id: number, title: string): CatalogGame {
   const header = `${STEAM_IMG}/${id}/header.jpg`;
   const cover = `${STEAM_IMG}/${id}/library_600x900.jpg`;
@@ -150,7 +177,7 @@ function toGame(id: number, title: string): CatalogGame {
     headerUrl: header,
     capsuleUrl: header,
     platforms: [],
-    metacritic: null,
+    metacritic: steamIgdbRating(id),
   };
 }
 

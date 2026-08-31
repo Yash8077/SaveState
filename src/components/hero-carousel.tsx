@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { Link } from "@tanstack/react-router";
-import { Star } from "lucide-react";
 import { GamePeek } from "@/components/game-peek";
+import { RatingBadge } from "@/components/game-card";
 import { usePeek } from "@/hooks/use-peek";
 import type { CatalogGame } from "@/lib/types";
-import { cn, ratingLabel } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 function loopGames(games: CatalogGame[]) {
   if (games.length < 2) return games;
@@ -32,25 +32,10 @@ function targetLeft(el: HTMLDivElement, child: HTMLElement) {
   return child.offsetLeft - (el.clientWidth - child.clientWidth) / 2;
 }
 
-function TitleOverlay({
-  title,
-  score,
-}: {
-  title: string;
-  score: number | null;
-}) {
-  const label = ratingLabel(score);
+function TitleOverlay({ title }: { title: string }) {
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-8 pb-2">
-      <div className="flex items-end justify-between gap-2">
-        <p className="min-w-0 truncate text-sm font-medium text-white">{title}</p>
-        {label ? (
-          <span className="inline-flex shrink-0 items-center gap-0.5 text-[11px] font-bold text-white">
-            <Star className="size-3 fill-accent text-accent" />
-            {label}
-          </span>
-        ) : null}
-      </div>
+      <p className="truncate pr-12 text-sm font-medium text-white">{title}</p>
     </div>
   );
 }
@@ -221,7 +206,8 @@ export function HeroCarousel({
                 ) : (
                   <div className="absolute inset-0 bg-subtle" />
                 )}
-                <TitleOverlay title={game.title} score={game.metacritic} />
+                <TitleOverlay title={game.title} />
+                <RatingBadge score={game.metacritic} />
               </Link>
             );
           })}
@@ -265,7 +251,8 @@ export function HeroCarousel({
                     className="size-full object-cover"
                   />
                 ) : null}
-                <TitleOverlay title={game.title} score={game.metacritic} />
+                <TitleOverlay title={game.title} />
+                <RatingBadge score={game.metacritic} />
               </div>
             </Link>
           );

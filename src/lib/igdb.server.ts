@@ -209,11 +209,11 @@ export function applyIgdbRatings<T extends CatalogGame>(
   games: T[],
   ratings: Map<string, number>,
 ): T[] {
+  if (!ratings.size) return games;
   return games.map((game) => {
     const score = ratings.get(game.id);
-    if (score != null) return { ...game, metacritic: score };
-    if (game.id.startsWith("igdb_")) return game;
-    return { ...game, metacritic: null };
+    if (score == null) return game;
+    return { ...game, metacritic: score };
   });
 }
 

@@ -1,5 +1,5 @@
 import type { CatalogDetails, CatalogGame, FeaturedRail } from "./types.ts";
-import { FEATURED_SEED, playstationSeedRail, seedRelated, slimCatalogGame } from "./catalog-seed.ts";
+import { FEATURED_SEED, playstationSeedRail, seedRelated, slimCatalogGame, steamIgdbRating } from "./catalog-seed.ts";
 import {
   fetchIgdbDetails,
   fetchIgdbPlaystation,
@@ -140,7 +140,7 @@ function fromSearchItem(item: SteamSearchItem): CatalogGame | null {
     headerUrl: heroUrl(item.id),
     capsuleUrl: upgradeSteamCapsule(item.tiny_image) ?? header,
     platforms: platformsFromFlags(item.platforms),
-    metacritic: null,
+    metacritic: steamIgdbRating(item.id),
   };
 }
 
@@ -161,7 +161,7 @@ function fromFeaturedItem(item: SteamFeaturedItem): CatalogGame | null {
       item.large_capsule_image ??
       header,
     platforms: platformsFromFlags(item),
-    metacritic: null,
+    metacritic: steamIgdbRating(item.id),
   };
 }
 
@@ -283,7 +283,7 @@ export function steamCardFromSearchHit(hit: SteamSearchHit): CatalogGame {
     headerUrl: heroUrl(hit.steamId),
     capsuleUrl: capsule,
     platforms: [],
-    metacritic: hit.metacritic ?? null,
+    metacritic: hit.metacritic ?? steamIgdbRating(hit.steamId),
   };
 }
 
@@ -683,7 +683,7 @@ export async function fetchSteamDetails(
   let rating: number | null = null;
   try {
     const ratings = await fetchIgdbRatings([painted]);
-    rating = ratings.get(painted.id) ?? null;
+    rating = ratings.get(painted.id) ?? steamIgdbRating(steamId);
   } catch {
     rating = null;
   }
@@ -974,7 +974,11 @@ export async function refreshFeaturedWith(
   }
   rails = rails.map((rail) => ({
     ...rail,
-    games: collapseEditions(dedupeGames(rail.games)).slice(0, 12),
+    games: collapseEditions(dedupeGames(rail.games)).slice(0, 12).map((game) =>
+      game.metacritic != null
+        ? game
+        : { ...game, metacritic: steamIgdbRating(game.steamId) },
+    ),
   }));
   rails = rails.filter((rail) => rail.games.length > 0);
   if (sources.fetchRatings) {

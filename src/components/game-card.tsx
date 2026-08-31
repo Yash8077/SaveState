@@ -24,17 +24,15 @@ export function RatingBadge({
   const label = ratingLabel(score);
   if (!label) return null;
   return (
-    <div
+    <span
       className={cn(
-        "pointer-events-none absolute right-0 bottom-0 z-10 flex items-end justify-end rounded-br-lg bg-gradient-to-tl from-black/80 via-black/45 to-transparent pt-8 pl-8 pr-1.5 pb-1.5",
+        "absolute right-0 bottom-0 z-20 inline-flex items-center gap-0.5 rounded-tl-lg bg-accent px-1.5 py-1 text-[11px] font-bold leading-none text-accent-fg",
         className,
       )}
     >
-      <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-white drop-shadow">
-        <Star className="size-3 fill-accent text-accent" />
-        {label}
-      </span>
-    </div>
+      <Star className="size-3 fill-current" />
+      {label}
+    </span>
   );
 }
 

@@ -149,39 +149,30 @@ class RatingBadge extends StatelessWidget {
     return Positioned(
       right: 0,
       bottom: 0,
-      child: DecoratedBox(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(7, 4, 8, 4),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.bottomRight,
-            end: Alignment.topLeft,
-            colors: [
-              Colors.black.withOpacity(0.78),
-              Colors.black.withOpacity(0.0),
-            ],
-          ),
+          color: cs.primary,
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18),
+            topLeft: Radius.circular(8),
             bottomRight: Radius.circular(12),
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.star_rounded, size: 14, color: cs.primary),
-              const SizedBox(width: 3),
-              Text(
-                labelFor(score),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  height: 1.1,
-                ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.star_rounded, size: 13, color: cs.onPrimary),
+            const SizedBox(width: 3),
+            Text(
+              labelFor(score),
+              style: TextStyle(
+                color: cs.onPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                height: 1.1,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

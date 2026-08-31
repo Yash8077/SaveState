@@ -12,6 +12,7 @@ import {
   steamCardFromSearchHit,
   steamReleaseKind,
 } from "./catalog.server.ts";
+import { FEATURED_SEED } from "./catalog-seed.ts";
 import { isLandscapeArt, upgradeSteamCapsule } from "./utils.ts";
 import type { CatalogGame, FeaturedRail } from "./types.ts";
 
@@ -406,5 +407,10 @@ describe("Steam search ranking", () => {
       upgradeSteamCapsule("https://cdn.example/capsule_231x87.jpg"),
       "https://cdn.example/capsule_231x87_2x.jpg",
     );
+  });
+
+  it("puts IGDB-style scores on popular seed cards for the website badge", () => {
+    const elden = FEATURED_SEED[0]?.games.find((g) => g.id === "steam_1245620");
+    assert.equal(elden?.metacritic, 87);
   });
 });
