@@ -205,51 +205,6 @@ html[data-accent="rose"] {
   }
 }
 
-html.grain body::before {
-  content: "";
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  opacity: var(--grain-opacity, 0.08);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
-}
-
-html[data-grain="low"] {
-  --grain-opacity: 0.04;
-}
-
-html[data-grain="medium"] {
-  --grain-opacity: 0.08;
-}
-
-html[data-grain="high"] {
-  --grain-opacity: 0.15;
-}
-
-html.bloom .hero-bloom {
-  position: relative;
-}
-
-html.bloom .hero-bloom::after {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  background:
-    radial-gradient(
-      120% 70% at 50% 110%,
-      color-mix(in srgb, var(--color-accent) 55%, transparent),
-      transparent 68%
-    ),
-    linear-gradient(
-      to top,
-      color-mix(in srgb, var(--color-accent) 38%, transparent),
-      transparent 58%
-    );
-}
-
 .hero-track {
   display: flex;
   gap: 0.75rem;

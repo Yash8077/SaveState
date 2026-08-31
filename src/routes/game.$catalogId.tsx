@@ -169,7 +169,7 @@ function GamePage() {
 
   return (
     <article className="page-in -mx-3 -mt-2 sm:-mx-5">
-      <div className="relative h-44 overflow-hidden bg-elevated hero-bloom min-[600px]:h-56 expanded:h-64 short:h-28">
+      <div className="relative h-44 overflow-hidden bg-elevated min-[600px]:h-56 expanded:h-64 short:h-28">
         {banner ? (
           <img
             src={banner}

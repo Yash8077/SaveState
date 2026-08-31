@@ -26,7 +26,7 @@ class SettingsScreen extends StatelessWidget {
             context,
             icon: Icons.palette_outlined,
             title: 'Appearance',
-            hint: 'Theme, accent, bloom, grain',
+            hint: 'Theme, accent, Material You',
             page: const _AppearancePage(),
           ),
           _tile(
@@ -196,44 +196,6 @@ class _AppearancePage extends StatelessWidget {
               );
             }),
           ),
-          const SizedBox(height: 12),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            secondary: Icon(Icons.blur_on, color: cs.primary),
-            title: const Text('Bloom'),
-            subtitle: const Text('Accent glow on details banners'),
-            value: theme.bloom,
-            onChanged: theme.setBloom,
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            secondary: Icon(Icons.grain, color: cs.primary),
-            title: const Text('Grain texture'),
-            subtitle: const Text('Subtle film grain over the interface'),
-            value: theme.grain,
-            onChanged: theme.setGrain,
-          ),
-          if (theme.grain) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Grain intensity',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 0, label: Text('Low')),
-                ButtonSegment(value: 1, label: Text('Medium')),
-                ButtonSegment(value: 2, label: Text('High')),
-              ],
-              selected: {theme.grainIntensity},
-              onSelectionChanged: (next) =>
-                  theme.setGrainIntensity(next.first),
-            ),
-          ],
           const SizedBox(height: 18),
           ListTile(
             contentPadding: EdgeInsets.zero,

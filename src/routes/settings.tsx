@@ -10,7 +10,6 @@ import {
 import { toast } from "sonner";
 import {
   ACCENTS,
-  type GrainIntensity,
   type ThemeMode,
 } from "@/lib/appearance";
 import { HomeLayoutEditor } from "@/components/home-layout-editor";
@@ -40,12 +39,6 @@ const MODES: { id: ThemeMode; label: string; hint: string }[] = [
   { id: "system", label: "System", hint: "Follow device" },
 ];
 
-const GRAIN: { id: GrainIntensity; label: string }[] = [
-  { id: "low", label: "Low" },
-  { id: "medium", label: "Medium" },
-  { id: "high", label: "High" },
-];
-
 type Page = "home" | "appearance" | "order" | "backup";
 
 const PAGES: {
@@ -57,7 +50,7 @@ const PAGES: {
   {
     id: "appearance",
     label: "Appearance",
-    hint: "Theme, accent, bloom, grain",
+    hint: "Theme, accent, Material You",
     icon: Palette,
   },
   { id: "order", label: "Order", hint: "Homepage sections", icon: LayoutGrid },
@@ -237,58 +230,6 @@ function AppearancePane() {
             );
           })}
         </div>
-      </section>
-
-      <section className="rounded-xl bg-elevated p-4 sm:p-5">
-        <label className="flex min-h-12 items-center justify-between gap-3">
-          <span>
-            <span className="block text-sm font-medium">Bloom</span>
-            <span className="text-xs text-faint">Accent glow on details banners</span>
-          </span>
-          <input
-            type="checkbox"
-            checked={appearance.bloom}
-            onChange={(e) => setAppearance({ ...appearance, bloom: e.target.checked })}
-            className="size-5 accent-[var(--color-accent)]"
-          />
-        </label>
-        <label className="flex min-h-12 items-center justify-between gap-3">
-          <span>
-            <span className="block text-sm font-medium">Grain</span>
-            <span className="text-xs text-faint">Subtle film grain over the interface</span>
-          </span>
-          <input
-            type="checkbox"
-            checked={appearance.grain}
-            onChange={(e) => setAppearance({ ...appearance, grain: e.target.checked })}
-            className="size-5 accent-[var(--color-accent)]"
-          />
-        </label>
-        {appearance.grain ? (
-          <div className="mt-2">
-            <p className="mb-2 text-xs text-faint">Grain intensity</p>
-            <div className="flex gap-2">
-              {GRAIN.map((item) => {
-                const selected = appearance.grainIntensity === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() =>
-                      setAppearance({ ...appearance, grainIntensity: item.id })
-                    }
-                    className={cn(
-                      "h-10 flex-1 rounded-full text-sm font-medium",
-                      selected ? "bg-accent text-accent-fg" : "bg-subtle text-muted",
-                    )}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
       </section>
 
       <section className="rounded-xl bg-elevated p-4 sm:p-5">

@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
-import '../../state/theme_controller.dart';
 import '../widgets/list_editor_sheet.dart';
 import '../widgets/screenshot_gallery.dart';
 import '../widgets/game_card.dart';
@@ -321,7 +320,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     );
     final banner = game.headerUrl ?? posterUrl;
     final auth = context.watch<AuthController>();
-    final bloom = context.watch<ThemeController>().bloom;
     final inLibrary = _entry != null;
     final addLabel = !auth.isSignedIn
         ? 'SIGN IN TO ADD'
@@ -373,21 +371,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                       ),
                     ),
                   ),
-                  if (bloom)
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: RadialGradient(
-                          center: const Alignment(0, 1.1),
-                          radius: 1.15,
-                          colors: [
-                            cs.primary.withOpacity(0.55),
-                            cs.primary.withOpacity(0.18),
-                            Colors.transparent,
-                          ],
-                          stops: const [0, 0.42, 1],
-                        ),
-                      ),
-                    ),
                   Positioned(
                     left: 16,
                     right: 16,

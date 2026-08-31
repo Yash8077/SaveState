@@ -9,9 +9,6 @@ class ThemeController extends ChangeNotifier {
   static const _dynamicKey = 'dynamic_color';
   static const _accentKey = 'accent_index';
   static const _oledKey = 'oled';
-  static const _grainKey = 'grain';
-  static const _grainIntensityKey = 'grain_intensity';
-  static const _bloomKey = 'bloom';
 
   static const accents = <Color>[
     Color(0xFF4FD8C4),
@@ -32,9 +29,6 @@ class ThemeController extends ChangeNotifier {
   AppThemeMode mode = AppThemeMode.dark;
   bool useDynamicColor = true;
   bool oled = false;
-  bool grain = false;
-  int grainIntensity = 1;
-  bool bloom = true;
   int accentIndex = 0;
 
   Color get accent =>
@@ -58,9 +52,6 @@ class ThemeController extends ChangeNotifier {
       await prefs.setBool(_oledKey, oled);
     }
     useDynamicColor = prefs.getBool(_dynamicKey) ?? true;
-    grain = prefs.getBool(_grainKey) ?? false;
-    grainIntensity = (prefs.getInt(_grainIntensityKey) ?? 1).clamp(0, 2);
-    bloom = prefs.getBool(_bloomKey) ?? true;
     accentIndex = (prefs.getInt(_accentKey) ?? 0).clamp(0, accents.length - 1);
     notifyListeners();
   }
@@ -84,27 +75,6 @@ class ThemeController extends ChangeNotifier {
     oled = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_oledKey, value);
-    notifyListeners();
-  }
-
-  Future<void> setGrain(bool value) async {
-    grain = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_grainKey, value);
-    notifyListeners();
-  }
-
-  Future<void> setGrainIntensity(int value) async {
-    grainIntensity = value.clamp(0, 2);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_grainIntensityKey, grainIntensity);
-    notifyListeners();
-  }
-
-  Future<void> setBloom(bool value) async {
-    bloom = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_bloomKey, value);
     notifyListeners();
   }
 

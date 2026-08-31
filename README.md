@@ -41,7 +41,7 @@ Same account on the **website** and the **Flutter Android app**.
 | **PlayStation, for real** | A dedicated PS5 rail. Exclusives and popular console titles, not just PC ports. |
 | **See the full picture** | DLC, prequels, and sequels sit above the synopsis. Similar games sit after screenshots. |
 | **Look at the art** | High-res Steam library capsules on cards. Screenshot lightbox with rounded corners and next / previous. |
-| **Make it yours** | Rearrange or hide homepage sections. Dark, OLED, light, dynamic accent, bloom, and film grain. |
+| **Make it yours** | Rearrange or hide homepage sections. Dark, OLED, light, and dynamic accent. |
 
 <p align="center">
   <img src="screenshots/login.png" alt="Sign in" width="48%" />

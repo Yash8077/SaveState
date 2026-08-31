@@ -11,15 +11,10 @@ export const ACCENTS = [
 export type AccentId = (typeof ACCENTS)[number]["id"];
 export type ThemeMode = "system" | "light" | "dark";
 
-export type GrainIntensity = "low" | "medium" | "high";
-
 export type Appearance = {
   mode: ThemeMode;
   oled: boolean;
   accent: AccentId;
-  grain: boolean;
-  grainIntensity: GrainIntensity;
-  bloom: boolean;
   dynamic: boolean;
 };
 
@@ -29,9 +24,6 @@ export const DEFAULT_APPEARANCE: Appearance = {
   mode: "dark",
   oled: false,
   accent: "teal",
-  grain: false,
-  grainIntensity: "medium",
-  bloom: true,
   dynamic: false,
 };
 
@@ -43,10 +35,6 @@ function isMode(value: unknown): value is ThemeMode {
   return value === "system" || value === "light" || value === "dark";
 }
 
-function isGrain(value: unknown): value is GrainIntensity {
-  return value === "low" || value === "medium" || value === "high";
-}
-
 export function parseAppearance(raw: unknown): Appearance {
   if (!raw || typeof raw !== "object") return DEFAULT_APPEARANCE;
   const parsed = raw as Partial<Appearance>;
@@ -54,11 +42,6 @@ export function parseAppearance(raw: unknown): Appearance {
     mode: isMode(parsed.mode) ? parsed.mode : "dark",
     oled: Boolean(parsed.oled),
     accent: isAccent(parsed.accent) ? parsed.accent : "teal",
-    grain: Boolean(parsed.grain),
-    grainIntensity: isGrain(parsed.grainIntensity)
-      ? parsed.grainIntensity
-      : "medium",
-    bloom: parsed.bloom !== false,
     dynamic: Boolean(parsed.dynamic),
   };
 }
@@ -100,9 +83,8 @@ export function applyAppearance(
   const dark = isDarkAppearance(next, systemDark);
   root.classList.toggle("light", !dark);
   root.classList.toggle("oled", dark && next.oled);
-  root.classList.toggle("grain", next.grain);
-  root.classList.toggle("bloom", next.bloom);
-  root.dataset.grain = next.grainIntensity;
+  root.classList.remove("grain", "bloom");
+  delete root.dataset.grain;
   root.style.colorScheme = dark ? "dark" : "light";
 
   if (next.dynamic && dynamicHex) {

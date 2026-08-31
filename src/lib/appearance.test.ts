@@ -13,16 +13,11 @@ describe("parseAppearance", () => {
       mode: "light",
       oled: true,
       accent: "rose",
-      grain: true,
-      grainIntensity: "high",
-      bloom: false,
       dynamic: true,
     });
     assert.equal(parsed.mode, "light");
     assert.equal(parsed.oled, true);
     assert.equal(parsed.accent, "rose");
-    assert.equal(parsed.grainIntensity, "high");
-    assert.equal(parsed.bloom, false);
     assert.equal(parsed.dynamic, true);
   });
 
