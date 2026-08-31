@@ -15,9 +15,9 @@ Future<void> showAccountSheet(BuildContext context) {
         backgroundColor: cs.surfaceContainerHigh,
         insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        child: const ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 400),
-          child: _AccountSheet(),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: const _AccountSheet(),
         ),
       ),
     );

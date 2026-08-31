@@ -77,6 +77,8 @@ class ApiClient {
   SharedPreferences? _prefs;
   bool _hydrated = false;
 
+  ApiClient({http.Client? client}) : _client = client ?? http.Client();
+
   List<GameEntry>? get cachedLibrary => _libraryCache;
   List<FeaturedRail>? get cachedFeatured => _featuredCache;
   FeaturedRail? cachedBecause(List<String> seeds) {
