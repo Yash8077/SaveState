@@ -5,6 +5,7 @@ import '../../models/types.dart';
 class ListEditorResult {
   final GameStatus status;
   final int? score;
+  final num? hours;
   final bool favorite;
   final bool remove;
   final String? startedAt;
@@ -13,6 +14,7 @@ class ListEditorResult {
   const ListEditorResult({
     required this.status,
     this.score,
+    this.hours,
     this.favorite = false,
     this.remove = false,
     this.startedAt,
@@ -62,6 +64,7 @@ class ListEditorSheet extends StatefulWidget {
 class _ListEditorSheetState extends State<ListEditorSheet> {
   late GameStatus _status;
   int? _score;
+  late final TextEditingController _hours;
   late bool _favorite;
   String? _startedAt;
   String? _finishedAt;
@@ -72,14 +75,29 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
     _status =
         widget.entry?.status ?? widget.initialStatus ?? GameStatus.playing;
     _score = widget.entry?.score;
+    _hours = TextEditingController(
+      text: widget.entry?.hours?.toString() ?? '',
+    );
     _favorite = widget.entry?.favorite ?? widget.favoriteHint;
     _startedAt = _ymd(widget.entry?.startedAt);
     _finishedAt = _ymd(widget.entry?.finishedAt);
   }
 
+  @override
+  void dispose() {
+    _hours.dispose();
+    super.dispose();
+  }
+
   String? _ymd(String? raw) {
     if (raw == null || raw.isEmpty) return null;
     return raw.length >= 10 ? raw.substring(0, 10) : raw;
+  }
+
+  num? _parseHours(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) return null;
+    return num.tryParse(text);
   }
 
   Future<void> _pick(bool start) async {
@@ -202,6 +220,17 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
               }),
             ),
             const SizedBox(height: 18),
+            TextField(
+              controller: _hours,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Hours played',
+                hintText: '0',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 18),
             _dateTile(
               cs,
               label: 'Start date',
@@ -244,6 +273,7 @@ class _ListEditorSheetState extends State<ListEditorSheet> {
                     ListEditorResult(
                       status: _status,
                       score: _score,
+                      hours: _parseHours(_hours.text),
                       favorite: _favorite,
                       startedAt: _startedAt,
                       finishedAt: _finishedAt,

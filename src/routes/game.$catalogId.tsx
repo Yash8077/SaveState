@@ -137,6 +137,7 @@ function GamePage() {
         id: entry.id,
         status: value.status,
         score: value.score,
+        hours: value.hours,
         favorite: value.favorite,
         startedAt: value.startedAt,
         finishedAt: value.finishedAt,
@@ -147,6 +148,7 @@ function GamePage() {
         status: value.status,
         snapshot: snapshot(),
         score: value.score,
+        hours: value.hours,
         favorite: value.favorite,
         startedAt: value.startedAt,
         finishedAt: value.finishedAt,
@@ -377,6 +379,7 @@ function GamePage() {
               ? {
                   status: entry.status,
                   score: entry.score,
+                  hours: entry.hours,
                   favorite: entry.favorite,
                   startedAt: entry.startedAt,
                   finishedAt: entry.finishedAt,

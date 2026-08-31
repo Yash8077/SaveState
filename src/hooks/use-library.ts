@@ -63,6 +63,7 @@ export function useLibraryMutations() {
       status?: Status;
       snapshot: LibrarySnapshot;
       score?: number | null;
+      hours?: number | null;
       favorite?: boolean;
       startedAt?: string | null;
       finishedAt?: string | null;

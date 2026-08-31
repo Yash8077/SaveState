@@ -197,6 +197,7 @@ class ApiClient {
     CatalogGame game, {
     String status = 'playing',
     int? score,
+    num? hours,
     bool favorite = false,
     String? startedAt,
     String? finishedAt,
@@ -210,6 +211,7 @@ class ApiClient {
         'catalogId': game.id,
         'status': status,
         'score': score,
+        'hours': hours,
         'favorite': favorite,
         'startedAt': startedAt,
         'finishedAt': finishedAt,
@@ -230,11 +232,13 @@ class ApiClient {
     );
     var entry = GameEntry.fromJson(decoded as Map<String, dynamic>);
     if (score != null ||
+        hours != null ||
         favorite ||
         startedAt != null ||
         finishedAt != null) {
       entry = await updateEntry(entry.id, {
         if (score != null) 'score': score,
+        if (hours != null) 'hours': hours,
         'favorite': favorite,
         if (startedAt != null) 'startedAt': startedAt,
         if (finishedAt != null) 'finishedAt': finishedAt,

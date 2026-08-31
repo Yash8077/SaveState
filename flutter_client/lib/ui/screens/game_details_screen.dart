@@ -153,6 +153,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         final updated = await api.updateEntry(_entry!.id, {
           'status': result.status.value,
           'score': result.score,
+          'hours': result.hours,
           'favorite': result.favorite,
           'startedAt': result.startedAt,
           'finishedAt': result.finishedAt,
@@ -166,6 +167,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           game,
           status: result.status.value,
           score: result.score,
+          hours: result.hours,
           favorite: result.favorite,
           startedAt: result.startedAt,
           finishedAt: result.finishedAt,
