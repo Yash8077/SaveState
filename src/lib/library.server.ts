@@ -4,6 +4,7 @@ import type {
   AddToLibraryInput,
   UpdateEntryInput,
 } from "./library-schema.ts";
+import type { BackupEntry } from "./library-backup.ts";
 import {
   STATUSES,
   type GameEntry,
@@ -154,6 +155,70 @@ export async function listLibraryPage(
     nextCursor:
       hasMore && last ? encodeLibraryCursor(last.updated_at, last.id) : null,
   };
+}
+
+export async function listAllLibrary(
+  sql: Sql,
+  userId: string,
+): Promise<GameEntry[]> {
+  const rows = await sql.query<EntryRow>(
+    `select ${ENTRY_SELECT} from game_entries
+     where user_id = $1
+     order by updated_at desc, id desc
+     limit 500`,
+    [userId],
+  );
+  return rows.map(mapEntry);
+}
+
+export async function importLibraryRows(
+  sql: Sql,
+  userId: string,
+  entries: BackupEntry[],
+): Promise<{ added: number; updated: number }> {
+  let added = 0;
+  let updated = 0;
+  for (const entry of entries) {
+    const existing = await sql.query<{ ok: number }>(
+      `select 1 as ok from game_entries
+       where user_id = $1 and catalog_id = $2
+       limit 1`,
+      [userId, entry.catalogId],
+    );
+    await addToLibraryRow(sql, userId, {
+      catalogId: entry.catalogId,
+      status: entry.status,
+      score: entry.score,
+      hours: entry.hours,
+      favorite: entry.favorite,
+      startedAt: entry.startedAt,
+      finishedAt: entry.finishedAt,
+      snapshot: {
+        title: entry.title,
+        coverUrl: entry.coverUrl,
+        headerUrl: entry.headerUrl,
+        summary: entry.summary,
+        releaseDate: entry.releaseDate,
+        platforms: entry.platforms,
+        genres: entry.genres,
+        metacritic: entry.metacritic,
+        developers: entry.developers,
+        publishers: entry.publishers,
+        screenshots: entry.screenshots,
+      },
+    });
+    if (entry.notes != null) {
+      await sql.query(
+        `update game_entries
+         set notes = $3, updated_at = now()
+         where user_id = $1 and catalog_id = $2`,
+        [userId, entry.catalogId, entry.notes],
+      );
+    }
+    if (existing.length) updated += 1;
+    else added += 1;
+  }
+  return { added, updated };
 }
 
 export async function addToLibraryRow(

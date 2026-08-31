@@ -17,6 +17,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StatsRouteImport } from './routes/stats'
+import { Route as ApiBackupRouteImport } from './routes/api/backup'
 import { Route as ApiConfigRouteImport } from './routes/api/config'
 import { Route as ApiLibraryRouteImport } from './routes/api/library'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
@@ -69,6 +70,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const StatsRoute = StatsRouteImport.update({
   id: '/stats',
   path: '/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBackupRoute = ApiBackupRouteImport.update({
+  id: '/api/backup',
+  path: '/api/backup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiConfigRoute = ApiConfigRouteImport.update({
@@ -146,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
+  '/api/backup': typeof ApiBackupRoute
   '/api/config': typeof ApiConfigRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
   '/api/profile': typeof ApiProfileRouteWithChildren
@@ -169,6 +176,7 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
+  '/api/backup': typeof ApiBackupRoute
   '/api/config': typeof ApiConfigRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
   '/api/profile': typeof ApiProfileRouteWithChildren
@@ -193,6 +201,7 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
+  '/api/backup': typeof ApiBackupRoute
   '/api/config': typeof ApiConfigRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
   '/api/profile': typeof ApiProfileRouteWithChildren
@@ -218,6 +227,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/stats'
+    | '/api/backup'
     | '/api/config'
     | '/api/library'
     | '/api/profile'
@@ -241,6 +251,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/stats'
+    | '/api/backup'
     | '/api/config'
     | '/api/library'
     | '/api/profile'
@@ -264,6 +275,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/stats'
+    | '/api/backup'
     | '/api/config'
     | '/api/library'
     | '/api/profile'
@@ -288,6 +300,7 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
   StatsRoute: typeof StatsRoute
+  ApiBackupRoute: typeof ApiBackupRoute
   ApiConfigRoute: typeof ApiConfigRoute
   ApiLibraryRoute: typeof ApiLibraryRouteWithChildren
   ApiProfileRoute: typeof ApiProfileRouteWithChildren
@@ -357,6 +370,13 @@ declare module '@tanstack/react-router' {
       path: '/stats'
       fullPath: '/stats'
       preLoaderRoute: typeof StatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/backup': {
+      id: '/api/backup'
+      path: '/api/backup'
+      fullPath: '/api/backup'
+      preLoaderRoute: typeof ApiBackupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/config': {
@@ -486,6 +506,7 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
   StatsRoute: StatsRoute,
+  ApiBackupRoute: ApiBackupRoute,
   ApiConfigRoute: ApiConfigRoute,
   ApiLibraryRoute: ApiLibraryRouteWithChildren,
   ApiProfileRoute: ApiProfileRouteWithChildren,

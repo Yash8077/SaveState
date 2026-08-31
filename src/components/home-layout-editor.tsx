@@ -6,25 +6,31 @@ import {
 } from "@/lib/home-layout";
 import { cn } from "@/lib/utils";
 
-export function HomeLayoutEditor() {
+export function HomeLayoutEditor({ plain = false }: { plain?: boolean }) {
   const { sections, move, toggle, reset, autoplay, setAutoplay } = useHomeLayout();
 
-  return (
-    <section className="rounded-xl bg-elevated p-4 sm:p-5">
+  const body = (
+    <>
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="flex items-center gap-2 text-sm font-medium text-muted">
-            <LayoutGrid className="size-4" />
-            Home layout
-          </p>
-          <p className="mt-1 text-xs text-faint">
+        {plain ? (
+          <p className="text-sm text-muted">
             Show, hide, and reorder homepage sections. Empty lists stay hidden.
           </p>
-        </div>
+        ) : (
+          <div>
+            <p className="flex items-center gap-2 text-sm font-medium text-muted">
+              <LayoutGrid className="size-4" />
+              Home layout
+            </p>
+            <p className="mt-1 text-xs text-faint">
+              Show, hide, and reorder homepage sections. Empty lists stay hidden.
+            </p>
+          </div>
+        )}
         <button
           type="button"
           onClick={reset}
-          className="h-9 rounded-full px-3 text-sm font-medium text-accent"
+          className="h-9 shrink-0 rounded-full px-3 text-sm font-medium text-accent"
         >
           Reset
         </button>
@@ -88,6 +94,9 @@ export function HomeLayoutEditor() {
           </li>
         ))}
       </ul>
-    </section>
+    </>
   );
+
+  if (plain) return <div className="space-y-1">{body}</div>;
+  return <section className="rounded-xl bg-elevated p-4 sm:p-5">{body}</section>;
 }

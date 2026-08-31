@@ -279,6 +279,27 @@ class ApiClient {
     _invalidateLibrary();
   }
 
+  Future<Map<String, dynamic>> exportBackup() async {
+    final decoded = await _send('GET', _u('/api/backup'));
+    if (decoded is Map<String, dynamic>) return decoded;
+    throw ApiException(500, 'Invalid backup');
+  }
+
+  Future<({int added, int updated})> importBackup(Object body) async {
+    final decoded = await _send(
+      'POST',
+      _u('/api/backup'),
+      jsonBody: true,
+      body: body,
+    );
+    _invalidateLibrary();
+    if (decoded is! Map) throw ApiException(500, 'Invalid import');
+    return (
+      added: (decoded['added'] as num?)?.toInt() ?? 0,
+      updated: (decoded['updated'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   Future<bool> googleAuthEnabled() async {
     try {
       final decoded = await _send('GET', _u('/api/config'));

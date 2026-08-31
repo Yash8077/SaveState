@@ -16,7 +16,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/catalog.server.test.ts src/lib/igdb.server.test.ts src/lib/library.server.test.ts src/lib/related.test.ts src/lib/hero.test.ts src/lib/tints.test.ts src/lib/appearance.test.ts src/lib/wikidata.server.test.ts src/lib/steam-assets.server.test.ts src/lib/wikipedia.server.test.ts src/lib/home-layout.test.ts src/lib/brand.test.ts src/lib/avatars.test.ts",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/catalog.server.test.ts src/lib/igdb.server.test.ts src/lib/library.server.test.ts src/lib/library-backup.test.ts src/lib/related.test.ts src/lib/hero.test.ts src/lib/tints.test.ts src/lib/appearance.test.ts src/lib/wikidata.server.test.ts src/lib/steam-assets.server.test.ts src/lib/wikipedia.server.test.ts src/lib/home-layout.test.ts src/lib/brand.test.ts src/lib/avatars.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
