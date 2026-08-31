@@ -19,7 +19,7 @@ dependencies:
   dynamic_color: ^1.7.0
   flutter_web_auth_2: ^4.1.0
   flutter_svg: ^2.0.16
-  file_picker: ^8.1.4
+  file_picker: ^10.3.3
   share_plus: ^10.1.4
 
 dev_dependencies:
