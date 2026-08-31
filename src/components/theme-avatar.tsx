@@ -12,7 +12,7 @@ export function ThemeAvatar({
   className?: string;
 }) {
   const id = avatarIdFromSrc(src);
-  const svg = id ? AVATAR_SVG[id] : null;
+  const svg = src?.endsWith(".svg") && id ? AVATAR_SVG[id] : null;
   const initial = (name?.trim()?.[0] ?? "?").toUpperCase();
 
   if (svg) {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../services/api_client.dart';
 
-final _badge = RegExp(r'^/avatars/([a-z]+)\.svg$');
+final _badge = RegExp(r'^/avatars/([a-z0-9_]+)\.(png|svg)$');
 
 class UserAvatar extends StatelessWidget {
   final String? image;
@@ -25,16 +25,29 @@ class UserAvatar extends StatelessWidget {
     )!;
     Widget child;
     if (match != null) {
-      child = SvgPicture.asset(
-        'assets/avatars/${match.group(1)}.svg',
-        fit: BoxFit.cover,
-        theme: SvgTheme(currentColor: disc),
-        placeholderBuilder: (_) => ColoredBox(color: disc),
-      );
+      final id = match.group(1)!;
+      final ext = match.group(2)!;
+      final asset = 'assets/avatars/$id.$ext';
+      if (ext == 'png') {
+        child = Image.asset(
+          asset,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Image.network(
+            '${ApiClient.origin}/avatars/$id.$ext',
+            fit: BoxFit.cover,
+          ),
+        );
+      } else {
+        child = SvgPicture.asset(
+          asset,
+          fit: BoxFit.cover,
+          theme: SvgTheme(currentColor: disc),
+          placeholderBuilder: (_) => ColoredBox(color: disc),
+        );
+      }
     } else if (image != null && image!.isNotEmpty) {
-      final src = image!.startsWith('/')
-          ? '${ApiClient.origin}$image'
-          : image!;
+      final src =
+          image!.startsWith('/') ? '${ApiClient.origin}$image' : image!;
       if (src.endsWith('.svg')) {
         child = SvgPicture.network(
           src,

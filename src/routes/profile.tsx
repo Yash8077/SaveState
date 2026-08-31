@@ -105,6 +105,7 @@ function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     if (!profile.data) return;
@@ -268,41 +269,13 @@ function ProfilePage() {
   const account = (
     <section className="rounded-2xl bg-elevated p-5">
       <p className="text-base font-medium">Account</p>
-      <p className="mt-1 text-sm text-muted">Name, badge, and password.</p>
+      <p className="mt-1 text-sm text-muted">Name, avatar, and password.</p>
 
-      <div className="mt-4 grid grid-cols-5 gap-2">
-        {DEFAULT_AVATARS.map((avatar) => {
-          const src = defaultAvatarSrc(avatar.id);
-          const selected = image === src;
-          return (
-            <button
-              key={avatar.id}
-              type="button"
-              onClick={() => setImage(src)}
-              className={cn(
-                "overflow-hidden rounded-full ring-2 ring-offset-2 ring-offset-elevated",
-                selected ? "ring-accent" : "ring-transparent hover:ring-border",
-              )}
-              aria-label={avatar.name}
-              title={avatar.name}
-            >
-              <ThemeAvatar src={src} name={avatar.name} className="aspect-square w-full" />
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button type="button" variant="ghost" onClick={() => fileRef.current?.click()}>
-          Custom photo
+      <div className="mt-4 flex items-center gap-3">
+        <ThemeAvatar src={preview} name={name} className="size-16" />
+        <Button type="button" variant="secondary" onClick={() => setPickerOpen(true)}>
+          Change avatar
         </Button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="hidden"
-          onChange={(e) => void onPickCustom(e.target.files?.[0])}
-        />
       </div>
 
       <label className="mt-4 block text-sm text-muted">
@@ -388,6 +361,78 @@ function ProfilePage() {
           {shelves}
         </div>
       </div>
+      {pickerOpen ? (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/55 p-4"
+          onClick={() => setPickerOpen(false)}
+        >
+          <div
+            className="flex max-h-[min(36rem,90vh)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-elevated shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="avatar-picker-title"
+          >
+            <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
+              <h2 id="avatar-picker-title" className="text-lg font-medium">
+                Choose avatar
+              </h2>
+              <button
+                type="button"
+                className="text-sm text-muted hover:text-fg"
+                onClick={() => setPickerOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
+              <div className="grid grid-cols-4 gap-3 min-[500px]:grid-cols-5">
+                {DEFAULT_AVATARS.map((avatar) => {
+                  const src = defaultAvatarSrc(avatar.id);
+                  const selected = image === src;
+                  return (
+                    <button
+                      key={avatar.id}
+                      type="button"
+                      onClick={() => setImage(src)}
+                      className={cn(
+                        "overflow-hidden rounded-full ring-2 ring-offset-2 ring-offset-elevated",
+                        selected ? "ring-accent" : "ring-transparent hover:ring-border",
+                      )}
+                      aria-label={avatar.name}
+                      title={avatar.name}
+                    >
+                      <ThemeAvatar
+                        src={src}
+                        name={avatar.name}
+                        className="aspect-square w-full"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  Custom photo
+                </Button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => void onPickCustom(e.target.files?.[0])}
+                />
+                <Button type="button" onClick={() => setPickerOpen(false)}>
+                  Done
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

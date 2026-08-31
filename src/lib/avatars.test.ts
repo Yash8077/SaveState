@@ -15,7 +15,11 @@ describe("avatars", () => {
   });
 
   it("only allows built-in badges or compact image data URLs", () => {
-    assert.equal(parseAvatarValue(defaultAvatarSrc("fox")), "/avatars/fox.svg");
+    assert.equal(
+      parseAvatarValue(defaultAvatarSrc("robot_01")),
+      "/avatars/robot_01.png",
+    );
+    assert.equal(parseAvatarValue("/avatars/fox.svg"), "/avatars/fox.svg");
     assert.equal(parseAvatarValue("/avatars/nope.svg"), undefined);
     assert.equal(parseAvatarValue("https://evil.example/x.png"), undefined);
     assert.equal(
@@ -24,6 +28,6 @@ describe("avatars", () => {
     );
     assert.equal(parseAvatarValue("data:text/html;base64,aaaa"), undefined);
     assert.equal(parseAvatarValue(null), null);
-    assert.equal(DEFAULT_AVATARS.length, 10);
+    assert.equal(DEFAULT_AVATARS.length, 12);
   });
 });

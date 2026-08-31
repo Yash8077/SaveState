@@ -9,19 +9,21 @@ import '../widgets/game_rail.dart';
 import '../widgets/user_avatar.dart';
 
 const _avatars = <({String id, String name})>[
-  (id: 'pad', name: 'Pad'),
-  (id: 'cart', name: 'Cart'),
-  (id: 'dice', name: 'Dice'),
-  (id: 'sword', name: 'Blade'),
-  (id: 'potion', name: 'Flask'),
-  (id: 'ghost', name: 'Haunt'),
-  (id: 'robot', name: 'Pulse'),
-  (id: 'fox', name: 'Ember'),
-  (id: 'knight', name: 'Aegis'),
-  (id: 'slime', name: 'Bloom'),
+  (id: 'robot_01', name: 'Bolt'),
+  (id: 'robot_02', name: 'Pixel'),
+  (id: 'robot_03', name: 'Gyro'),
+  (id: 'robot_04', name: 'Hex'),
+  (id: 'robot_05', name: 'Nova'),
+  (id: 'robot_06', name: 'Circuit'),
+  (id: 'robot_07', name: 'Mag'),
+  (id: 'robot_08', name: 'Chip'),
+  (id: 'robot_09', name: 'Orbit'),
+  (id: 'robot_10', name: 'Tank'),
+  (id: 'robot_11', name: 'Pulse'),
+  (id: 'robot_12', name: 'Core'),
 ];
 
-String avatarPath(String id) => '/avatars/$id.svg';
+String avatarPath(String id) => '/avatars/$id.png';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -399,6 +401,101 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _openPicker(ColorScheme cs) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocal) {
+            return Dialog(
+              insetPadding: const EdgeInsets.all(20),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440, maxHeight: 560),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Choose avatar',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Flexible(
+                        child: GridView.builder(
+                          shrinkWrap: true,
+                          itemCount: _avatars.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                          ),
+                          itemBuilder: (context, i) {
+                            final avatar = _avatars[i];
+                            final src = avatarPath(avatar.id);
+                            final selected = _image == src;
+                            return InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: () {
+                                setState(() => _image = src);
+                                setLocal(() {});
+                              },
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: selected
+                                        ? cs.primary
+                                        : Colors.transparent,
+                                    width: 3,
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(2),
+                                  child: UserAvatar(
+                                    image: src,
+                                    name: avatar.name,
+                                    size: 72,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Done'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _account(ColorScheme cs, AuthController auth) {
     return Card(
       child: Padding(
@@ -412,45 +509,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Name, badge, and password.',
+              'Name, avatar, and password.',
               style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
             ),
             const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _avatars.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 5,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-              ),
-              itemBuilder: (context, i) {
-                final avatar = _avatars[i];
-                final src = avatarPath(avatar.id);
-                final selected = _image == src;
-                return InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () => setState(() => _image = src),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: selected ? cs.primary : Colors.transparent,
-                        width: 3,
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(2),
-                      child: UserAvatar(
-                        image: src,
-                        name: avatar.name,
-                        size: 48,
-                      ),
-                    ),
-                  ),
-                );
-              },
+            Row(
+              children: [
+                UserAvatar(image: _image, name: _name.text, size: 64),
+                const SizedBox(width: 12),
+                FilledButton.tonal(
+                  onPressed: () => _openPicker(cs),
+                  child: const Text('Change avatar'),
+                ),
+              ],
             ),
             const SizedBox(height: 14),
             TextField(
