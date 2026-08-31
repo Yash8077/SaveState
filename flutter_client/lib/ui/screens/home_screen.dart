@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../because.dart';
 import '../../models/types.dart';
 import '../../services/api_client.dart';
+import '../../state/auth_controller.dart';
 import '../../state/home_layout_controller.dart';
 import '../widgets/game_rail.dart';
-import '../widgets/hero_carousel.dart';
 import '../widgets/home_greeting.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,14 +20,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   List<FeaturedRail> _featuredRails = [];
-  List<CatalogGame> _playing = [];
-  List<CatalogGame> _backlog = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
+  List<GameEntry> _library = [];
+  FeaturedRail? _because;
 
   CatalogGame _asCard(GameEntry entry) {
     return CatalogGame(
@@ -43,34 +39,52 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final apiClient = context.read<ApiClient>();
-      final featured = apiClient.getFeaturedRails();
-      List<GameEntry> library = const [];
-      try {
-        library = await apiClient.getLibrary();
-      } on ApiException catch (e) {
-        if (e.status != 401) rethrow;
-      }
-      final rails = await featured;
+      final api = context.read<ApiClient>();
+      final layout = context.read<HomeLayoutController>();
+      final signedIn = context.read<AuthController>().isSignedIn;
+      final wantPs = layout.enabled(LayoutSurface.home, 'playstation');
+      final wantRecs = signedIn &&
+          layout.enabled(LayoutSurface.home, 'recommended');
 
-      if (mounted) {
-        setState(() {
-          _featuredRails = rails;
-          _playing = library
-              .where((e) => e.status == GameStatus.playing)
-              .map(_asCard)
-              .toList();
-          _backlog = library
-              .where((e) => e.status == GameStatus.backlog)
-              .map(_asCard)
-              .toList();
-          _isLoading = false;
-        });
-        final api = context.read<ApiClient>();
-        for (final game in _heroSlides().take(3)) {
-          api.prefetchGameDetails(game.id);
+      List<GameEntry> library = const [];
+      if (signedIn) {
+        try {
+          library = await api.getLibrary();
+        } on ApiException catch (e) {
+          if (e.status != 401) rethrow;
         }
       }
+
+      List<FeaturedRail> rails = const [];
+      if (wantPs) {
+        try {
+          rails = await api.getFeaturedRails();
+        } catch (_) {
+          rails = const [];
+        }
+      }
+
+      FeaturedRail? because;
+      if (wantRecs) {
+        final seeds = pickBecauseSeeds(library);
+        if (seeds.length >= 2) {
+          try {
+            because = await api.getBecauseRail(
+              [for (final seed in seeds) seed.catalogId],
+            );
+          } catch (_) {
+            because = null;
+          }
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _featuredRails = rails;
+        _library = library;
+        _because = because;
+        _isLoading = false;
+      });
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -82,10 +96,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -98,15 +116,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBody(ColorScheme colorScheme) {
-    final theme = Theme.of(context);
-    if (_isLoading) {
-      return const _HomeScreenSkeleton();
-    }
-
-    if (_errorMessage != null) {
-      return _buildErrorView(colorScheme);
-    }
-
+    if (_isLoading) return const _HomeScreenSkeleton();
+    if (_errorMessage != null) return _buildErrorView(colorScheme);
     return RefreshIndicator(
       onRefresh: _loadData,
       color: colorScheme.primary,
@@ -115,149 +126,178 @@ class _HomeScreenState extends State<HomeScreen> {
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
-        padding: const EdgeInsets.only(bottom: 32.0),
-        children: _layoutChildren(theme, colorScheme),
+        padding: const EdgeInsets.only(bottom: 32),
+        children: _layoutChildren(),
       ),
     );
   }
 
-  List<Widget> _layoutChildren(ThemeData theme, ColorScheme colorScheme) {
+  List<Widget> _layoutChildren() {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final layout = context.watch<HomeLayoutController>();
-    final sections = layout.mergeWith(_featuredRails.map((r) => r.id));
+    final signedIn = context.watch<AuthController>().isSignedIn;
+    final sections = layout.mergeHome();
     final railsById = {for (final rail in _featuredRails) rail.id: rail};
-    final out = <Widget>[];
-    var browseShown = false;
+    final playing = _library
+        .where((e) => e.status == GameStatus.playing)
+        .map(_asCard)
+        .toList();
+    final backlog = _library
+        .where((e) => e.status == GameStatus.backlog)
+        .map(_asCard)
+        .toList();
+    final beaten = _library.where((e) => e.status == GameStatus.beaten).length;
+    final favorites = _library.where((e) => e.favorite).length;
+    final wishlist = sortWishlist(
+      _library.where((e) => e.status == GameStatus.wishlist),
+    ).map(_asCard).toList();
+    final owned = {for (final e in _library) e.catalogId};
+    final recommended = (_because?.games ?? [])
+        .where((g) => !owned.contains(g.id))
+        .toList();
+    final out = <Widget>[const HomeGreeting()];
+    if (!signedIn) {
+      out.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Sign in to keep playing, backlog, and wishlist in sync.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              FilledButton(
+                onPressed: () => context.push('/login'),
+                child: const Text('Sign in'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     for (final section in sections) {
       if (!section.enabled) continue;
       switch (section.id) {
-        case 'hero':
-          final slides = _heroSlides();
-          if (slides.isNotEmpty) {
-            out.add(
-              KeyedSubtree(
-                key: const ValueKey('home-hero'),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const HomeGreeting(),
-                    HeroCarousel(
-                      games: slides,
-                      autoplay: layout.heroAutoplay,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-          break;
         case 'stats':
+          if (!signedIn) break;
+          out.add(
+            SizedBox(
+              height: 44,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  _chip(cs, 'Playing', playing.length),
+                  _chip(cs, 'Beaten', beaten),
+                  _chip(cs, 'Backlog', backlog.length),
+                  _chip(cs, 'Favorites', favorites),
+                ],
+              ),
+            ),
+          );
           break;
         case 'playing':
-          if (_playing.isNotEmpty) {
-            out.add(GameRailWidget(title: 'Continue playing', games: _playing));
+          if (playing.isNotEmpty) {
+            out.add(GameRailWidget(title: 'Continue playing', games: playing));
           }
           break;
         case 'backlog':
-          if (_backlog.isNotEmpty) {
-            out.add(GameRailWidget(title: 'Planning to play', games: _backlog));
-          }
-          break;
-        default:
-          if (section.id == 'top_sellers') break;
-          final rail = railsById[section.id];
-          if (rail == null || rail.games.isEmpty) break;
-          if (!browseShown) {
-            browseShown = true;
+          if (backlog.isNotEmpty) {
             out.add(
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Browse',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Popular Steam lists, plus PlayStation',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+              GameRailWidget(
+                title: 'Planning to play',
+                games: backlog.take(16).toList(),
               ),
             );
           }
-          out.add(GameRailWidget(title: rail.title, games: rail.games));
-      }
-    }
-
-    if (out.isEmpty) {
-      out.add(_buildEmptyState(colorScheme));
-    }
-    return out;
-  }
-
-  List<CatalogGame> _heroSlides() {
-    final out = <CatalogGame>[];
-    final seen = <String>{};
-    void take(CatalogGame game) {
-      if (game.id.isEmpty || seen.contains(game.id) || out.length >= 8) return;
-      if ((game.headerUrl == null || game.headerUrl!.isEmpty) &&
-          (game.coverUrl == null || game.coverUrl!.isEmpty)) {
-        return;
-      }
-      seen.add(game.id);
-      out.add(game);
-    }
-
-    for (final game in _playing) {
-      take(game);
-    }
-    final trending = _featuredRails.where((r) => r.id == 'top_sellers');
-    final rest = _featuredRails.where((r) => r.id != 'top_sellers');
-    for (final rail in [...trending, ...rest]) {
-      for (final game in rail.games) {
-        take(game);
-      }
-      if (out.length >= 8) break;
-    }
-    return out;
-  }
-
-  Widget _buildEmptyState(ColorScheme colorScheme) {
-    return Padding(
-      padding: const EdgeInsets.all(40.0),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.sports_esports_outlined,
-              size: 56.0,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
-            ),
-            const SizedBox(height: 16.0),
-            Text(
-              'No featured games available',
-              style: TextStyle(
-                fontSize: 16.0,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
+          break;
+        case 'wishlist':
+          if (wishlist.isNotEmpty) {
+            out.add(
+              GameRailWidget(
+                title: 'Wishlist',
+                games: wishlist.take(16).toList(),
               ),
-            ),
-            const SizedBox(height: 8.0),
-            Text(
-              'Pull down to refresh and check for updates.',
-              textAlign: TextAlign.center,
+            );
+          }
+          break;
+        case 'recommended':
+          if (recommended.isNotEmpty) {
+            out.add(
+              GameRailWidget(
+                title: _because?.title ?? 'Recommended',
+                games: recommended,
+              ),
+            );
+          }
+          break;
+        case 'playstation':
+          final rail = railsById['playstation'];
+          if (rail != null && rail.games.isNotEmpty) {
+            out.add(GameRailWidget(title: rail.title, games: rail.games));
+          }
+          break;
+      }
+    }
+
+    if (signedIn && _library.isEmpty) {
+      out.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+          child: Column(
+            children: [
+              Text(
+                'Library is empty',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Search Discover and add something you are playing.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => context.go('/discover'),
+                child: const Text('Discover games'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return out;
+  }
+
+  Widget _chip(ColorScheme cs, String label, int value) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text.rich(
+        TextSpan(
+          text: label,
+          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+          children: [
+            TextSpan(
+              text: ' $value',
               style: TextStyle(
-                fontSize: 13.0,
-                color: colorScheme.onSurfaceVariant,
+                color: cs.onSurface,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
               ),
             ),
           ],
@@ -269,66 +309,29 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildErrorView(ColorScheme colorScheme) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Container(
-          padding: const EdgeInsets.all(24.0),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(20.0),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withOpacity(0.3),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 40, color: colorScheme.error),
+            const SizedBox(height: 12),
+            const Text(
+              'Failed to load Home',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: colorScheme.errorContainer.withOpacity(0.4),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.cloud_off_rounded,
-                  size: 40.0,
-                  color: colorScheme.error,
-                ),
-              ),
-              const SizedBox(height: 16.0),
-              Text(
-                'Failed to load games',
-                style: TextStyle(
-                  fontSize: 18.0,
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 8.0),
-              Text(
-                _errorMessage ?? 'An unexpected error occurred while fetching featured games.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13.0,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 20.0),
-              FilledButton.icon(
-                onPressed: _loadData,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Try Again'),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 12.0,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14.0),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage ?? '',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _loadData,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Try again'),
+            ),
+          ],
         ),
       ),
     );
@@ -368,7 +371,6 @@ class _HomeScreenSkeletonState extends State<_HomeScreenSkeleton>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
     return AnimatedBuilder(
       animation: _opacityAnimation,
       builder: (context, child) {
@@ -376,22 +378,19 @@ class _HomeScreenSkeletonState extends State<_HomeScreenSkeleton>
           opacity: _opacityAnimation.value,
           child: ListView(
             physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 24.0),
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Container(
-                  height: 110.0,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(20.0),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),
-              const SizedBox(height: 16.0),
-              _buildSkeletonRail(colorScheme),
-              _buildSkeletonRail(colorScheme),
-              _buildSkeletonRail(colorScheme),
+              _rail(colorScheme),
+              _rail(colorScheme),
             ],
           ),
         );
@@ -399,68 +398,39 @@ class _HomeScreenSkeletonState extends State<_HomeScreenSkeleton>
     );
   }
 
-  Widget _buildSkeletonRail(ColorScheme colorScheme) {
+  Widget _rail(ColorScheme colorScheme) {
     return Padding(
-      padding: const EdgeInsets.only(top: 24.0),
+      padding: const EdgeInsets.only(top: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
-              width: 140.0,
-              height: 20.0,
+              width: 140,
+              height: 20,
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(6.0),
+                borderRadius: BorderRadius.circular(6),
               ),
             ),
           ),
-          const SizedBox(height: 12.0),
+          const SizedBox(height: 12),
           SizedBox(
-            height: 180.0,
+            height: 160,
             child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               scrollDirection: Axis.horizontal,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: 4,
-              separatorBuilder: (context, index) => const SizedBox(width: 12.0),
-              itemBuilder: (context, index) {
-                return SizedBox(
-                  width: 120.0,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(12.0),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8.0),
-                      Container(
-                        width: 90.0,
-                        height: 12.0,
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(4.0),
-                        ),
-                      ),
-                      const SizedBox(height: 4.0),
-                      Container(
-                        width: 60.0,
-                        height: 10.0,
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(4.0),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, __) => Container(
+                width: 110,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
         ],

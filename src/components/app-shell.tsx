@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
-import { useEffect } from "react";
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   BarChart3,
@@ -15,13 +13,11 @@ import { BrandMark } from "@/components/brand-mark";
 import { UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useMounted } from "@/hooks/use-mounted";
-import { getFeaturedRails } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/", label: "Home", icon: House },
   { to: "/discover", label: "Discover", icon: Compass },
-  { to: "/search", label: "Browse", icon: Search },
   { to: "/library", label: "Library", icon: Library },
   { to: "/stats", label: "Stats", icon: BarChart3 },
 ] as const;
@@ -29,7 +25,6 @@ const NAV = [
 const TITLES: Record<string, string> = {
   "/": "Home",
   "/discover": "Discover",
-  "/search": "Browse",
   "/library": "Library",
   "/stats": "Stats",
   "/settings": "Settings",
@@ -112,17 +107,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     select: (s) => s.location.pathname,
   });
   const router = useRouter();
-  const qc = useQueryClient();
   const isDetails = pathname.startsWith("/game/");
   const isHome = pathname === "/";
-
-  useEffect(() => {
-    void qc.prefetchQuery({
-      queryKey: ["featured"],
-      queryFn: ({ signal }) => getFeaturedRails(signal),
-      staleTime: 30 * 60_000,
-    });
-  }, [qc]);
 
   return (
     <div className="flex min-h-dvh bg-bg text-fg pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
@@ -161,9 +147,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             {pageTitle(pathname)}
           </h1>
           <div className="ml-auto flex items-center gap-1 pr-1">
-            {pathname !== "/search" ? (
+            {pathname !== "/discover" ? (
               <Link
-                to="/search"
+                to="/discover"
+                search={{ q: "", focus: true }}
                 aria-label="Search"
                 className="grid size-12 place-items-center rounded-full text-fg hover:bg-subtle"
               >

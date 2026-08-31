@@ -42,6 +42,15 @@ class ApiClient {
   final Map<String, Future<CatalogDetails?>> _detailsInflight = {};
   List<GameEntry>? _libraryCache;
   DateTime? _libraryAt;
+  List<FeaturedRail>? _featuredCache;
+  DateTime? _featuredAt;
+  Future<List<FeaturedRail>>? _featuredInflight;
+  final Map<String, ({DateTime at, FeaturedRail rail})> _becauseCache = {};
+  final Map<String, Future<FeaturedRail>> _becauseInflight = {};
+  final Map<String, ({DateTime at, List<CatalogGame> games})> _searchCache = {};
+  static const _featuredTtl = Duration(minutes: 30);
+  static const _becauseTtl = Duration(hours: 6);
+  static const _searchTtl = Duration(minutes: 10);
 
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
 
@@ -119,28 +128,93 @@ class ApiClient {
   }
 
   Future<List<CatalogGame>> searchGames(String query) async {
-    if (query.trim().isEmpty) return const [];
+    final q = query.trim();
+    if (q.length < 2) return const [];
+    final key = q.toLowerCase();
+    final cached = _searchCache[key];
+    if (cached != null && DateTime.now().difference(cached.at) < _searchTtl) {
+      return cached.games;
+    }
     final decoded = await _send(
       'GET',
       _u('/api/catalog/search', {
-        'q': query.trim(),
+        'q': q,
       }),
     );
     if (decoded is! List) return const [];
-    return decoded
+    final games = decoded
         .map((e) => CatalogGame.fromJson(e as Map<String, dynamic>))
         .toList();
+    _searchCache[key] = (at: DateTime.now(), games: games);
+    if (_searchCache.length > 40) {
+      _searchCache.remove(_searchCache.keys.first);
+    }
+    return games;
   }
 
-  Future<List<FeaturedRail>> getFeaturedRails() async {
-    final decoded = await _send(
-      'GET',
-      _u('/api/catalog/featured', {'rel': '14'}),
-    );
-    if (decoded is! List) return const [];
-    return decoded
-        .map((e) => FeaturedRail.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<List<FeaturedRail>> getFeaturedRails({bool force = false}) async {
+    if (!force &&
+        _featuredCache != null &&
+        _featuredAt != null &&
+        DateTime.now().difference(_featuredAt!) < _featuredTtl) {
+      return _featuredCache!;
+    }
+    final pending = _featuredInflight;
+    if (pending != null) return pending;
+    final future = () async {
+      try {
+        final decoded = await _send(
+          'GET',
+          _u('/api/catalog/featured', {'rel': '19'}),
+        );
+        if (decoded is! List) return const <FeaturedRail>[];
+        final rails = decoded
+            .map((e) => FeaturedRail.fromJson(e as Map<String, dynamic>))
+            .toList();
+        _featuredCache = rails;
+        _featuredAt = DateTime.now();
+        return rails;
+      } finally {
+        _featuredInflight = null;
+      }
+    }();
+    _featuredInflight = future;
+    return future;
+  }
+
+  Future<FeaturedRail> getBecauseRail(List<String> seeds) async {
+    final ids = seeds.where((id) => id.isNotEmpty).take(8).toList();
+    if (ids.length < 2) {
+      return const FeaturedRail(id: 'recommended', title: 'Recommended');
+    }
+    final key = ids.join(',');
+    final cached = _becauseCache[key];
+    if (cached != null && DateTime.now().difference(cached.at) < _becauseTtl) {
+      return cached.rail;
+    }
+    final pending = _becauseInflight[key];
+    if (pending != null) return pending;
+    final future = () async {
+      try {
+        final decoded = await _send(
+          'GET',
+          _u('/api/catalog/because', {'seeds': key}),
+        );
+        if (decoded is Map<String, dynamic>) {
+          final rail = FeaturedRail.fromJson(decoded);
+          _becauseCache[key] = (at: DateTime.now(), rail: rail);
+          if (_becauseCache.length > 20) {
+            _becauseCache.remove(_becauseCache.keys.first);
+          }
+          return rail;
+        }
+        return const FeaturedRail(id: 'recommended', title: 'Recommended');
+      } finally {
+        _becauseInflight.remove(key);
+      }
+    }();
+    _becauseInflight[key] = future;
+    return future;
   }
 
   Future<CatalogDetails?> getGameDetails(String catalogId) async {

@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/catalog/search")({
           "@/lib/catalog.server"
         );
         const games = await searchCatalog(q);
-        return catalogJson(games, 120);
+        return catalogJson(games, 600);
       },
     },
   },

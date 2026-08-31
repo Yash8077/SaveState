@@ -24,6 +24,7 @@ import { Route as ApiProfileRouteImport } from './routes/api/profile'
 import { Route as GameCatalogIdRouteImport } from './routes/game.$catalogId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiCatalogArtRouteImport } from './routes/api/catalog.art'
+import { Route as ApiCatalogBecauseRouteImport } from './routes/api/catalog.because'
 import { Route as ApiCatalogFeaturedRouteImport } from './routes/api/catalog.featured'
 import { Route as ApiCatalogGameRouteImport } from './routes/api/catalog.game'
 import { Route as ApiCatalogSearchRouteImport } from './routes/api/catalog.search'
@@ -107,6 +108,11 @@ const ApiCatalogArtRoute = ApiCatalogArtRouteImport.update({
   path: '/api/catalog/art',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCatalogBecauseRoute = ApiCatalogBecauseRouteImport.update({
+  id: '/api/catalog/because',
+  path: '/api/catalog/because',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCatalogFeaturedRoute = ApiCatalogFeaturedRouteImport.update({
   id: '/api/catalog/featured',
   path: '/api/catalog/featured',
@@ -159,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/game/$catalogId': typeof GameCatalogIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/catalog/art': typeof ApiCatalogArtRoute
+  '/api/catalog/because': typeof ApiCatalogBecauseRoute
   '/api/catalog/featured': typeof ApiCatalogFeaturedRoute
   '/api/catalog/game': typeof ApiCatalogGameRoute
   '/api/catalog/search': typeof ApiCatalogSearchRoute
@@ -183,6 +190,7 @@ export interface FileRoutesByTo {
   '/game/$catalogId': typeof GameCatalogIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/catalog/art': typeof ApiCatalogArtRoute
+  '/api/catalog/because': typeof ApiCatalogBecauseRoute
   '/api/catalog/featured': typeof ApiCatalogFeaturedRoute
   '/api/catalog/game': typeof ApiCatalogGameRoute
   '/api/catalog/search': typeof ApiCatalogSearchRoute
@@ -208,6 +216,7 @@ export interface FileRoutesById {
   '/game/$catalogId': typeof GameCatalogIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/catalog/art': typeof ApiCatalogArtRoute
+  '/api/catalog/because': typeof ApiCatalogBecauseRoute
   '/api/catalog/featured': typeof ApiCatalogFeaturedRoute
   '/api/catalog/game': typeof ApiCatalogGameRoute
   '/api/catalog/search': typeof ApiCatalogSearchRoute
@@ -234,6 +243,7 @@ export interface FileRouteTypes {
     | '/game/$catalogId'
     | '/api/auth/$'
     | '/api/catalog/art'
+    | '/api/catalog/because'
     | '/api/catalog/featured'
     | '/api/catalog/game'
     | '/api/catalog/search'
@@ -258,6 +268,7 @@ export interface FileRouteTypes {
     | '/game/$catalogId'
     | '/api/auth/$'
     | '/api/catalog/art'
+    | '/api/catalog/because'
     | '/api/catalog/featured'
     | '/api/catalog/game'
     | '/api/catalog/search'
@@ -282,6 +293,7 @@ export interface FileRouteTypes {
     | '/game/$catalogId'
     | '/api/auth/$'
     | '/api/catalog/art'
+    | '/api/catalog/because'
     | '/api/catalog/featured'
     | '/api/catalog/game'
     | '/api/catalog/search'
@@ -307,6 +319,7 @@ export interface RootRouteChildren {
   GameCatalogIdRoute: typeof GameCatalogIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCatalogArtRoute: typeof ApiCatalogArtRoute
+  ApiCatalogBecauseRoute: typeof ApiCatalogBecauseRoute
   ApiCatalogFeaturedRoute: typeof ApiCatalogFeaturedRoute
   ApiCatalogGameRoute: typeof ApiCatalogGameRoute
   ApiCatalogSearchRoute: typeof ApiCatalogSearchRoute
@@ -421,6 +434,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCatalogArtRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/catalog/because': {
+      id: '/api/catalog/because'
+      path: '/api/catalog/because'
+      fullPath: '/api/catalog/because'
+      preLoaderRoute: typeof ApiCatalogBecauseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/catalog/featured': {
       id: '/api/catalog/featured'
       path: '/api/catalog/featured'
@@ -513,6 +533,7 @@ const rootRouteChildren: RootRouteChildren = {
   GameCatalogIdRoute: GameCatalogIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCatalogArtRoute: ApiCatalogArtRoute,
+  ApiCatalogBecauseRoute: ApiCatalogBecauseRoute,
   ApiCatalogFeaturedRoute: ApiCatalogFeaturedRoute,
   ApiCatalogGameRoute: ApiCatalogGameRoute,
   ApiCatalogSearchRoute: ApiCatalogSearchRoute,

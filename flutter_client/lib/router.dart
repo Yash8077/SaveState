@@ -2,7 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 
 import 'ui/screens/home_screen.dart';
-import 'ui/screens/search_screen.dart';
+import 'ui/screens/discover_screen.dart';
 import 'ui/screens/library_screen.dart';
 import 'ui/screens/stats_screen.dart';
 import 'ui/screens/login_screen.dart';
@@ -38,11 +38,22 @@ final router = GoRouter(
               _tabPage(state, const HomeScreen()),
         ),
         GoRoute(
-          path: '/search',
+          path: '/discover',
           pageBuilder: (context, state) => _tabPage(
             state,
-            SearchScreen(q: state.uri.queryParameters['q']),
+            DiscoverScreen(
+              q: state.uri.queryParameters['q'],
+              focus: state.uri.queryParameters['focus'] == '1',
+            ),
           ),
+        ),
+        GoRoute(
+          path: '/search',
+          redirect: (context, state) {
+            final q = state.uri.queryParameters['q'];
+            if (q != null && q.isNotEmpty) return '/discover?q=$q';
+            return '/discover';
+          },
         ),
         GoRoute(
           path: '/library',

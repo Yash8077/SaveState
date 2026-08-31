@@ -54,18 +54,18 @@ describe("heroSlides", () => {
     );
   });
 
-  it("fills from Trending before other rails so the carousel stays current", () => {
+  it("fills from Popular before other rails so the carousel stays current", () => {
     const slides = heroSlides(
       [],
       [
-        { id: "popular", title: "Popular", games: [game("old", "Old")] },
-        { id: "top_sellers", title: "Trending", games: [game("hot", "Hot")] },
+        { id: "new_releases", title: "New", games: [game("new", "New")] },
+        { id: "popular", title: "Popular", games: [game("hot", "Hot")] },
       ],
       2,
     );
     assert.deepEqual(
       slides.map((g) => g.id),
-      ["hot", "old"],
+      ["hot", "new"],
     );
   });
 });

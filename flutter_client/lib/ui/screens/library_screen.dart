@@ -23,6 +23,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   String _errorMessage = '';
   GameStatus? _selectedStatus; // null means 'All'
   _LibrarySort _sort = _LibrarySort.nameAsc;
+  String _titleQuery = '';
 
   @override
   void initState() {
@@ -107,9 +108,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   List<GameEntry> get _filteredEntries {
-    final list = _selectedStatus == null
-        ? List<GameEntry>.from(_entries)
-        : _entries.where((entry) => entry.status == _selectedStatus).toList();
+    final needle = _titleQuery.trim().toLowerCase();
+    final list = _entries.where((entry) {
+      if (_selectedStatus != null && entry.status != _selectedStatus) {
+        return false;
+      }
+      if (needle.isNotEmpty && !entry.title.toLowerCase().contains(needle)) {
+        return false;
+      }
+      return true;
+    }).toList();
     list.sort((a, b) {
       switch (_sort) {
         case _LibrarySort.nameAsc:
@@ -365,7 +373,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Search for games to add them.',
+                        'Search Discover to add them.',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
@@ -387,6 +395,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
       onRefresh: _fetchLibrary,
       child: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: TextField(
+              onChanged: (value) => setState(() => _titleQuery = value),
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Search your library',
+                prefixIcon: const Icon(Icons.search_rounded),
+                filled: true,
+                fillColor: colorScheme.surfaceContainerHigh,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(28),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+            ),
+          ),
           _buildFilterChips(colorScheme),
           Expanded(
             child: filtered.isEmpty
@@ -478,6 +504,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final statusName = _selectedStatus != null
         ? _getStatusLabel(_selectedStatus!)
         : 'selected';
+    final searching = _titleQuery.trim().isNotEmpty;
 
     return Center(
       child: Padding(
@@ -492,21 +519,23 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                Icons.filter_list_off_rounded,
+                searching ? Icons.search_off_rounded : Icons.filter_list_off_rounded,
                 size: 40,
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              'No $statusName games',
+              searching ? 'No matching titles' : 'No $statusName games',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              'You have no games marked as $statusName.',
+              searching
+                  ? 'Nothing in your library matches “${_titleQuery.trim()}”.'
+                  : 'You have no games marked as $statusName.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),

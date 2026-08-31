@@ -101,7 +101,7 @@ function GamePage() {
           It may have been removed, or the catalog lookup failed.
         </p>
         <Link
-          to="/search"
+          to="/discover"
           className="mt-4 inline-flex h-11 items-center rounded-full bg-accent px-4 text-sm font-medium text-accent-fg"
         >
           Back to search

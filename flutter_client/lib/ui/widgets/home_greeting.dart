@@ -51,7 +51,7 @@ class HomeGreeting extends StatelessWidget {
           ),
           IconButton.filledTonal(
             tooltip: 'Search',
-            onPressed: () => context.go('/search'),
+            onPressed: () => context.go('/discover?focus=1'),
             icon: const Icon(Icons.search_rounded),
           ),
           const SizedBox(width: 4),

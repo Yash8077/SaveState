@@ -32,9 +32,16 @@ class SettingsScreen extends StatelessWidget {
           _tile(
             context,
             icon: Icons.view_agenda_outlined,
-            title: 'Order',
-            hint: 'Homepage sections',
-            page: const _OrderPage(),
+            title: 'Order in Home',
+            hint: 'Playing, wishlist, recommended, PlayStation',
+            page: const _OrderPage(LayoutSurface.home),
+          ),
+          _tile(
+            context,
+            icon: Icons.explore_outlined,
+            title: 'Order in Discover',
+            hint: 'Carousel, Steam rails, PlayStation',
+            page: const _OrderPage(LayoutSurface.discover),
           ),
           _tile(
             context,
@@ -272,41 +279,50 @@ class _AppearancePage extends StatelessWidget {
 }
 
 class _OrderPage extends StatelessWidget {
-  const _OrderPage();
+  const _OrderPage(this.surface);
+  final LayoutSurface surface;
 
   @override
   Widget build(BuildContext context) {
     final layout = context.watch<HomeLayoutController>();
     final cs = Theme.of(context).colorScheme;
+    final sections = layout.sectionsFor(surface);
+    final home = surface == LayoutSurface.home;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Order'),
+        title: Text(home ? 'Order in Home' : 'Order in Discover'),
         actions: [
-          TextButton(onPressed: layout.reset, child: const Text('Reset')),
+          TextButton(
+            onPressed: () => layout.reset(surface),
+            child: const Text('Reset'),
+          ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 32),
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Text(
-              'Show, hide, and drag to reorder homepage sections. Empty lists stay hidden.',
+              home
+                  ? 'Show, hide, and drag to reorder Home. Empty lists stay hidden.'
+                  : 'Show, hide, and drag to reorder Discover. Empty lists stay hidden.',
             ),
           ),
-          SwitchListTile(
-            title: const Text('Auto-play carousel'),
-            subtitle: const Text('Rotate featured games on Home'),
-            value: layout.heroAutoplay,
-            onChanged: layout.setHeroAutoplay,
-          ),
+          if (!home)
+            SwitchListTile(
+              title: const Text('Auto-play carousel'),
+              subtitle: const Text('Rotate featured games on Discover'),
+              value: layout.heroAutoplay,
+              onChanged: layout.setHeroAutoplay,
+            ),
           ReorderableListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: layout.sections.length,
-            onReorder: layout.reorder,
+            itemCount: sections.length,
+            onReorder: (from, to) => layout.reorder(surface, from, to),
             itemBuilder: (context, index) {
-              final row = layout.sections[index];
+              final row = sections[index];
               return ListTile(
                 key: ValueKey(row.id),
                 leading: Icon(Icons.drag_handle, color: cs.onSurfaceVariant),
@@ -314,7 +330,7 @@ class _OrderPage extends StatelessWidget {
                 subtitle: Text(homeSectionHints[row.id] ?? 'Catalog rail'),
                 trailing: Switch(
                   value: row.enabled,
-                  onChanged: (value) => layout.toggle(row.id, value),
+                  onChanged: (value) => layout.toggle(surface, row.id, value),
                 ),
               );
             },

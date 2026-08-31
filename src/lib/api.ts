@@ -17,6 +17,10 @@ import type {
 
 export const CATALOG_GAME_REL = "rel-14";
 export const CATALOG_GAME_STALE_MS = 10 * 60_000;
+export const FEATURED_REL = "rel-19";
+export const FEATURED_STALE_MS = 30 * 60_000;
+export const BECAUSE_STALE_MS = 6 * 60 * 60_000;
+export const SEARCH_STALE_MS = 10 * 60_000;
 
 export function catalogGameQueryKey(catalogId: string) {
   return ["catalog-game", catalogId, CATALOG_GAME_REL] as const;
@@ -36,8 +40,10 @@ export function searchGames(
   q: string,
   signal?: AbortSignal,
 ): Promise<CatalogGame[]> {
+  const query = q.trim();
+  if (query.length < 2) return Promise.resolve([]);
   return catalogGet<CatalogGame[]>(
-    `/api/catalog/search?q=${encodeURIComponent(q)}`,
+    `/api/catalog/search?q=${encodeURIComponent(query)}`,
     signal,
   );
 }
@@ -56,7 +62,21 @@ export function getFeaturedRails(
   signal?: AbortSignal,
 ): Promise<FeaturedRail[]> {
   return catalogGet<FeaturedRail[]>(
-    `/api/catalog/featured?rel=14`,
+    `/api/catalog/featured?rel=19`,
+    signal,
+  );
+}
+
+export function getBecauseRail(
+  seeds: string[],
+  signal?: AbortSignal,
+): Promise<FeaturedRail> {
+  const ids = seeds.filter(Boolean).slice(0, 8);
+  if (ids.length < 2) {
+    return Promise.resolve({ id: "recommended", title: "Recommended", games: [] });
+  }
+  return catalogGet<FeaturedRail>(
+    `/api/catalog/because?seeds=${encodeURIComponent(ids.join(","))}`,
     signal,
   );
 }

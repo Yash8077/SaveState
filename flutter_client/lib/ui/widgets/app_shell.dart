@@ -9,9 +9,9 @@ const _destinations = [
     label: 'Home',
   ),
   PillDestination(
-    icon: Icons.search_rounded,
-    selectedIcon: Icons.search_rounded,
-    label: 'Search',
+    icon: Icons.explore_outlined,
+    selectedIcon: Icons.explore_rounded,
+    label: 'Discover',
   ),
   PillDestination(
     icon: Icons.library_books_outlined,
@@ -36,7 +36,9 @@ class AppShell extends StatelessWidget {
   static int _calculateSelectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
     if (location == '/') return 0;
-    if (location.startsWith('/search')) return 1;
+    if (location.startsWith('/discover') || location.startsWith('/search')) {
+      return 1;
+    }
     if (location.startsWith('/library')) return 2;
     if (location.startsWith('/stats')) return 3;
     return 0;
@@ -48,7 +50,7 @@ class AppShell extends StatelessWidget {
         context.go('/');
         break;
       case 1:
-        context.go('/search');
+        context.go('/discover');
         break;
       case 2:
         context.go('/library');

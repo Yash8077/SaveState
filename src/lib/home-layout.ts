@@ -1,8 +1,19 @@
+export type HomeSectionPref = {
+  id: string;
+  enabled: boolean;
+};
+
 export const HOME_SECTION_IDS = [
-  "hero",
   "stats",
   "playing",
   "backlog",
+  "wishlist",
+  "recommended",
+  "playstation",
+] as const;
+
+export const DISCOVER_SECTION_IDS = [
+  "hero",
   "popular",
   "new_releases",
   "coming_soon",
@@ -10,71 +21,133 @@ export const HOME_SECTION_IDS = [
   "playstation",
 ] as const;
 
-export type HomeSectionId = (typeof HOME_SECTION_IDS)[number] | string;
-
-export type HomeSectionPref = {
-  id: HomeSectionId;
-  enabled: boolean;
-};
-
 export const HOME_SECTION_META: Record<
   string,
-  { title: string; hint: string; catalog?: boolean }
+  { title: string; hint: string; catalog?: boolean; surface: "home" | "discover" }
 > = {
-  hero: { title: "Featured carousel", hint: "Featured games at the top of Home" },
-  stats: { title: "Welcome stats", hint: "Playing / beaten / backlog chips" },
-  playing: { title: "Continue playing", hint: "Games you marked as playing" },
-  backlog: { title: "Planning to play", hint: "Your backlog" },
-  popular: { title: "Popular", hint: "Loved old and new, ranked by reviews", catalog: true },
-  new_releases: { title: "New releases", hint: "Popular new Steam games", catalog: true },
-  coming_soon: { title: "Coming soon", hint: "Most wishlisted upcoming games", catalog: true },
-  specials: { title: "On sale", hint: "Steam specials", catalog: true },
-  playstation: { title: "PlayStation", hint: "PS5 exclusives and popular titles", catalog: true },
+  stats: {
+    title: "Welcome stats",
+    hint: "Playing / beaten / backlog chips",
+    surface: "home",
+  },
+  playing: {
+    title: "Continue playing",
+    hint: "Games you marked as playing",
+    surface: "home",
+  },
+  backlog: {
+    title: "Planning to play",
+    hint: "Your backlog",
+    surface: "home",
+  },
+  wishlist: {
+    title: "Wishlist",
+    hint: "Wanted games, unreleased first",
+    surface: "home",
+  },
+  recommended: {
+    title: "Recommended",
+    hint: "Because you played — from IGDB",
+    surface: "home",
+  },
+  hero: {
+    title: "Featured carousel",
+    hint: "Trending games at the top of Discover",
+    surface: "discover",
+  },
+  popular: {
+    title: "Popular",
+    hint: "Loved old and new, ranked by reviews",
+    catalog: true,
+    surface: "discover",
+  },
+  new_releases: {
+    title: "New releases",
+    hint: "Popular new Steam games",
+    catalog: true,
+    surface: "discover",
+  },
+  coming_soon: {
+    title: "Coming soon",
+    hint: "Most wishlisted upcoming games",
+    catalog: true,
+    surface: "discover",
+  },
+  specials: {
+    title: "On sale",
+    hint: "Steam specials",
+    catalog: true,
+    surface: "discover",
+  },
+  playstation: {
+    title: "PlayStation",
+    hint: "PS5 exclusives and popular titles",
+    catalog: true,
+    surface: "home",
+  },
 };
 
 export const DEFAULT_HOME_SECTIONS: HomeSectionPref[] = HOME_SECTION_IDS.map(
   (id) => ({ id, enabled: true }),
 );
+export const DEFAULT_DISCOVER_SECTIONS: HomeSectionPref[] =
+  DISCOVER_SECTION_IDS.map((id) => ({ id, enabled: true }));
 
-const KEY = "savestate-home-layout";
+const HOME_KEY = "savestate-home-layout-v2";
+const DISCOVER_KEY = "savestate-discover-layout-v1";
+const LEGACY_KEY = "savestate-home-layout";
 const AUTOPLAY_KEY = "savestate-hero-autoplay";
 
 export function isCatalogSection(id: string): boolean {
-  return Boolean(HOME_SECTION_META[id]?.catalog);
+  return Boolean(HOME_SECTION_META[id]?.catalog) || id === "playstation";
+}
+
+function normalizeId(id: string): string {
+  return id === "top_sellers" ? "popular" : id;
+}
+
+export function mergeSectionList(
+  defaults: readonly string[],
+  saved: HomeSectionPref[] | null | undefined,
+  extraIds: string[] = [],
+): HomeSectionPref[] {
+  const known = new Set<string>([
+    ...defaults,
+    ...extraIds.filter((id) => Boolean(id) && id !== "top_sellers"),
+  ]);
+  const out: HomeSectionPref[] = [];
+  const seen = new Set<string>();
+  const take = (id: string, enabled: boolean) => {
+    const next = normalizeId(id);
+    if (!next || seen.has(next) || !known.has(next)) return;
+    seen.add(next);
+    out.push({ id: next, enabled });
+  };
+  for (const row of saved ?? []) {
+    if (!row || typeof row.id !== "string") continue;
+    take(row.id, row.enabled !== false);
+  }
+  for (const id of defaults) take(id, true);
+  for (const id of extraIds) take(id, true);
+  return out;
 }
 
 export function mergeHomeLayout(
   saved: HomeSectionPref[] | null | undefined,
   extraIds: string[] = [],
 ): HomeSectionPref[] {
-  const known = new Set<string>([
-    ...HOME_SECTION_IDS,
-    ...extraIds.filter((id) => Boolean(id)),
-  ]);
-  const out: HomeSectionPref[] = [];
-  const seen = new Set<string>();
-
-  const take = (id: string, enabled: boolean) => {
-    if (!id || seen.has(id) || !known.has(id)) return;
-    seen.add(id);
-    out.push({ id, enabled });
-  };
-
-  for (const row of saved ?? []) {
-    if (!row || typeof row.id !== "string") continue;
-    const id = row.id === "top_sellers" ? "popular" : row.id;
-    take(id, row.enabled !== false);
-  }
-  for (const id of HOME_SECTION_IDS) take(id, true);
-  for (const id of extraIds) {
-    if (id === "top_sellers") continue;
-    take(id, true);
-  }
-  return out;
+  return mergeSectionList(HOME_SECTION_IDS, saved, extraIds);
 }
 
-export function parseHomeLayout(raw: unknown): HomeSectionPref[] {
-  if (!Array.isArray(raw)) return mergeHomeLayout(null);
+export function mergeDiscoverLayout(
+  saved: HomeSectionPref[] | null | undefined,
+  extraIds: string[] = [],
+): HomeSectionPref[] {
+  return mergeSectionList(DISCOVER_SECTION_IDS, saved, extraIds);
+}
+
+function asRows(raw: unknown): HomeSectionPref[] {
+  if (!Array.isArray(raw)) return [];
   const rows: HomeSectionPref[] = [];
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
@@ -85,7 +158,38 @@ export function parseHomeLayout(raw: unknown): HomeSectionPref[] {
       enabled: (item as { enabled?: unknown }).enabled !== false,
     });
   }
-  return mergeHomeLayout(rows);
+  return rows;
+}
+
+export function parseHomeLayout(raw: unknown): HomeSectionPref[] {
+  return mergeHomeLayout(asRows(raw));
+}
+
+export function parseDiscoverLayout(raw: unknown): HomeSectionPref[] {
+  return mergeDiscoverLayout(asRows(raw));
+}
+
+function enabledMap(rows: HomeSectionPref[]): Map<string, boolean> {
+  const out = new Map<string, boolean>();
+  for (const row of rows) out.set(normalizeId(row.id), row.enabled);
+  return out;
+}
+
+export function migrateLegacyLayout(raw: unknown): {
+  home: HomeSectionPref[];
+  discover: HomeSectionPref[];
+} {
+  const legacy = asRows(raw);
+  const enabled = enabledMap(legacy);
+  const home = HOME_SECTION_IDS.map((id) => ({
+    id,
+    enabled: enabled.get(id) ?? true,
+  }));
+  const discover = DISCOVER_SECTION_IDS.map((id) => ({
+    id,
+    enabled: enabled.get(id) ?? true,
+  }));
+  return { home, discover };
 }
 
 export function moveHomeSection(
@@ -126,18 +230,37 @@ export function toggleHomeSection(
   return sections.map((row) => (row.id === id ? { ...row, enabled } : row));
 }
 
-export function loadHomeLayout(): HomeSectionPref[] {
+function readJson(key: string): unknown {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return mergeHomeLayout(null);
-    return parseHomeLayout(JSON.parse(raw) as unknown);
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as unknown) : null;
   } catch {
-    return mergeHomeLayout(null);
+    return null;
   }
 }
 
+export function loadHomeLayout(): HomeSectionPref[] {
+  const v2 = readJson(HOME_KEY);
+  if (v2) return parseHomeLayout(v2);
+  const legacy = readJson(LEGACY_KEY);
+  if (legacy) return migrateLegacyLayout(legacy).home;
+  return mergeHomeLayout(null);
+}
+
+export function loadDiscoverLayout(): HomeSectionPref[] {
+  const v1 = readJson(DISCOVER_KEY);
+  if (v1) return parseDiscoverLayout(v1);
+  const legacy = readJson(LEGACY_KEY);
+  if (legacy) return migrateLegacyLayout(legacy).discover;
+  return mergeDiscoverLayout(null);
+}
+
 export function saveHomeLayout(next: HomeSectionPref[]) {
-  localStorage.setItem(KEY, JSON.stringify(next));
+  localStorage.setItem(HOME_KEY, JSON.stringify(next));
+}
+
+export function saveDiscoverLayout(next: HomeSectionPref[]) {
+  localStorage.setItem(DISCOVER_KEY, JSON.stringify(next));
 }
 
 export function homeSectionTitle(id: string): string {
@@ -165,3 +288,6 @@ export function saveHeroAutoplay(on: boolean) {
     /* ignore */
   }
 }
+
+/** @deprecated old combined list — tests still call mergeHomeLayout */
+export const DEFAULT_HOME_SECTIONS_LEGACY = DEFAULT_HOME_SECTIONS;

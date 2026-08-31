@@ -13,7 +13,7 @@ export const Route = createFileRoute("/api/catalog/featured")({
           "@/lib/catalog.server"
         );
         const rails = await fetchFeaturedRails();
-        return catalogJson(rails, 300);
+        return catalogJson(rails, 1800);
       },
     },
   },

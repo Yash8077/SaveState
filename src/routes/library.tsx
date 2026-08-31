@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Search } from "lucide-react";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { GameCard } from "@/components/game-card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLibrary } from "@/hooks/use-library";
 import { STATUSES, STATUS_LABEL, type GameEntry, type Status } from "@/lib/types";
@@ -48,6 +50,7 @@ function LibraryPage() {
   const { status = "all" } = Route.useSearch();
   const library = useLibrary();
   const [sort, setSort] = useState<LibrarySort>("name-asc");
+  const [titleQuery, setTitleQuery] = useState("");
 
   if (isPending) {
     return <LibrarySkeleton />;
@@ -56,13 +59,18 @@ function LibraryPage() {
 
   const entries = library.data ?? [];
   const filtered = useMemo(() => {
+    const needle = titleQuery.trim().toLowerCase();
     const next = entries.filter((e) => {
-      if (status === "favorites") return e.favorite;
-      if (status === "all" || !status) return true;
-      return e.status === status;
+      if (status === "favorites") {
+        if (!e.favorite) return false;
+      } else if (status && status !== "all") {
+        if (e.status !== status) return false;
+      }
+      if (needle && !e.title.toLowerCase().includes(needle)) return false;
+      return true;
     });
     return sortEntries(next, sort);
-  }, [entries, status, sort]);
+  }, [entries, status, sort, titleQuery]);
 
   const filters: { id: LibrarySearch["status"]; label: string }[] = [
     { id: "all", label: "All" },
@@ -72,6 +80,18 @@ function LibraryPage() {
 
   return (
     <div className="space-y-4">
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-faint" />
+        <Input
+          value={titleQuery}
+          onChange={(e) => setTitleQuery(e.target.value)}
+          placeholder="Search your library"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          className="h-12 rounded-full border-0 bg-subtle pr-4 pl-11"
+        />
+      </div>
       <div className="chip-scroll">
         {filters.map((f) => (
           <Link
@@ -114,16 +134,22 @@ function LibraryPage() {
 
       {!library.isLoading && filtered.length === 0 ? (
         <div className="rounded-xl bg-elevated px-4 py-10 text-center">
-          <p className="text-lg font-medium">Nothing here yet</p>
-          <p className="mt-1 text-sm text-muted">
-            Browse the catalog or add a custom title.
+          <p className="text-lg font-medium">
+            {entries.length === 0 ? "Nothing here yet" : "No matching titles"}
           </p>
+          <p className="mt-1 text-sm text-muted">
+            {entries.length === 0
+              ? "Browse Discover or add a custom title."
+              : "Try another name or clear the search."}
+          </p>
+          {entries.length === 0 ? (
           <Link
-            to="/search"
+            to="/discover"
             className="mt-4 inline-flex h-11 items-center rounded-full bg-accent px-5 text-sm font-medium text-accent-fg"
           >
-            Browse games
+            Discover games
           </Link>
+          ) : null}
         </div>
       ) : (
         <div className="poster-grid">

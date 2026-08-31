@@ -50,7 +50,7 @@ export type IgdbGame = {
   collections?: Array<IgdbGroup | number>;
   franchise?: IgdbGroup | number;
   franchises?: Array<IgdbGroup | number>;
-  similar_games?: IgdbGame[];
+  similar_games?: Array<IgdbGame | number>;
   parent_game?: IgdbGame | number;
   version_parent?: IgdbGame | number;
   dlcs?: IgdbGame[];
@@ -769,6 +769,10 @@ async function igdb<T>(path: string, body: string): Promise<T> {
     if (res.status !== 429 && res.status < 500) throw lastError;
   }
   throw lastError ?? new Error("IGDB request failed");
+}
+
+export async function igdbQuery<T>(path: string, body: string): Promise<T> {
+  return igdb<T>(path, body);
 }
 
 export const SEARCH_FIELDS = "name, cover.image_id, game_type, category, parent_game, total_rating, aggregated_rating, rating";

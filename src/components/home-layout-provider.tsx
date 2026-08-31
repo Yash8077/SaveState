@@ -8,52 +8,73 @@ import {
   type ReactNode,
 } from "react";
 import {
+  loadDiscoverLayout,
   loadHeroAutoplay,
   loadHomeLayout,
+  mergeDiscoverLayout,
   mergeHomeLayout,
   moveHomeSection,
   reorderHomeSection,
+  saveDiscoverLayout,
   saveHeroAutoplay,
   saveHomeLayout,
   toggleHomeSection,
   type HomeSectionPref,
 } from "@/lib/home-layout";
 
+export type LayoutSurface = "home" | "discover";
+
 const HomeLayoutContext = createContext<{
-  sections: HomeSectionPref[];
+  homeSections: HomeSectionPref[];
+  discoverSections: HomeSectionPref[];
   autoplay: boolean;
-  setSections: (next: HomeSectionPref[]) => void;
+  setHomeSections: (next: HomeSectionPref[]) => void;
+  setDiscoverSections: (next: HomeSectionPref[]) => void;
   setAutoplay: (on: boolean) => void;
-  move: (id: string, dir: -1 | 1) => void;
-  toggle: (id: string, enabled: boolean) => void;
-  reorder: (from: number, to: number) => void;
-  reset: () => void;
+  move: (surface: LayoutSurface, id: string, dir: -1 | 1) => void;
+  toggle: (surface: LayoutSurface, id: string, enabled: boolean) => void;
+  reorder: (surface: LayoutSurface, from: number, to: number) => void;
+  reset: (surface: LayoutSurface) => void;
+  sections: HomeSectionPref[];
 }>({
-  sections: mergeHomeLayout(null),
+  homeSections: mergeHomeLayout(null),
+  discoverSections: mergeDiscoverLayout(null),
   autoplay: true,
-  setSections: () => {},
+  setHomeSections: () => {},
+  setDiscoverSections: () => {},
   setAutoplay: () => {},
   move: () => {},
   toggle: () => {},
   reorder: () => {},
   reset: () => {},
+  sections: mergeHomeLayout(null),
 });
 
 export function HomeLayoutProvider({ children }: { children: ReactNode }) {
-  const [sections, setState] = useState<HomeSectionPref[]>(() =>
+  const [homeSections, setHomeState] = useState<HomeSectionPref[]>(() =>
     mergeHomeLayout(null),
+  );
+  const [discoverSections, setDiscoverState] = useState<HomeSectionPref[]>(() =>
+    mergeDiscoverLayout(null),
   );
   const [autoplay, setAutoplayState] = useState(true);
 
   useEffect(() => {
-    setState(loadHomeLayout());
+    setHomeState(loadHomeLayout());
+    setDiscoverState(loadDiscoverLayout());
     setAutoplayState(loadHeroAutoplay());
   }, []);
 
-  const setSections = useCallback((next: HomeSectionPref[]) => {
+  const setHomeSections = useCallback((next: HomeSectionPref[]) => {
     const merged = mergeHomeLayout(next);
-    setState(merged);
+    setHomeState(merged);
     saveHomeLayout(merged);
+  }, []);
+
+  const setDiscoverSections = useCallback((next: HomeSectionPref[]) => {
+    const merged = mergeDiscoverLayout(next);
+    setDiscoverState(merged);
+    saveDiscoverLayout(merged);
   }, []);
 
   const setAutoplay = useCallback((on: boolean) => {
@@ -63,22 +84,50 @@ export function HomeLayoutProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      sections,
+      homeSections,
+      discoverSections,
       autoplay,
-      setSections,
+      setHomeSections,
+      setDiscoverSections,
       setAutoplay,
-      move: (id: string, dir: -1 | 1) =>
-        setSections(moveHomeSection(sections, id, dir)),
-      toggle: (id: string, enabled: boolean) =>
-        setSections(toggleHomeSection(sections, id, enabled)),
-      reorder: (from: number, to: number) =>
-        setSections(reorderHomeSection(sections, from, to)),
-      reset: () => {
-        setSections(mergeHomeLayout(null));
-        setAutoplay(true);
+      move: (surface: LayoutSurface, id: string, dir: -1 | 1) => {
+        if (surface === "home") {
+          setHomeSections(moveHomeSection(homeSections, id, dir));
+        } else {
+          setDiscoverSections(moveHomeSection(discoverSections, id, dir));
+        }
       },
+      toggle: (surface: LayoutSurface, id: string, enabled: boolean) => {
+        if (surface === "home") {
+          setHomeSections(toggleHomeSection(homeSections, id, enabled));
+        } else {
+          setDiscoverSections(toggleHomeSection(discoverSections, id, enabled));
+        }
+      },
+      reorder: (surface: LayoutSurface, from: number, to: number) => {
+        if (surface === "home") {
+          setHomeSections(reorderHomeSection(homeSections, from, to));
+        } else {
+          setDiscoverSections(reorderHomeSection(discoverSections, from, to));
+        }
+      },
+      reset: (surface: LayoutSurface) => {
+        if (surface === "home") setHomeSections(mergeHomeLayout(null));
+        else {
+          setDiscoverSections(mergeDiscoverLayout(null));
+          setAutoplay(true);
+        }
+      },
+      sections: homeSections,
     }),
-    [sections, autoplay, setSections, setAutoplay],
+    [
+      homeSections,
+      discoverSections,
+      autoplay,
+      setHomeSections,
+      setDiscoverSections,
+      setAutoplay,
+    ],
   );
 
   return (

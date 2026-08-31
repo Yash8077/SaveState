@@ -1,8 +1,7 @@
 import type { CatalogGame } from "./types.ts";
 import { slimCatalogGame } from "./catalog-seed.ts";
-import { toGame, type IgdbGame } from "./igdb.server.ts";
+import { igdbQuery, toGame, type IgdbGame } from "./igdb.server.ts";
 
-const FETCH_MS = 4000;
 const IGDB_STEAM_CATEGORY = 1;
 
 type ExternalGame = {
@@ -24,35 +23,7 @@ function steamGameId(row: ExternalGame | undefined): number | null {
 }
 
 async function igdbLookup<T>(path: string, body: string): Promise<T> {
-  const credsId = process.env.TWITCH_CLIENT_ID || process.env.IGDB_CLIENT_ID || "";
-  const credsSecret =
-    process.env.TWITCH_CLIENT_SECRET || process.env.IGDB_CLIENT_SECRET || "";
-  if (!credsId || !credsSecret) throw new Error("IGDB is not configured");
-  const tokenRes = await fetch("https://id.twitch.tv/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: credsId,
-      client_secret: credsSecret,
-      grant_type: "client_credentials",
-    }),
-    signal: AbortSignal.timeout(FETCH_MS),
-  });
-  if (!tokenRes.ok) throw new Error(`IGDB auth failed (${tokenRes.status})`);
-  const token = (await tokenRes.json()) as { access_token?: string };
-  if (!token.access_token) throw new Error("IGDB auth failed");
-  const res = await fetch(`https://api.igdb.com/v4/${path}`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Client-ID": credsId,
-      Authorization: `Bearer ${token.access_token}`,
-    },
-    body,
-    signal: AbortSignal.timeout(FETCH_MS),
-  });
-  if (!res.ok) throw new Error(`IGDB request failed (${res.status})`);
-  return (await res.json()) as T;
+  return igdbQuery<T>(path, body);
 }
 
 export async function lookupIgdbIdBySteamId(
@@ -74,6 +45,35 @@ export async function lookupIgdbIdBySteamId(
     return null;
   }
   return null;
+}
+
+export async function mapSteamIdsToIgdb(
+  steamIds: number[],
+): Promise<Map<number, number>> {
+  const ids = [
+    ...new Set(
+      steamIds.filter((id) => Number.isFinite(id) && id > 0).map(Math.trunc),
+    ),
+  ].slice(0, 8);
+  const out = new Map<number, number>();
+  if (!ids.length) return out;
+  try {
+    const uids = ids.map((id) => quote(String(id))).join(",");
+    const rows = await igdbLookup<ExternalGame[]>(
+      "external_games",
+      `fields game, uid;
+       where uid = (${uids}) & category = ${IGDB_STEAM_CATEGORY};
+       limit 20;`,
+    );
+    for (const row of rows ?? []) {
+      const steam = Number(row.uid);
+      const igdbId = steamGameId(row);
+      if (Number.isFinite(steam) && igdbId) out.set(steam, igdbId);
+    }
+  } catch {
+    return out;
+  }
+  return out;
 }
 
 export async function lookupIgdbBySteamIds(

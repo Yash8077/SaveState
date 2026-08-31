@@ -39,7 +39,7 @@ const MODES: { id: ThemeMode; label: string; hint: string }[] = [
   { id: "system", label: "System", hint: "Follow device" },
 ];
 
-type Page = "home" | "appearance" | "order" | "backup";
+type Page = "home" | "appearance" | "order-home" | "order-discover" | "backup";
 
 const PAGES: {
   id: Exclude<Page, "home">;
@@ -53,7 +53,18 @@ const PAGES: {
     hint: "Theme, accent, Material You",
     icon: Palette,
   },
-  { id: "order", label: "Order", hint: "Homepage sections", icon: LayoutGrid },
+  {
+    id: "order-home",
+    label: "Order in Home",
+    hint: "Playing, wishlist, recommended, PlayStation",
+    icon: LayoutGrid,
+  },
+  {
+    id: "order-discover",
+    label: "Order in Discover",
+    hint: "Carousel, Steam rails, PlayStation",
+    icon: LayoutGrid,
+  },
   {
     id: "backup",
     label: "Backup",
@@ -112,7 +123,10 @@ function SettingsPage() {
           <p className="mt-1 text-sm text-muted">{current?.hint}</p>
           <div className="mt-5">
             {page === "appearance" ? <AppearancePane /> : null}
-            {page === "order" ? <HomeLayoutEditor plain /> : null}
+            {page === "order-home" ? <HomeLayoutEditor surface="home" /> : null}
+            {page === "order-discover" ? (
+              <HomeLayoutEditor surface="discover" />
+            ) : null}
             {page === "backup" ? <BackupPane /> : null}
           </div>
         </>
