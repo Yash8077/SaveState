@@ -6,7 +6,7 @@ import { RedirectToSignIn } from "@/lib/auth/gates";
 import { authClient, getBearerToken, signOut } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useLibrary } from "@/hooks/use-library";
-import { DEFAULT_AVATARS, defaultAvatarSrc } from "@/lib/avatars";
+import { canonicalizeAvatar } from "@/lib/avatars";
 import { ThemeAvatar } from "@/components/theme-avatar";
 import { GameCard, GameRail } from "@/components/game-card";
 import { Button } from "@/components/ui/button";
@@ -97,6 +97,14 @@ function ProfilePage() {
     queryFn: readProfile,
     enabled: Boolean(user),
   });
+  const avatars = useQuery({
+    queryKey: ["avatars"],
+    queryFn: async () => {
+      const res = await fetch("/api/config");
+      const json = (await res.json()) as { avatars?: string[] };
+      return json.avatars ?? [];
+    },
+  });
   const [name, setName] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -110,7 +118,7 @@ function ProfilePage() {
   useEffect(() => {
     if (!profile.data) return;
     setName(profile.data.name);
-    setImage(profile.data.image);
+    setImage(canonicalizeAvatar(profile.data.image));
   }, [profile.data]);
 
   const entries = library.data ?? [];
@@ -139,7 +147,7 @@ function ProfilePage() {
   if (!user) return <RedirectToSignIn />;
 
   const data = profile.data;
-  const preview = image || user.profileImageUrl;
+  const preview = canonicalizeAvatar(image) || user.profileImageUrl;
 
   async function saveProfile() {
     setSaving(true);
@@ -152,8 +160,18 @@ function ProfilePage() {
       const json = (await res.json()) as Profile & { error?: string };
       if (!res.ok) throw new Error(json.error || "Could not save");
       setName(json.name);
-      setImage(json.image);
-      await authClient.getSession();
+      setImage(canonicalizeAvatar(json.image));
+      try {
+        await authClient.updateUser({
+          name: json.name,
+          image: json.image ?? undefined,
+        });
+      } catch {
+        /* SQL is source of truth; session refresh is best-effort */
+      }
+      await authClient.getSession({
+        query: { disableCookieCache: true },
+      });
       void qc.invalidateQueries({ queryKey: ["profile"] });
       toast.success("Profile saved");
     } catch (err) {
@@ -386,24 +404,22 @@ function ProfilePage() {
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
               <div className="grid grid-cols-4 gap-3 min-[500px]:grid-cols-5">
-                {DEFAULT_AVATARS.map((avatar) => {
-                  const src = defaultAvatarSrc(avatar.id);
-                  const selected = image === src;
+                {(avatars.data ?? []).map((src) => {
+                  const selected = canonicalizeAvatar(image) === src;
                   return (
                     <button
-                      key={avatar.id}
+                      key={src}
                       type="button"
                       onClick={() => setImage(src)}
                       className={cn(
                         "overflow-hidden rounded-full ring-2 ring-offset-2 ring-offset-elevated",
                         selected ? "ring-accent" : "ring-transparent hover:ring-border",
                       )}
-                      aria-label={avatar.name}
-                      title={avatar.name}
+                      aria-label={src}
                     >
                       <ThemeAvatar
                         src={src}
-                        name={avatar.name}
+                        name="Avatar"
                         className="aspect-square w-full"
                       />
                     </button>

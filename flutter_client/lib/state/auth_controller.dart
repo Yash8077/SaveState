@@ -90,7 +90,12 @@ class AuthController extends ChangeNotifier {
 
   Future<void> applyProfile({required String name, String? image}) async {
     if (user == null) return;
-    user = user!.copyWith(name: name, image: image);
+    user = AuthUser(
+      id: user!.id,
+      email: user!.email,
+      name: name,
+      image: image,
+    );
     notifyListeners();
   }
 }

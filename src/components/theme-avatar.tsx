@@ -1,5 +1,5 @@
 import { AVATAR_SVG } from "@/lib/avatar-svg";
-import { avatarIdFromSrc } from "@/lib/avatars";
+import { avatarIdFromSrc, canonicalizeAvatar } from "@/lib/avatars";
 import { cn } from "@/lib/utils";
 
 export function ThemeAvatar({
@@ -11,8 +11,9 @@ export function ThemeAvatar({
   name?: string | null;
   className?: string;
 }) {
-  const id = avatarIdFromSrc(src);
-  const svg = src?.endsWith(".svg") && id ? AVATAR_SVG[id] : null;
+  const resolved = canonicalizeAvatar(src);
+  const id = avatarIdFromSrc(resolved);
+  const svg = resolved?.endsWith(".svg") && id ? AVATAR_SVG[id] : null;
   const initial = (name?.trim()?.[0] ?? "?").toUpperCase();
 
   if (svg) {
@@ -29,10 +30,10 @@ export function ThemeAvatar({
     );
   }
 
-  if (src) {
+  if (resolved) {
     return (
       <img
-        src={src}
+        src={resolved}
         alt=""
         className={cn("rounded-full object-cover", className)}
       />

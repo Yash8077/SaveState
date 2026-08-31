@@ -288,6 +288,18 @@ class ApiClient {
     }
   }
 
+  Future<List<String>> listAvatars() async {
+    try {
+      final decoded = await _send('GET', _u('/api/config'));
+      if (decoded is! Map) return const [];
+      final raw = decoded['avatars'];
+      if (raw is! List) return const [];
+      return raw.map((e) => e.toString()).where((s) => s.startsWith('/avatars/avatar_')).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<({AuthUser user, String token})> signInEmail(
     String email,
     String password,

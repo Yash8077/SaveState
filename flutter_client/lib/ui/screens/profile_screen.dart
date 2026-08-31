@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -7,23 +8,6 @@ import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
 import '../widgets/game_rail.dart';
 import '../widgets/user_avatar.dart';
-
-const _avatars = <({String id, String name})>[
-  (id: 'robot_01', name: 'Bolt'),
-  (id: 'robot_02', name: 'Pixel'),
-  (id: 'robot_03', name: 'Gyro'),
-  (id: 'robot_04', name: 'Hex'),
-  (id: 'robot_05', name: 'Nova'),
-  (id: 'robot_06', name: 'Circuit'),
-  (id: 'robot_07', name: 'Mag'),
-  (id: 'robot_08', name: 'Chip'),
-  (id: 'robot_09', name: 'Orbit'),
-  (id: 'robot_10', name: 'Tank'),
-  (id: 'robot_11', name: 'Pulse'),
-  (id: 'robot_12', name: 'Core'),
-];
-
-String avatarPath(String id) => '/avatars/$id.png';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -44,6 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _passwordBusy = false;
   String? _error;
   List<GameEntry> _entries = const [];
+  List<String> _avatarSrcs = const [];
 
   @override
   void initState() {
@@ -58,6 +43,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _next.dispose();
     _confirm.dispose();
     super.dispose();
+  }
+
+  Future<List<String>> _discoverAvatars(ApiClient api) async {
+    final found = <String>{};
+    try {
+      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+      for (final path in manifest.listAssets()) {
+        final match =
+            RegExp(r'^assets/avatars/(avatar_\d+)\.png$').firstMatch(path);
+        if (match != null) found.add('/avatars/${match.group(1)}.png');
+      }
+    } catch (_) {}
+    found.addAll(await api.listAvatars());
+    final list = found.toList();
+    int n(String s) =>
+        int.tryParse(RegExp(r'avatar_(\d+)').firstMatch(s)?.group(1) ?? '') ?? 0;
+    list.sort((a, b) => n(a).compareTo(n(b)));
+    return list;
   }
 
   CatalogGame _asCard(GameEntry entry) {
@@ -79,6 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final api = context.read<ApiClient>();
       final profile = await api.getProfile();
+      final avatars = await _discoverAvatars(api);
       List<GameEntry> library = const [];
       try {
         library = await api.getLibrary();
@@ -88,9 +92,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       _name.text = profile['name']?.toString() ?? auth.user?.name ?? '';
       setState(() {
-        _image = profile['image']?.toString();
+        _image = canonicalizeAvatar(profile['image']?.toString());
         _hasPassword = profile['hasPassword'] == true;
         _entries = library;
+        _avatarSrcs = avatars;
         _loading = false;
       });
     } catch (e) {
@@ -437,7 +442,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Flexible(
                         child: GridView.builder(
                           shrinkWrap: true,
-                          itemCount: _avatars.length,
+                          itemCount: _avatarSrcs.length,
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 4,
@@ -445,9 +450,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             crossAxisSpacing: 10,
                           ),
                           itemBuilder: (context, i) {
-                            final avatar = _avatars[i];
-                            final src = avatarPath(avatar.id);
-                            final selected = _image == src;
+                            final src = _avatarSrcs[i];
+                            final selected = canonicalizeAvatar(_image) == src;
                             return InkWell(
                               customBorder: const CircleBorder(),
                               onTap: () {
@@ -468,7 +472,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   padding: const EdgeInsets.all(2),
                                   child: UserAvatar(
                                     image: src,
-                                    name: avatar.name,
+                                    name: 'Avatar',
                                     size: 72,
                                   ),
                                 ),

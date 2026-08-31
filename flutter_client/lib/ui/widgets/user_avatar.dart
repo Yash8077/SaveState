@@ -3,6 +3,15 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../services/api_client.dart';
 
 final _badge = RegExp(r'^/avatars/([a-z0-9_]+)\.(png|svg)$');
+final _robot = RegExp(r'^/avatars/robot_0*(\d+)\.png$');
+
+String? canonicalizeAvatar(String? src) {
+  if (src == null) return null;
+  final value = src.trim();
+  final robot = _robot.firstMatch(value);
+  if (robot != null) return '/avatars/avatar_${int.parse(robot.group(1)!)}.png';
+  return value;
+}
 
 class UserAvatar extends StatelessWidget {
   final String? image;
@@ -17,7 +26,8 @@ class UserAvatar extends StatelessWidget {
     final initial = (name != null && name!.trim().isNotEmpty)
         ? name!.trim()[0].toUpperCase()
         : '?';
-    final match = image == null ? null : _badge.firstMatch(image!.trim());
+    final resolved = canonicalizeAvatar(image);
+    final match = resolved == null ? null : _badge.firstMatch(resolved);
     final disc = Color.lerp(
       cs.primary,
       const Color(0xFF05090B),
@@ -32,6 +42,7 @@ class UserAvatar extends StatelessWidget {
         child = Image.asset(
           asset,
           fit: BoxFit.cover,
+          gaplessPlayback: false,
           errorBuilder: (_, __, ___) => Image.network(
             '${ApiClient.origin}/avatars/$id.$ext',
             fit: BoxFit.cover,
@@ -45,9 +56,9 @@ class UserAvatar extends StatelessWidget {
           placeholderBuilder: (_) => ColoredBox(color: disc),
         );
       }
-    } else if (image != null && image!.isNotEmpty) {
+    } else if (resolved != null && resolved.isNotEmpty) {
       final src =
-          image!.startsWith('/') ? '${ApiClient.origin}$image' : image!;
+          resolved.startsWith('/') ? '${ApiClient.origin}$resolved' : resolved;
       if (src.endsWith('.svg')) {
         child = SvgPicture.network(
           src,
@@ -69,6 +80,7 @@ class UserAvatar extends StatelessWidget {
       );
     }
     return DecoratedBox(
+      key: ValueKey(resolved ?? ''),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: Colors.black.withValues(alpha: 0.28)),
