@@ -3,7 +3,6 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppearance } from "@/components/appearance-provider";
-import { AccountMenu } from "@/components/account-menu";
 import { GameCard, GameRail } from "@/components/game-card";
 import { useHomeLayout } from "@/components/home-layout-provider";
 import { useLibrary } from "@/hooks/use-library";
@@ -326,7 +325,6 @@ function HomeHello({
       >
         <Search className="size-4" />
       </Link>
-      <AccountMenu />
     </div>
   );
 }

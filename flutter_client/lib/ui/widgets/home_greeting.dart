@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../state/auth_controller.dart';
-import 'account_sheet.dart';
 
 class HomeGreeting extends StatelessWidget {
   const HomeGreeting({super.key});
@@ -54,8 +53,6 @@ class HomeGreeting extends StatelessWidget {
             onPressed: () => context.go('/discover?focus=1'),
             icon: const Icon(Icons.search_rounded),
           ),
-          const SizedBox(width: 4),
-          const AccountAvatarButton(size: 42),
         ],
       ),
     );
