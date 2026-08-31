@@ -18,13 +18,18 @@ class UserAvatar extends StatelessWidget {
         ? name!.trim()[0].toUpperCase()
         : '?';
     final match = image == null ? null : _badge.firstMatch(image!.trim());
+    final disc = Color.lerp(
+      cs.primary,
+      const Color(0xFF05090B),
+      cs.brightness == Brightness.light ? 0.42 : 0.16,
+    )!;
     Widget child;
     if (match != null) {
       child = SvgPicture.asset(
         'assets/avatars/${match.group(1)}.svg',
         fit: BoxFit.cover,
-        theme: SvgTheme(currentColor: cs.primary),
-        placeholderBuilder: (_) => ColoredBox(color: cs.primary),
+        theme: SvgTheme(currentColor: disc),
+        placeholderBuilder: (_) => ColoredBox(color: disc),
       );
     } else if (image != null && image!.isNotEmpty) {
       final src = image!.startsWith('/')
@@ -34,8 +39,8 @@ class UserAvatar extends StatelessWidget {
         child = SvgPicture.network(
           src,
           fit: BoxFit.cover,
-          theme: SvgTheme(currentColor: cs.primary),
-          placeholderBuilder: (_) => ColoredBox(color: cs.primary),
+          theme: SvgTheme(currentColor: disc),
+          placeholderBuilder: (_) => ColoredBox(color: disc),
         );
       } else {
         child = Image.network(src, fit: BoxFit.cover);
@@ -50,10 +55,16 @@ class UserAvatar extends StatelessWidget {
         ),
       );
     }
-    return ClipOval(
-      child: ColoredBox(
-        color: cs.primary,
-        child: SizedBox(width: size, height: size, child: child),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.black.withValues(alpha: 0.28)),
+      ),
+      child: ClipOval(
+        child: ColoredBox(
+          color: disc,
+          child: SizedBox(width: size, height: size, child: child),
+        ),
       ),
     );
   }

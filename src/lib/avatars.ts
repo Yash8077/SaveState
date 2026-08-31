@@ -1,24 +1,16 @@
+import { AVATAR_SVG } from "./avatar-svg.ts";
+
 export const DEFAULT_AVATARS = [
-  { id: "robot", name: "Pulse" },
-  { id: "fox", name: "Ember" },
-  { id: "owl", name: "Nox" },
-  { id: "cat", name: "Mochi" },
-  { id: "wolf", name: "Ash" },
-  { id: "dragon", name: "Jade" },
-  { id: "octopus", name: "Ink" },
-  { id: "bird", name: "Sky" },
-  { id: "bear", name: "Honey" },
-  { id: "alien", name: "Nova" },
-  { id: "knight", name: "Aegis" },
-  { id: "slime", name: "Bloom" },
   { id: "pad", name: "Pad" },
   { id: "cart", name: "Cart" },
   { id: "dice", name: "Dice" },
   { id: "sword", name: "Blade" },
   { id: "potion", name: "Flask" },
-  { id: "arcade", name: "Arcade" },
-  { id: "chest", name: "Loot" },
   { id: "ghost", name: "Haunt" },
+  { id: "robot", name: "Pulse" },
+  { id: "fox", name: "Ember" },
+  { id: "knight", name: "Aegis" },
+  { id: "slime", name: "Bloom" },
 ] as const;
 
 export type DefaultAvatarId = (typeof DEFAULT_AVATARS)[number]["id"];
@@ -33,7 +25,9 @@ export function avatarIdFromSrc(src: string | null | undefined): string | null {
   return match?.[1] ?? null;
 }
 
-const DEFAULT_SRC = new Set(DEFAULT_AVATARS.map((a) => defaultAvatarSrc(a.id)));
+const KNOWN_SRC = new Set(
+  Object.keys(AVATAR_SVG).map((id) => defaultAvatarSrc(id)),
+);
 
 const DATA_IMAGE =
   /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/]+=*$/;
@@ -53,11 +47,11 @@ export function parseAvatarValue(raw: unknown): string | null | undefined {
   if (typeof raw !== "string") return undefined;
   const value = raw.trim();
   if (!value) return null;
-  if (DEFAULT_SRC.has(value)) return value;
+  if (KNOWN_SRC.has(value)) return value;
   if (DATA_IMAGE.test(value) && value.length <= MAX_DATA_CHARS) return value;
   return undefined;
 }
 
 export function isDefaultAvatar(src: string | null | undefined): boolean {
-  return Boolean(src && DEFAULT_SRC.has(src));
+  return Boolean(src && KNOWN_SRC.has(src));
 }

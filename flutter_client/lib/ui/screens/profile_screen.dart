@@ -2,31 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
+import '../widgets/game_rail.dart';
 import '../widgets/user_avatar.dart';
 
 const _avatars = <({String id, String name})>[
-  (id: 'robot', name: 'Pulse'),
-  (id: 'fox', name: 'Ember'),
-  (id: 'owl', name: 'Nox'),
-  (id: 'cat', name: 'Mochi'),
-  (id: 'wolf', name: 'Ash'),
-  (id: 'dragon', name: 'Jade'),
-  (id: 'octopus', name: 'Ink'),
-  (id: 'bird', name: 'Sky'),
-  (id: 'bear', name: 'Honey'),
-  (id: 'alien', name: 'Nova'),
-  (id: 'knight', name: 'Aegis'),
-  (id: 'slime', name: 'Bloom'),
   (id: 'pad', name: 'Pad'),
   (id: 'cart', name: 'Cart'),
   (id: 'dice', name: 'Dice'),
   (id: 'sword', name: 'Blade'),
   (id: 'potion', name: 'Flask'),
-  (id: 'arcade', name: 'Arcade'),
-  (id: 'chest', name: 'Loot'),
   (id: 'ghost', name: 'Haunt'),
+  (id: 'robot', name: 'Pulse'),
+  (id: 'fox', name: 'Ember'),
+  (id: 'knight', name: 'Aegis'),
+  (id: 'slime', name: 'Bloom'),
 ];
 
 String avatarPath(String id) => '/avatars/$id.svg';
@@ -49,6 +41,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _saving = false;
   bool _passwordBusy = false;
   String? _error;
+  List<GameEntry> _entries = const [];
 
   @override
   void initState() {
@@ -65,6 +58,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
+  CatalogGame _asCard(GameEntry entry) {
+    return CatalogGame(
+      id: entry.catalogId,
+      title: entry.title,
+      coverUrl: entry.coverUrl,
+      headerUrl: entry.headerUrl,
+      metacritic: entry.metacritic,
+    );
+  }
+
   Future<void> _load() async {
     final auth = context.read<AuthController>();
     if (!auth.isSignedIn) {
@@ -72,12 +75,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
     try {
-      final profile = await context.read<ApiClient>().getProfile();
+      final api = context.read<ApiClient>();
+      final profile = await api.getProfile();
+      List<GameEntry> library = const [];
+      try {
+        library = await api.getLibrary();
+      } on ApiException catch (e) {
+        if (e.status != 401) rethrow;
+      }
       if (!mounted) return;
       _name.text = profile['name']?.toString() ?? auth.user?.name ?? '';
       setState(() {
         _image = profile['image']?.toString();
         _hasPassword = profile['hasPassword'] == true;
+        _entries = library;
         _loading = false;
       });
     } catch (e) {
@@ -176,106 +187,296 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(title: const Text('Profile')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth >= 800;
+                final identity = _identity(cs, auth);
+                final account = _account(cs, auth);
+                final shelves = _shelves(cs);
+                if (wide) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 360,
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 8, 32),
+                          children: [identity, const SizedBox(height: 16), account],
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(8, 8, 8, 32),
+                          children: shelves,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 32),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: identity,
+                    ),
+                    ...shelves,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: account,
+                    ),
+                  ],
+                );
+              },
+            ),
+    );
+  }
+
+  Widget _identity(ColorScheme cs, AuthController auth) {
+    final hours = _entries.fold<int>(0, (sum, e) => sum + (e.hours ?? 0));
+    final scored = _entries.where((e) => e.score != null).toList();
+    final avg = scored.isEmpty
+        ? null
+        : scored.fold<int>(0, (sum, e) => sum + e.score!) / scored.length;
+    final year = DateTime.now().year.toString();
+    final beatenYear = _entries
+        .where((e) =>
+            e.status == GameStatus.beaten &&
+            (e.finishedAt?.startsWith(year) ?? false))
+        .length;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(height: 88, color: cs.primary.withValues(alpha: 0.55)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(_error!, style: TextStyle(color: cs.error)),
-                  ),
-                Center(
+                Transform.translate(
+                  offset: const Offset(0, -28),
                   child: UserAvatar(
                     image: _image,
                     name: _name.text,
-                    size: 88,
+                    size: 84,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  auth.user?.email ?? '',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: cs.onSurfaceVariant),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Avatar',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _avatars.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 6,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                  ),
-                  itemBuilder: (context, i) {
-                    final avatar = _avatars[i];
-                    final src = avatarPath(avatar.id);
-                    final selected = _image == src;
-                    return InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () => setState(() => _image = src),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: selected ? cs.primary : Colors.transparent,
-                            width: 3,
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(2),
-                          child: UserAvatar(
-                            image: src,
-                            name: avatar.name,
-                            size: 48,
-                          ),
+                Transform.translate(
+                  offset: const Offset(0, -16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _name.text.isEmpty ? 'Player' : _name.text,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Custom photos can be uploaded on the website.',
-                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-                ),
-                const SizedBox(height: 18),
-                TextField(
-                  controller: _name,
-                  maxLength: 40,
-                  decoration: const InputDecoration(
-                    labelText: 'Display name',
-                    border: OutlineInputBorder(),
+                      Text(
+                        auth.user?.email ?? '',
+                        style: TextStyle(color: cs.onSurfaceVariant),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                FilledButton(
-                  onPressed: _saving ? null : _save,
-                  child: Text(_saving ? 'Saving…' : 'Save profile'),
-                ),
-                const SizedBox(height: 28),
-                Text(
-                  'Password',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: cs.onSurface,
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(_error!, style: TextStyle(color: cs.error)),
                   ),
+                Row(
+                  children: [
+                    Expanded(child: _chip(cs, 'Logged', '${_entries.length}')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _chip(cs, 'Hours', '${hours}h')),
+                  ],
                 ),
                 const SizedBox(height: 8),
-                if (!_hasPassword)
-                  Text(
-                    'You signed in with Google, so there is no password to change here.',
-                    style: TextStyle(color: cs.onSurfaceVariant),
-                  )
-                else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: _chip(
+                        cs,
+                        'Avg score',
+                        avg == null ? '—' : avg.toStringAsFixed(1),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _chip(cs, 'Beaten this year', '$beatenYear'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => context.push('/stats'),
+                  child: const Text('Full stats'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(ColorScheme cs, String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
+              letterSpacing: 0.6,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _shelves(ColorScheme cs) {
+    final playing = _entries
+        .where((e) => e.status == GameStatus.playing)
+        .map(_asCard)
+        .toList();
+    final favorites =
+        _entries.where((e) => e.favorite).map(_asCard).toList();
+    final beaten = [..._entries.where((e) => e.status == GameStatus.beaten)]
+      ..sort((a, b) => (b.finishedAt ?? '').compareTo(a.finishedAt ?? ''));
+    final beatenCards = beaten.take(12).map(_asCard).toList();
+    return [
+      if (playing.isNotEmpty)
+        GameRailWidget(title: 'Currently playing', games: playing)
+      else
+        _empty(cs, 'Currently playing', 'Nothing in progress.'),
+      if (favorites.isNotEmpty)
+        GameRailWidget(title: 'Favorites', games: favorites)
+      else
+        _empty(cs, 'Favorites', 'Star a game to pin it here.'),
+      if (beatenCards.isNotEmpty)
+        GameRailWidget(title: 'Recently beaten', games: beatenCards)
+      else
+        _empty(cs, 'Recently beaten', 'Finish something and it lands here.'),
+    ];
+  }
+
+  Widget _empty(ColorScheme cs, String title, String hint) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Text(hint, style: TextStyle(color: cs.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _account(ColorScheme cs, AuthController auth) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Account',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Name, badge, and password.',
+              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _avatars.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 5,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+              ),
+              itemBuilder: (context, i) {
+                final avatar = _avatars[i];
+                final src = avatarPath(avatar.id);
+                final selected = _image == src;
+                return InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => setState(() => _image = src),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected ? cs.primary : Colors.transparent,
+                        width: 3,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: UserAvatar(
+                        image: src,
+                        name: avatar.name,
+                        size: 48,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _name,
+              maxLength: 40,
+              decoration: const InputDecoration(
+                labelText: 'Display name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: Text(_saving ? 'Saving…' : 'Save profile'),
+            ),
+            const SizedBox(height: 8),
+            if (!_hasPassword)
+              Text(
+                'You signed in with Google, so there is no password to change here.',
+                style: TextStyle(color: cs.onSurfaceVariant),
+              )
+            else
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: const Text('Change password'),
+                children: [
                   TextField(
                     controller: _current,
                     obscureText: true,
@@ -307,17 +508,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onPressed: _passwordBusy ? null : _savePassword,
                     child: Text(_passwordBusy ? 'Updating…' : 'Update password'),
                   ),
+                  const SizedBox(height: 8),
                 ],
-                const SizedBox(height: 28),
-                OutlinedButton(
-                  onPressed: () async {
-                    await auth.signOut();
-                    if (context.mounted) context.go('/');
-                  },
-                  child: const Text('Sign out'),
-                ),
-              ],
+              ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () async {
+                await auth.signOut();
+                if (context.mounted) context.go('/');
+              },
+              child: const Text('Sign out'),
             ),
+          ],
+        ),
+      ),
     );
   }
 }

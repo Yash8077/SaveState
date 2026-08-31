@@ -1,16 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { RedirectToSignIn } from "@/lib/auth/gates";
-import { authClient, getBearerToken } from "@/lib/auth/client";
+import { authClient, getBearerToken, signOut } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { useLibrary } from "@/hooks/use-library";
 import { DEFAULT_AVATARS, defaultAvatarSrc } from "@/lib/avatars";
 import { ThemeAvatar } from "@/components/theme-avatar";
+import { GameCard, GameRail } from "@/components/game-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn, formatHours } from "@/lib/utils";
+import type { GameEntry } from "@/lib/types";
 
 export const Route = createFileRoute("/profile")({ component: ProfilePage });
 
@@ -68,9 +71,26 @@ function resizeImage(file: File): Promise<string> {
   });
 }
 
+function LibraryCard({ entry: e }: { entry: GameEntry }) {
+  return (
+    <GameCard
+      catalogId={e.catalogId}
+      title={e.title}
+      coverUrl={e.coverUrl}
+      headerUrl={e.headerUrl}
+      status={e.status}
+      score={e.score}
+      hours={e.hours}
+      favorite={e.favorite}
+      metacritic={e.metacritic}
+    />
+  );
+}
+
 function ProfilePage() {
   const { user, isPending } = useCurrentUserState();
   const qc = useQueryClient();
+  const library = useLibrary();
   const fileRef = useRef<HTMLInputElement>(null);
   const profile = useQuery({
     queryKey: ["profile"],
@@ -84,12 +104,35 @@ function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordBusy, setPasswordBusy] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     if (!profile.data) return;
     setName(profile.data.name);
     setImage(profile.data.image);
   }, [profile.data]);
+
+  const entries = library.data ?? [];
+  const hours = entries.reduce((sum, e) => sum + (e.hours ?? 0), 0);
+  const scored = entries.filter((e) => e.score != null);
+  const avg =
+    scored.length > 0
+      ? scored.reduce((sum, e) => sum + (e.score ?? 0), 0) / scored.length
+      : null;
+  const beatenThisYear = entries.filter((e) => {
+    if (e.status !== "beaten" || !e.finishedAt) return false;
+    return e.finishedAt.startsWith(String(new Date().getFullYear()));
+  }).length;
+  const playing = entries.filter((e) => e.status === "playing");
+  const favorites = entries.filter((e) => e.favorite);
+  const beaten = useMemo(
+    () =>
+      entries
+        .filter((e) => e.status === "beaten")
+        .sort((a, b) => (b.finishedAt ?? "").localeCompare(a.finishedAt ?? ""))
+        .slice(0, 12),
+    [entries],
+  );
 
   if (isPending) return <Skeleton className="h-64 w-full rounded-2xl" />;
   if (!user) return <RedirectToSignIn />;
@@ -158,83 +201,125 @@ function ProfilePage() {
     }
   }
 
-  return (
-    <div className="mx-auto max-w-xl space-y-6 pb-8">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-faint">Account</p>
-        <h1 className="mt-1 text-2xl font-medium tracking-tight">Profile</h1>
-        <p className="mt-1 text-sm text-muted">{data?.email ?? user.primaryEmail}</p>
-      </div>
-
-      <section className="rounded-2xl bg-elevated p-5">
-        <div className="flex items-center gap-4">
-          <ThemeAvatar
-            src={preview}
-            name={name}
-            className="size-20"
-          />
-          <div className="min-w-0">
-            <p className="text-lg font-medium truncate">{name || "Player"}</p>
-            <p className="text-sm text-muted">Pick a badge or upload a photo.</p>
+  const identity = (
+    <section className="overflow-hidden rounded-2xl bg-elevated">
+      <div className="h-24 bg-[color-mix(in_oklab,var(--color-accent)_42%,#071016)]" />
+      <div className="px-5 pb-5">
+        <div className="-mt-10 flex items-end gap-4">
+          <ThemeAvatar src={preview} name={name} className="size-20 ring-4 ring-elevated" />
+          <div className="min-w-0 pb-1">
+            <p className="truncate text-xl font-medium">{name || "Player"}</p>
+            <p className="truncate text-sm text-muted">
+              {data?.email ?? user.primaryEmail}
+            </p>
           </div>
         </div>
-
-        <div className="mt-5 grid grid-cols-4 gap-2 sm:grid-cols-6">
-          {DEFAULT_AVATARS.map((avatar) => {
-            const src = defaultAvatarSrc(avatar.id);
-            const selected = image === src;
-            return (
-              <button
-                key={avatar.id}
-                type="button"
-                onClick={() => setImage(src)}
-                className={cn(
-                  "overflow-hidden rounded-full ring-2 ring-offset-2 ring-offset-elevated",
-                  selected ? "ring-accent" : "ring-transparent hover:ring-border",
-                )}
-                aria-label={avatar.name}
-                title={avatar.name}
-              >
-                <ThemeAvatar src={src} name={avatar.name} className="aspect-square w-full" />
-              </button>
-            );
-          })}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Chip label="Logged" value={String(entries.length)} />
+          <Chip label="Hours" value={formatHours(hours)} />
+          <Chip label="Avg score" value={avg == null ? "—" : avg.toFixed(1)} />
+          <Chip label="Beaten this year" value={String(beatenThisYear)} />
         </div>
+        <Link
+          to="/stats"
+          className="mt-4 inline-flex h-10 items-center text-sm font-medium text-accent hover:underline"
+        >
+          Full stats
+        </Link>
+      </div>
+    </section>
+  );
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => fileRef.current?.click()}
-          >
-            Custom photo
-          </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={(e) => void onPickCustom(e.target.files?.[0])}
-          />
-        </div>
+  const shelves = (
+    <div className="space-y-6 min-w-0">
+      {playing.length ? (
+        <GameRail title="Currently playing">
+          {playing.map((e) => (
+            <LibraryCard key={e.id} entry={e} />
+          ))}
+        </GameRail>
+      ) : (
+        <EmptyShelf
+          title="Currently playing"
+          hint="Nothing in progress. Add a game from search."
+        />
+      )}
+      {favorites.length ? (
+        <GameRail title="Favorites">
+          {favorites.map((e) => (
+            <LibraryCard key={e.id} entry={e} />
+          ))}
+        </GameRail>
+      ) : (
+        <EmptyShelf title="Favorites" hint="Star a game to pin it here." />
+      )}
+      {beaten.length ? (
+        <GameRail title="Recently beaten">
+          {beaten.map((e) => (
+            <LibraryCard key={e.id} entry={e} />
+          ))}
+        </GameRail>
+      ) : (
+        <EmptyShelf title="Recently beaten" hint="Finish something and it lands here." />
+      )}
+    </div>
+  );
 
-        <label className="mt-5 block text-sm text-muted">
-          Display name
-          <Input
-            className="mt-1.5"
-            value={name}
-            maxLength={40}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
+  const account = (
+    <section className="rounded-2xl bg-elevated p-5">
+      <p className="text-base font-medium">Account</p>
+      <p className="mt-1 text-sm text-muted">Name, badge, and password.</p>
 
-        <Button className="mt-4" disabled={saving} onClick={() => void saveProfile()}>
-          {saving ? "Saving…" : "Save profile"}
+      <div className="mt-4 grid grid-cols-5 gap-2">
+        {DEFAULT_AVATARS.map((avatar) => {
+          const src = defaultAvatarSrc(avatar.id);
+          const selected = image === src;
+          return (
+            <button
+              key={avatar.id}
+              type="button"
+              onClick={() => setImage(src)}
+              className={cn(
+                "overflow-hidden rounded-full ring-2 ring-offset-2 ring-offset-elevated",
+                selected ? "ring-accent" : "ring-transparent hover:ring-border",
+              )}
+              aria-label={avatar.name}
+              title={avatar.name}
+            >
+              <ThemeAvatar src={src} name={avatar.name} className="aspect-square w-full" />
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button type="button" variant="ghost" onClick={() => fileRef.current?.click()}>
+          Custom photo
         </Button>
-      </section>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(e) => void onPickCustom(e.target.files?.[0])}
+        />
+      </div>
 
-      <section className="rounded-2xl bg-elevated p-5">
-        <p className="text-base font-medium">Password</p>
+      <label className="mt-4 block text-sm text-muted">
+        Display name
+        <Input
+          className="mt-1.5"
+          value={name}
+          maxLength={40}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </label>
+      <Button className="mt-3" disabled={saving} onClick={() => void saveProfile()}>
+        {saving ? "Saving…" : "Save profile"}
+      </Button>
+
+      <div className="mt-6 border-t border-border pt-4">
+        <p className="text-sm font-medium">Password</p>
         {data && !data.hasPassword ? (
           <p className="mt-2 text-sm text-muted">
             You signed in with Google, so there is no password to change here.
@@ -271,22 +356,56 @@ function ProfilePage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
             </label>
-            <Button
-              disabled={passwordBusy}
-              onClick={() => void savePassword()}
-            >
+            <Button disabled={passwordBusy} onClick={() => void savePassword()}>
               {passwordBusy ? "Updating…" : "Update password"}
             </Button>
           </div>
         )}
-      </section>
+      </div>
 
-      <p className="text-sm text-muted">
-        Want the charts?{" "}
-        <Link to="/stats" className="text-accent hover:underline">
-          Open stats
-        </Link>
-      </p>
+      <Button
+        className="mt-5"
+        variant="ghost"
+        disabled={signingOut}
+        onClick={() => {
+          setSigningOut(true);
+          void signOut("/").catch(() => setSigningOut(false));
+        }}
+      >
+        {signingOut ? "Signing out…" : "Sign out"}
+      </Button>
+    </section>
+  );
+
+  return (
+    <div className="mx-auto max-w-6xl pb-8">
+      <div className="grid items-start gap-5 min-[900px]:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
+        <div className="order-1 min-[900px]:col-start-1">{identity}</div>
+        <div className="order-3 min-[900px]:order-2 min-[900px]:col-start-1 min-[900px]:row-start-2">
+          {account}
+        </div>
+        <div className="order-2 min-[900px]:order-3 min-[900px]:col-start-2 min-[900px]:row-start-1 min-[900px]:row-span-2">
+          {shelves}
+        </div>
+      </div>
     </div>
+  );
+}
+
+function Chip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-subtle px-3 py-2">
+      <p className="text-[11px] uppercase tracking-wide text-faint">{label}</p>
+      <p className="text-lg font-medium tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function EmptyShelf({ title, hint }: { title: string; hint: string }) {
+  return (
+    <section className="rounded-2xl bg-elevated px-4 py-5">
+      <h2 className="text-base font-medium">{title}</h2>
+      <p className="mt-1 text-sm text-muted">{hint}</p>
+    </section>
   );
 }

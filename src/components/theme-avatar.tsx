@@ -19,7 +19,7 @@ export function ThemeAvatar({
     return (
       <span
         className={cn(
-          "inline-flex overflow-hidden rounded-full text-accent [&>svg]:block [&>svg]:size-full",
+          "inline-flex overflow-hidden rounded-full text-[color-mix(in_oklab,var(--color-accent)_54%,#05090b)] shadow-[inset_0_0_0_1px_rgba(0,0,0,.28)] [&>svg]:block [&>svg]:size-full",
           className,
         )}
         role="img"
