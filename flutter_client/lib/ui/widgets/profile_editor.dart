@@ -6,6 +6,39 @@ import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
 import 'user_avatar.dart';
 
+Future<List<String>> discoverAvatars(ApiClient api) async {
+  final found = <String>{};
+  try {
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    for (final path in manifest.listAssets()) {
+      final match = RegExp(r'avatars/(avatar_\d+)\.png$').firstMatch(path);
+      if (match != null) found.add('/avatars/${match.group(1)}.png');
+    }
+  } catch (_) {}
+  try {
+    final raw = await rootBundle.loadString('AssetManifest.json');
+    final decoded = jsonDecode(raw);
+    if (decoded is Map) {
+      for (final key in decoded.keys) {
+        final match =
+            RegExp(r'avatars/(avatar_\d+)\.png$').firstMatch(key.toString());
+        if (match != null) found.add('/avatars/${match.group(1)}.png');
+      }
+    }
+  } catch (_) {}
+  found.addAll(await api.listAvatars());
+  if (found.isEmpty) {
+    for (var i = 1; i <= 32; i++) {
+      found.add('/avatars/avatar_$i.png');
+    }
+  }
+  final list = found.toList();
+  int n(String s) =>
+      int.tryParse(RegExp(r'avatar_(\d+)').firstMatch(s)?.group(1) ?? '') ?? 0;
+  list.sort((a, b) => n(a).compareTo(n(b)));
+  return list;
+}
+
 class ProfileEditor extends StatefulWidget {
   final VoidCallback? onSaved;
   const ProfileEditor({super.key, this.onSaved});
@@ -41,45 +74,12 @@ class _ProfileEditorState extends State<ProfileEditor> {
     super.dispose();
   }
 
-  Future<List<String>> _discoverAvatars(ApiClient api) async {
-    final found = <String>{};
-    try {
-      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-      for (final path in manifest.listAssets()) {
-        final match = RegExp(r'avatars/(avatar_\d+)\.png$').firstMatch(path);
-        if (match != null) found.add('/avatars/${match.group(1)}.png');
-      }
-    } catch (_) {}
-    try {
-      final raw = await rootBundle.loadString('AssetManifest.json');
-      final decoded = jsonDecode(raw);
-      if (decoded is Map) {
-        for (final key in decoded.keys) {
-          final match =
-              RegExp(r'avatars/(avatar_\d+)\.png$').firstMatch(key.toString());
-          if (match != null) found.add('/avatars/${match.group(1)}.png');
-        }
-      }
-    } catch (_) {}
-    found.addAll(await api.listAvatars());
-    if (found.isEmpty) {
-      for (var i = 1; i <= 32; i++) {
-        found.add('/avatars/avatar_$i.png');
-      }
-    }
-    final list = found.toList();
-    int n(String s) =>
-        int.tryParse(RegExp(r'avatar_(\d+)').firstMatch(s)?.group(1) ?? '') ?? 0;
-    list.sort((a, b) => n(a).compareTo(n(b)));
-    return list;
-  }
-
   Future<void> _load() async {
     final auth = context.read<AuthController>();
     try {
       final api = context.read<ApiClient>();
       final profile = await api.getProfile();
-      final avatars = await _discoverAvatars(api);
+      final avatars = await discoverAvatars(api);
       if (!mounted) return;
       _name.text = profile['name']?.toString() ?? auth.user?.name ?? '';
       setState(() {
@@ -280,13 +280,14 @@ class _ProfileEditorState extends State<ProfileEditor> {
   }
 }
 
-Future<void> showProfileEditor(BuildContext context, {VoidCallback? onSaved}) {
+Future<void> _presentSheet(
+  BuildContext context, {
+  required String title,
+  required Widget body,
+  double maxHeight = 640,
+}) {
   final cs = Theme.of(context).colorScheme;
   final wide = MediaQuery.sizeOf(context).width >= 720;
-  final body = Padding(
-    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-    child: ProfileEditor(onSaved: onSaved),
-  );
   if (wide) {
     return showDialog<void>(
       context: context,
@@ -294,20 +295,21 @@ Future<void> showProfileEditor(BuildContext context, {VoidCallback? onSaved}) {
         backgroundColor: cs.surfaceContainerHigh,
         insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480, maxHeight: 640),
+        child: SizedBox(
+          width: 480,
+          height: maxHeight,
           child: Column(
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
                 child: Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Padding(
-                        padding: EdgeInsets.only(left: 12),
+                        padding: const EdgeInsets.only(left: 12),
                         child: Text(
-                          'Edit profile',
-                          style: TextStyle(
+                          title,
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                           ),
@@ -339,17 +341,17 @@ Future<void> showProfileEditor(BuildContext context, {VoidCallback? onSaved}) {
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
       child: SizedBox(
-        height: MediaQuery.sizeOf(ctx).height * 0.86,
+        height: MediaQuery.sizeOf(ctx).height * 0.72,
         child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 8, 0),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Edit profile',
-                      style: TextStyle(
+                      title,
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
@@ -369,3 +371,257 @@ Future<void> showProfileEditor(BuildContext context, {VoidCallback? onSaved}) {
     ),
   );
 }
+
+Future<void> showProfileEditor(BuildContext context, {VoidCallback? onSaved}) {
+  return _presentSheet(
+    context,
+    title: 'Edit profile',
+    body: Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      child: ProfileEditor(onSaved: onSaved),
+    ),
+  );
+}
+
+Future<void> showAvatarPicker(
+  BuildContext context, {
+  required String name,
+  String? image,
+  VoidCallback? onSaved,
+}) async {
+  final api = context.read<ApiClient>();
+  final auth = context.read<AuthController>();
+  final cs = Theme.of(context).colorScheme;
+  final srcs = await discoverAvatars(api);
+  if (!context.mounted) return;
+  var selected = canonicalizeAvatar(image);
+  await _presentSheet(
+    context,
+    title: 'Change avatar',
+    body: Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      child: StatefulBuilder(
+        builder: (ctx, setLocal) {
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: srcs.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+            ),
+            itemBuilder: (context, i) {
+              final src = srcs[i];
+              final isOn = canonicalizeAvatar(selected) == src;
+              return InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () async {
+                  setLocal(() => selected = src);
+                  try {
+                    final profile = await api.updateProfile(name: name, image: src);
+                    await auth.applyProfile(
+                      name: profile['name']?.toString() ?? name,
+                      image: profile['image']?.toString() ?? src,
+                    );
+                    onSaved?.call();
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  } catch (e) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(content: Text('$e')),
+                      );
+                    }
+                  }
+                },
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isOn ? cs.primary : Colors.transparent,
+                      width: 3,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: UserAvatar(image: src, name: 'Avatar', size: 64),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    ),
+  );
+}
+
+Future<void> showNameEditor(
+  BuildContext context, {
+  required String name,
+  String? image,
+  VoidCallback? onSaved,
+}) async {
+  final controller = TextEditingController(text: name);
+  final api = context.read<ApiClient>();
+  final auth = context.read<AuthController>();
+  await _presentSheet(
+    context,
+    title: 'Change name',
+    maxHeight: 280,
+    body: Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: controller,
+            maxLength: 40,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Display name',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: () async {
+              final next = controller.text.trim();
+              if (next.isEmpty || next.length > 40) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Name must be 1–40 characters')),
+                );
+                return;
+              }
+              try {
+                final profile =
+                    await api.updateProfile(name: next, image: image);
+                await auth.applyProfile(
+                  name: profile['name']?.toString() ?? next,
+                  image: profile['image']?.toString() ?? image,
+                );
+                onSaved?.call();
+                if (context.mounted) Navigator.pop(context);
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('$e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Save name'),
+          ),
+        ],
+      ),
+    ),
+  );
+  controller.dispose();
+}
+
+Future<void> showPasswordEditor(BuildContext context) {
+  return _presentSheet(
+    context,
+    title: 'Change password',
+    maxHeight: 420,
+    body: const Padding(
+      padding: EdgeInsets.fromLTRB(20, 8, 20, 24),
+      child: _PasswordFields(),
+    ),
+  );
+}
+
+class _PasswordFields extends StatefulWidget {
+  const _PasswordFields();
+
+  @override
+  State<_PasswordFields> createState() => _PasswordFieldsState();
+}
+
+class _PasswordFieldsState extends State<_PasswordFields> {
+  final _current = TextEditingController();
+  final _next = TextEditingController();
+  final _confirm = TextEditingController();
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _current.dispose();
+    _next.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_next.text.length < 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('New password needs at least 8 characters')),
+      );
+      return;
+    }
+    if (_next.text != _confirm.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('New passwords do not match')),
+      );
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await context.read<ApiClient>().changePassword(
+            currentPassword: _current.text,
+            newPassword: _next.text,
+          );
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password updated')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _current,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'Current password',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _next,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'New password',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _confirm,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'Confirm new password',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        FilledButton(
+          onPressed: _busy ? null : _save,
+          child: Text(_busy ? 'Updating…' : 'Update password'),
+        ),
+      ],
+    );
+  }
+}
+
