@@ -142,6 +142,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _identity(cs, auth),
                   const SizedBox(height: 12),
                   _stats(cs),
+                  ..._nowPlaying(cs),
                 ];
                 if (wide) {
                   return Row(
@@ -188,6 +189,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                       child: _stats(cs),
                     ),
+                    ..._nowPlaying(cs),
                     ..._favorites(cs),
                     ..._beaten(cs),
                   ],
@@ -266,14 +268,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _identity(ColorScheme cs, AuthController auth) {
     final display = _name.isEmpty ? 'Player' : _name;
-    return Transform.translate(
-      offset: const Offset(0, -28),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Material(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Transform.translate(
+            offset: const Offset(0, -36),
+            child: Material(
               color: Colors.transparent,
               child: InkWell(
                 customBorder: const CircleBorder(),
@@ -319,64 +321,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            display,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Change name',
-                          visualDensity: VisualDensity.compact,
-                          onPressed: () => showNameEditor(
-                            context,
-                            name: display,
-                            image: _image,
-                            onSaved: _refreshIdentity,
-                          ),
-                          icon: const Icon(Icons.edit_outlined, size: 18),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      auth.user?.email ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: cs.onSurfaceVariant),
-                    ),
-                    if (_hasPassword)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: TextButton.icon(
-                          onPressed: () => showPasswordEditor(context),
-                          icon: const Icon(Icons.key_rounded, size: 16),
-                          label: const Text('Change password'),
-                          style: TextButton.styleFrom(
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          display,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
-                  ],
-                ),
+                      IconButton(
+                        tooltip: 'Change name',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => showNameEditor(
+                          context,
+                          name: display,
+                          image: _image,
+                          onSaved: _refreshIdentity,
+                        ),
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    auth.user?.email ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: cs.onSurfaceVariant),
+                  ),
+                  if (_hasPassword)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: TextButton.icon(
+                        onPressed: () => showPasswordEditor(context),
+                        icon: const Icon(Icons.key_rounded, size: 16),
+                        label: const Text('Change password'),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -465,6 +467,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+  }
+
+  List<Widget> _nowPlaying(ColorScheme cs) {
+    final playing =
+        _entries.where((e) => e.status == GameStatus.playing).toList();
+    return [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Now playing',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            ),
+            if (playing.length > 2)
+              TextButton(
+                onPressed: () => context.go('/library?status=playing'),
+                child: Text('See all ${playing.length}'),
+              ),
+          ],
+        ),
+      ),
+      if (playing.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: ListTile(
+              title: const Text('Nothing in progress'),
+              subtitle: const Text('Open library'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.go('/library?status=playing'),
+            ),
+          ),
+        )
+      else
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final preview = playing.take(2).map(_asCard).toList();
+              final columns = preview.length == 1 ? 1 : 2;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: preview.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  childAspectRatio: 0.58,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 12,
+                ),
+                itemBuilder: (context, i) => GameCardWidget(game: preview[i]),
+              );
+            },
+          ),
+        ),
+    ];
   }
 
   List<Widget> _favorites(ColorScheme cs) {

@@ -63,6 +63,7 @@ function ProfilePage() {
     return e.finishedAt.startsWith(String(new Date().getFullYear()));
   }).length;
   const favorites = entries.filter((e) => e.favorite);
+  const playing = entries.filter((e) => e.status === "playing");
   const beaten = useMemo(
     () =>
       entries
@@ -107,11 +108,11 @@ function ProfilePage() {
             Banner
           </span>
         </button>
-        <div className="-mt-8 flex items-end gap-3 px-2">
+        <div className="flex items-start gap-3 px-1">
           <button
             type="button"
             onClick={() => setSheet("avatar")}
-            className="relative shrink-0"
+            className="relative z-10 -mt-8 shrink-0"
             aria-label="Change avatar"
           >
             <ThemeAvatar
@@ -123,9 +124,11 @@ function ProfilePage() {
               <Pencil className="size-3.5" />
             </span>
           </button>
-          <div className="min-w-0 flex-1 pb-1">
+          <div className="min-w-0 flex-1 pt-2">
             <div className="flex min-w-0 items-center gap-1.5">
-              <h1 className="truncate text-2xl font-medium tracking-tight">{name}</h1>
+              <h1 className="truncate text-2xl font-medium tracking-tight drop-shadow-none">
+                {name}
+              </h1>
               <button
                 type="button"
                 aria-label="Change name"
@@ -158,6 +161,46 @@ function ProfilePage() {
         <Chip label="Avg score" value={avg == null ? "—" : avg.toFixed(1)} />
         <Chip label="Beaten this year" value={String(beatenThisYear)} />
       </Link>
+      <section>
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 className="text-lg font-medium">Now playing</h2>
+          {playing.length > 2 ? (
+            <Link
+              to="/library"
+              search={{ status: "playing" }}
+              className="text-sm font-medium text-accent"
+            >
+              See all {playing.length} →
+            </Link>
+          ) : null}
+        </div>
+        {playing.length ? (
+          <div className={playing.length === 1 ? "" : "grid grid-cols-2 gap-3"}>
+            {playing.slice(0, 2).map((e) => (
+              <GameCard
+                key={e.id}
+                catalogId={e.catalogId}
+                title={e.title}
+                coverUrl={e.coverUrl}
+                headerUrl={e.headerUrl}
+                status={e.status}
+                score={e.score}
+                hours={e.hours}
+                favorite={e.favorite}
+                metacritic={e.metacritic}
+                size="grid"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl bg-elevated px-4 py-6 text-sm text-muted">
+            Nothing in progress.{" "}
+            <Link to="/library" className="font-medium text-accent">
+              Open library
+            </Link>
+          </div>
+        )}
+      </section>
     </div>
   );
 
