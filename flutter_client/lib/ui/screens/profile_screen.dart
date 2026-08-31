@@ -513,7 +513,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final preview = playing.take(2).map(_asCard).toList();
-              final columns = preview.length == 1 ? 1 : 2;
+              final columns = 2;
               return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),

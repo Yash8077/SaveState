@@ -175,7 +175,7 @@ function ProfilePage() {
           ) : null}
         </div>
         {playing.length ? (
-          <div className={playing.length === 1 ? "" : "grid grid-cols-2 gap-3"}>
+          <div className="grid grid-cols-2 gap-3">
             {playing.slice(0, 2).map((e) => (
               <GameCard
                 key={e.id}
