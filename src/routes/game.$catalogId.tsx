@@ -178,7 +178,7 @@ function GamePage() {
             className="size-full object-cover object-center"
           />
         ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/55 to-bg/20" />
+        <div className="absolute inset-0 z-[1] bg-gradient-to-t from-bg via-bg/55 to-bg/20" />
       </div>
 
       <div className="relative z-10 -mt-16 px-3 sm:-mt-20 sm:px-5 min-[600px]:-mt-24">

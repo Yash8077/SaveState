@@ -376,13 +376,15 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   if (bloom)
                     DecoratedBox(
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
+                        gradient: RadialGradient(
+                          center: const Alignment(0, 1.1),
+                          radius: 1.15,
                           colors: [
-                            cs.primary.withOpacity(0.28),
+                            cs.primary.withOpacity(0.55),
+                            cs.primary.withOpacity(0.18),
                             Colors.transparent,
                           ],
+                          stops: const [0, 0.42, 1],
                         ),
                       ),
                     ),

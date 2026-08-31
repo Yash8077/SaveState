@@ -24,31 +24,10 @@ class SettingsScreen extends StatelessWidget {
         children: [
           _tile(
             context,
-            icon: Icons.light_mode_outlined,
-            title: 'Theme',
-            hint: 'Light, dark, OLED, dynamic',
-            page: const _ThemePage(),
-          ),
-          _tile(
-            context,
-            icon: Icons.tonality,
-            title: 'Appearance',
-            hint: 'Bloom and film grain',
-            page: const _AppearancePage(),
-          ),
-          _tile(
-            context,
             icon: Icons.palette_outlined,
-            title: 'Accent',
-            hint: 'Teal, blue, violet, amber, rose',
-            page: const _AccentPage(),
-          ),
-          _tile(
-            context,
-            icon: Icons.auto_awesome_outlined,
-            title: 'Material You',
-            hint: 'Wallpaper tints',
-            page: const _MaterialPage(),
+            title: 'Appearance',
+            hint: 'Theme, accent, bloom, grain',
+            page: const _AppearancePage(),
           ),
           _tile(
             context,
@@ -70,13 +49,6 @@ class SettingsScreen extends StatelessWidget {
             title: 'Account',
             hint: 'Profile and sign in',
             page: const _AccountPage(),
-          ),
-          _tile(
-            context,
-            icon: Icons.info_outline,
-            title: 'About',
-            hint: 'What SaveState is not',
-            page: const _AboutPage(),
           ),
           const SizedBox(height: 24),
           Padding(
@@ -116,18 +88,26 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-class _ThemePage extends StatelessWidget {
-  const _ThemePage();
+class _AppearancePage extends StatelessWidget {
+  const _AppearancePage();
 
   @override
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeController>();
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Theme')),
+      appBar: AppBar(title: const Text('Appearance')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
+          Text(
+            'Theme',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
           Row(
             children: [
               _modeCard(
@@ -192,6 +172,80 @@ class _ThemePage extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 22),
+          Text(
+            'Accent',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: List.generate(ThemeController.accents.length, (i) {
+              final selected = theme.accentIndex == i;
+              return ChoiceChip(
+                avatar: CircleAvatar(
+                  backgroundColor: ThemeController.accents[i],
+                ),
+                label: Text(ThemeController.accentLabels[i]),
+                selected: selected,
+                onSelected: (_) => theme.setAccentIndex(i),
+              );
+            }),
+          ),
+          const SizedBox(height: 12),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: Icon(Icons.blur_on, color: cs.primary),
+            title: const Text('Bloom'),
+            subtitle: const Text('Accent glow on details banners'),
+            value: theme.bloom,
+            onChanged: theme.setBloom,
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: Icon(Icons.grain, color: cs.primary),
+            title: const Text('Grain texture'),
+            subtitle: const Text('Subtle film grain over the interface'),
+            value: theme.grain,
+            onChanged: theme.setGrain,
+          ),
+          if (theme.grain) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Grain intensity',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(value: 0, label: Text('Low')),
+                ButtonSegment(value: 1, label: Text('Medium')),
+                ButtonSegment(value: 2, label: Text('High')),
+              ],
+              selected: {theme.grainIntensity},
+              onSelectionChanged: (next) =>
+                  theme.setGrainIntensity(next.first),
+            ),
+          ],
+          const SizedBox(height: 18),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: CircleAvatar(
+              backgroundColor: cs.surfaceContainerHighest,
+              child: const SaveStateMark(size: 26),
+            ),
+            title: const Text('Material You'),
+            subtitle: const Text(
+              'The cartridge glow follows your wallpaper when Dynamic is on. On Android 13+ enable Themed icons in wallpaper settings to tint the home-screen icon too.',
+            ),
+          ),
         ],
       ),
     );
@@ -249,109 +303,6 @@ class _ThemePage extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AppearancePage extends StatelessWidget {
-  const _AppearancePage();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.watch<ThemeController>();
-    final cs = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Appearance')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 32),
-        children: [
-          SwitchListTile(
-            secondary: Icon(Icons.blur_on, color: cs.primary),
-            title: const Text('Bloom'),
-            subtitle: const Text('Soft glowing gradient on details banners'),
-            value: theme.bloom,
-            onChanged: theme.setBloom,
-          ),
-          SwitchListTile(
-            secondary: Icon(Icons.grain, color: cs.primary),
-            title: const Text('Grain texture'),
-            subtitle: const Text('Subtle film grain over the interface'),
-            value: theme.grain,
-            onChanged: theme.setGrain,
-          ),
-          if (theme.grain) ...[
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Text('Grain intensity'),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SegmentedButton<int>(
-                segments: const [
-                  ButtonSegment(value: 0, label: Text('Low')),
-                  ButtonSegment(value: 1, label: Text('Medium')),
-                  ButtonSegment(value: 2, label: Text('High')),
-                ],
-                selected: {theme.grainIntensity},
-                onSelectionChanged: (next) =>
-                    theme.setGrainIntensity(next.first),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _AccentPage extends StatelessWidget {
-  const _AccentPage();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.watch<ThemeController>();
-    return Scaffold(
-      appBar: AppBar(title: const Text('Accent')),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: List.generate(ThemeController.accents.length, (i) {
-            final selected = theme.accentIndex == i;
-            return ChoiceChip(
-              avatar: CircleAvatar(
-                backgroundColor: ThemeController.accents[i],
-              ),
-              label: Text(ThemeController.accentLabels[i]),
-              selected: selected,
-              onSelected: (_) => theme.setAccentIndex(i),
-            );
-          }),
-        ),
-      ),
-    );
-  }
-}
-
-class _MaterialPage extends StatelessWidget {
-  const _MaterialPage();
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Material You')),
-      body: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: cs.surfaceContainerHighest,
-          child: const SaveStateMark(size: 26),
-        ),
-        title: const Text('Themed icon'),
-        subtitle: const Text(
-          'The cartridge glow follows your wallpaper when Dynamic is on. On Android 13+ enable Themed icons in wallpaper settings to tint the home-screen icon too.',
         ),
       ),
     );
@@ -434,24 +385,6 @@ class _AccountPage extends StatelessWidget {
           onPressed: () =>
               context.push(auth.isSignedIn ? '/profile' : '/login'),
           child: Text(auth.isSignedIn ? 'Profile' : 'Sign in'),
-        ),
-      ),
-    );
-  }
-}
-
-class _AboutPage extends StatelessWidget {
-  const _AboutPage();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('About')),
-      body: const ListTile(
-        leading: Icon(Icons.info_outline),
-        title: Text('SaveState'),
-        subtitle: Text(
-          'Theme options follow AnymeX appearance settings. Player, reader, extensions, and liquid wallpaper are not part of this app.',
         ),
       ),
     );

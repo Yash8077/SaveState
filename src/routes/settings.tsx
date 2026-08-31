@@ -5,11 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
-  Monitor,
-  Moon,
   Palette,
-  Sparkles,
-  Sun,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -50,24 +46,27 @@ const GRAIN: { id: GrainIntensity; label: string }[] = [
   { id: "high", label: "High" },
 ];
 
-type Page =
-  | "home"
-  | "theme"
-  | "appearance"
-  | "accent"
-  | "material"
-  | "order"
-  | "backup"
-  | "about";
+type Page = "home" | "appearance" | "order" | "backup";
 
-const PAGES: { id: Exclude<Page, "home">; label: string; hint: string; icon: typeof Sun }[] = [
-  { id: "theme", label: "Theme", hint: "Light, dark, OLED, dynamic", icon: Sun },
-  { id: "appearance", label: "Appearance", hint: "Bloom and film grain", icon: Moon },
-  { id: "accent", label: "Accent", hint: "Teal, blue, violet, amber, rose", icon: Palette },
-  { id: "material", label: "Material You", hint: "Wallpaper tints", icon: Sparkles },
+const PAGES: {
+  id: Exclude<Page, "home">;
+  label: string;
+  hint: string;
+  icon: typeof Palette;
+}[] = [
+  {
+    id: "appearance",
+    label: "Appearance",
+    hint: "Theme, accent, bloom, grain",
+    icon: Palette,
+  },
   { id: "order", label: "Order", hint: "Homepage sections", icon: LayoutGrid },
-  { id: "backup", label: "Backup", hint: "Export and import your library", icon: Archive },
-  { id: "about", label: "Not included", hint: "What SaveState is not", icon: Monitor },
+  {
+    id: "backup",
+    label: "Backup",
+    hint: "Export and import your library",
+    icon: Archive,
+  },
 ];
 
 function SettingsPage() {
@@ -79,7 +78,7 @@ function SettingsPage() {
       {page === "home" ? (
         <>
           <h1 className="text-2xl font-medium tracking-tight">Settings</h1>
-          <p className="mt-1 text-sm text-muted">Theme, order, backup, and the rest.</p>
+          <p className="mt-1 text-sm text-muted">Appearance, order, and backup.</p>
           <nav className="mt-5 overflow-hidden rounded-2xl bg-elevated">
             {PAGES.map((item, i) => {
               const Icon = item.icon;
@@ -119,13 +118,9 @@ function SettingsPage() {
           <h1 className="text-2xl font-medium tracking-tight">{current?.label}</h1>
           <p className="mt-1 text-sm text-muted">{current?.hint}</p>
           <div className="mt-5">
-            {page === "theme" ? <ThemePane /> : null}
             {page === "appearance" ? <AppearancePane /> : null}
-            {page === "accent" ? <AccentPane /> : null}
-            {page === "material" ? <MaterialPane /> : null}
             {page === "order" ? <HomeLayoutEditor plain /> : null}
             {page === "backup" ? <BackupPane /> : null}
-            {page === "about" ? <AboutPane /> : null}
           </div>
         </>
       )}
@@ -133,7 +128,7 @@ function SettingsPage() {
   );
 }
 
-function ThemePane() {
+function AppearancePane() {
   const { appearance, setAppearance, setDynamicAccent } = useAppearance();
 
   function setMode(mode: ThemeMode) {
@@ -151,185 +146,165 @@ function ThemePane() {
   }
 
   return (
-    <section className="rounded-xl bg-elevated p-4 sm:p-5">
-      <div className="grid grid-cols-3 gap-2">
-        {MODES.map((mode) => {
-          const selected = appearance.mode === mode.id;
-          return (
-            <button
-              key={mode.id}
-              type="button"
-              onClick={() => setMode(mode.id)}
-              className={cn(
-                "rounded-xl border px-2.5 py-3 text-left",
-                selected ? "border-accent bg-accent/10" : "border-border bg-subtle",
-              )}
-            >
-              <span
+    <div className="space-y-3">
+      <section className="rounded-xl bg-elevated p-4 sm:p-5">
+        <p className="text-sm font-medium text-muted">Theme</p>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {MODES.map((mode) => {
+            const selected = appearance.mode === mode.id;
+            return (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => setMode(mode.id)}
                 className={cn(
-                  "block h-16 rounded-lg ring-1 ring-border",
-                  mode.id === "light" && "light-preview",
-                  mode.id === "dark" && "dark-preview",
-                  mode.id === "system" && "system-preview",
+                  "rounded-xl border px-2.5 py-3 text-left",
+                  selected ? "border-accent bg-accent/10" : "border-border bg-subtle",
                 )}
-              />
-              <span className="mt-2 block text-sm font-medium">{mode.label}</span>
-              <span className="text-xs text-faint">{mode.hint}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          disabled={appearance.mode === "light"}
-          onClick={() => setAppearance({ ...appearance, oled: !appearance.oled })}
-          className={cn(
-            "rounded-xl border px-2.5 py-3 text-left",
-            appearance.oled && appearance.mode !== "light"
-              ? "border-accent bg-accent/10"
-              : "border-border bg-subtle",
-            appearance.mode === "light" && "opacity-50",
-          )}
-        >
-          <span className="oled-preview block h-16 rounded-lg ring-1 ring-border" />
-          <span className="mt-2 block text-sm font-medium">OLED</span>
-          <span className="text-xs text-faint">True black</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setDynamic(!appearance.dynamic)}
-          className={cn(
-            "rounded-xl border px-2.5 py-3 text-left",
-            appearance.dynamic ? "border-accent bg-accent/10" : "border-border bg-subtle",
-          )}
-        >
-          <span className="dynamic-preview block h-16 rounded-lg ring-1 ring-border" />
-          <span className="mt-2 block text-sm font-medium">Dynamic</span>
-          <span className="text-xs text-faint">From home banner</span>
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function AppearancePane() {
-  const { appearance, setAppearance } = useAppearance();
-  return (
-    <section className="rounded-xl bg-elevated p-4 sm:p-5">
-      <label className="flex min-h-12 items-center justify-between gap-3">
-        <span>
-          <span className="block text-sm font-medium">Bloom</span>
-          <span className="text-xs text-faint">Soft accent glow on details banners</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={appearance.bloom}
-          onChange={(e) => setAppearance({ ...appearance, bloom: e.target.checked })}
-          className="size-5 accent-[var(--color-accent)]"
-        />
-      </label>
-      <label className="flex min-h-12 items-center justify-between gap-3">
-        <span>
-          <span className="block text-sm font-medium">Grain</span>
-          <span className="text-xs text-faint">Subtle film grain over the interface</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={appearance.grain}
-          onChange={(e) => setAppearance({ ...appearance, grain: e.target.checked })}
-          className="size-5 accent-[var(--color-accent)]"
-        />
-      </label>
-      {appearance.grain ? (
-        <div className="mt-2">
-          <p className="mb-2 text-xs text-faint">Grain intensity</p>
-          <div className="flex gap-2">
-            {GRAIN.map((item) => {
-              const selected = appearance.grainIntensity === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() =>
-                    setAppearance({ ...appearance, grainIntensity: item.id })
-                  }
+              >
+                <span
                   className={cn(
-                    "h-10 flex-1 rounded-full text-sm font-medium",
-                    selected ? "bg-accent text-accent-fg" : "bg-subtle text-muted",
+                    "block h-16 rounded-lg ring-1 ring-border",
+                    mode.id === "light" && "light-preview",
+                    mode.id === "dark" && "dark-preview",
+                    mode.id === "system" && "system-preview",
                   )}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
+                />
+                <span className="mt-2 block text-sm font-medium">{mode.label}</span>
+                <span className="text-xs text-faint">{mode.hint}</span>
+              </button>
+            );
+          })}
         </div>
-      ) : null}
-    </section>
-  );
-}
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={appearance.mode === "light"}
+            onClick={() => setAppearance({ ...appearance, oled: !appearance.oled })}
+            className={cn(
+              "rounded-xl border px-2.5 py-3 text-left",
+              appearance.oled && appearance.mode !== "light"
+                ? "border-accent bg-accent/10"
+                : "border-border bg-subtle",
+              appearance.mode === "light" && "opacity-50",
+            )}
+          >
+            <span className="oled-preview block h-16 rounded-lg ring-1 ring-border" />
+            <span className="mt-2 block text-sm font-medium">OLED</span>
+            <span className="text-xs text-faint">True black</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDynamic(!appearance.dynamic)}
+            className={cn(
+              "rounded-xl border px-2.5 py-3 text-left",
+              appearance.dynamic ? "border-accent bg-accent/10" : "border-border bg-subtle",
+            )}
+          >
+            <span className="dynamic-preview block h-16 rounded-lg ring-1 ring-border" />
+            <span className="mt-2 block text-sm font-medium">Dynamic</span>
+            <span className="text-xs text-faint">From home banner</span>
+          </button>
+        </div>
+      </section>
 
-function AccentPane() {
-  const { appearance, setAppearance } = useAppearance();
-  return (
-    <section className="rounded-xl bg-elevated p-4 sm:p-5">
-      <p className="text-xs text-faint">
-        {appearance.dynamic
-          ? "Preset chips are a fallback while Dynamic is on."
-          : "Used when Dynamic is off."}
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {ACCENTS.map((swatch) => {
-          const selected = !appearance.dynamic && appearance.accent === swatch.id;
-          return (
-            <button
-              key={swatch.id}
-              type="button"
-              onClick={() =>
-                setAppearance({ ...appearance, accent: swatch.id, dynamic: false })
-              }
-              className={cn(
-                "flex h-11 items-center gap-2 rounded-full border px-3 text-sm",
-                selected ? "border-accent bg-accent/10" : "border-border bg-subtle",
-                appearance.dynamic && "opacity-60",
-              )}
-            >
-              <span className="accent-chip size-4 rounded-full" data-chip={swatch.id} />
-              {swatch.label}
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
+      <section className="rounded-xl bg-elevated p-4 sm:p-5">
+        <p className="text-sm font-medium text-muted">Accent</p>
+        <p className="mt-1 text-xs text-faint">
+          {appearance.dynamic
+            ? "Preset chips are a fallback while Dynamic is on."
+            : "Used when Dynamic is off."}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {ACCENTS.map((swatch) => {
+            const selected = !appearance.dynamic && appearance.accent === swatch.id;
+            return (
+              <button
+                key={swatch.id}
+                type="button"
+                onClick={() =>
+                  setAppearance({ ...appearance, accent: swatch.id, dynamic: false })
+                }
+                className={cn(
+                  "flex h-11 items-center gap-2 rounded-full border px-3 text-sm",
+                  selected ? "border-accent bg-accent/10" : "border-border bg-subtle",
+                  appearance.dynamic && "opacity-60",
+                )}
+              >
+                <span className="accent-chip size-4 rounded-full" data-chip={swatch.id} />
+                {swatch.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
-function MaterialPane() {
-  return (
-    <section className="rounded-xl bg-elevated p-4 sm:p-5">
-      <p className="text-sm leading-relaxed text-muted">
-        Dynamic tints the cartridge mark, favicon, and chrome from the home banner.
-        On Android 12+ the app also reads your wallpaper, and on Android 13+ the
-        home-screen icon can follow Material You if Themed icons is enabled in
-        wallpaper settings.
-      </p>
-      <div className="mt-4 flex items-center gap-3 rounded-xl bg-subtle px-3 py-3">
-        <BrandMark className="size-10" />
-        <p className="text-xs text-faint">Preview — the screen glow uses your current accent.</p>
-      </div>
-    </section>
-  );
-}
+      <section className="rounded-xl bg-elevated p-4 sm:p-5">
+        <label className="flex min-h-12 items-center justify-between gap-3">
+          <span>
+            <span className="block text-sm font-medium">Bloom</span>
+            <span className="text-xs text-faint">Accent glow on details banners</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={appearance.bloom}
+            onChange={(e) => setAppearance({ ...appearance, bloom: e.target.checked })}
+            className="size-5 accent-[var(--color-accent)]"
+          />
+        </label>
+        <label className="flex min-h-12 items-center justify-between gap-3">
+          <span>
+            <span className="block text-sm font-medium">Grain</span>
+            <span className="text-xs text-faint">Subtle film grain over the interface</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={appearance.grain}
+            onChange={(e) => setAppearance({ ...appearance, grain: e.target.checked })}
+            className="size-5 accent-[var(--color-accent)]"
+          />
+        </label>
+        {appearance.grain ? (
+          <div className="mt-2">
+            <p className="mb-2 text-xs text-faint">Grain intensity</p>
+            <div className="flex gap-2">
+              {GRAIN.map((item) => {
+                const selected = appearance.grainIntensity === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() =>
+                      setAppearance({ ...appearance, grainIntensity: item.id })
+                    }
+                    className={cn(
+                      "h-10 flex-1 rounded-full text-sm font-medium",
+                      selected ? "bg-accent text-accent-fg" : "bg-subtle text-muted",
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </section>
 
-function AboutPane() {
-  return (
-    <section className="rounded-xl bg-elevated p-4 sm:p-5">
-      <p className="text-sm leading-relaxed text-muted">
-        Video player, manga reader, extensions, liquid wallpaper, logo animation,
-        and refresh-rate controls stay out of SaveState on purpose.
-      </p>
-    </section>
+      <section className="rounded-xl bg-elevated p-4 sm:p-5">
+        <p className="text-sm font-medium text-muted">Material You</p>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          Dynamic tints the cartridge mark, favicon, and chrome from the home banner.
+          On Android 12+ the app also reads your wallpaper, and on Android 13+ the
+          home-screen icon can follow Material You if Themed icons is enabled in
+          wallpaper settings.
+        </p>
+        <div className="mt-4 flex items-center gap-3 rounded-xl bg-subtle px-3 py-3">
+          <BrandMark className="size-10" />
+          <p className="text-xs text-faint">Preview — the screen glow uses your current accent.</p>
+        </div>
+      </section>
+    </div>
   );
 }
 
