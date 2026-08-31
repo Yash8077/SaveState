@@ -23,8 +23,41 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
   bool _isAuthError = false;
   String _errorMessage = '';
   GameStatus? _selectedStatus; // null means 'All'
+  bool _favoritesOnly = false;
+  String? _appliedQuery;
   _LibrarySort _sort = _LibrarySort.nameAsc;
   String _titleQuery = '';
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final status = GoRouterState.of(context).uri.queryParameters['status'];
+    if (status == _appliedQuery) return;
+    _appliedQuery = status;
+    _applyFilter(status);
+  }
+
+  void _applyFilter(String? status) {
+    if (status == 'favorites') {
+      setState(() {
+        _favoritesOnly = true;
+        _selectedStatus = null;
+      });
+      return;
+    }
+    if (status == null || status == 'all') {
+      setState(() {
+        _favoritesOnly = false;
+        _selectedStatus = null;
+      });
+      return;
+    }
+    final parsed = GameStatus.values.where((s) => s.name == status).firstOrNull;
+    setState(() {
+      _favoritesOnly = false;
+      _selectedStatus = parsed;
+    });
+  }
 
   @override
   void onAuthReady(bool signedIn) {
@@ -120,7 +153,10 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
   List<GameEntry> get _filteredEntries {
     final needle = _titleQuery.trim().toLowerCase();
     final list = _entries.where((entry) {
-      if (_selectedStatus != null && entry.status != _selectedStatus) {
+      if (_favoritesOnly && !entry.favorite) return false;
+      if (!_favoritesOnly &&
+          _selectedStatus != null &&
+          entry.status != _selectedStatus) {
         return false;
       }
       if (needle.isNotEmpty && !entry.title.toLowerCase().contains(needle)) {
@@ -436,13 +472,14 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
 
   Widget _buildFilterChips(ColorScheme colorScheme) {
     final filters = <Map<String, dynamic>>[
-      {'status': null, 'label': 'All'},
-      {'status': GameStatus.playing, 'label': 'Playing'},
-      {'status': GameStatus.beaten, 'label': 'Beaten'},
-      {'status': GameStatus.backlog, 'label': 'Backlog'},
-      {'status': GameStatus.hold, 'label': 'On Hold'},
-      {'status': GameStatus.dropped, 'label': 'Dropped'},
-      {'status': GameStatus.wishlist, 'label': 'Wishlist'},
+      {'status': null, 'label': 'All', 'favorites': false},
+      {'status': null, 'label': 'Favorites', 'favorites': true},
+      {'status': GameStatus.playing, 'label': 'Playing', 'favorites': false},
+      {'status': GameStatus.beaten, 'label': 'Beaten', 'favorites': false},
+      {'status': GameStatus.backlog, 'label': 'Backlog', 'favorites': false},
+      {'status': GameStatus.hold, 'label': 'On Hold', 'favorites': false},
+      {'status': GameStatus.dropped, 'label': 'Dropped', 'favorites': false},
+      {'status': GameStatus.wishlist, 'label': 'Wishlist', 'favorites': false},
     ];
 
     return Container(
@@ -457,8 +494,13 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
           final filter = filters[index];
           final GameStatus? status = filter['status'] as GameStatus?;
           final String label = filter['label'] as String;
-          final bool isSelected = _selectedStatus == status;
-          final int count = _countForStatus(status);
+          final bool favorites = filter['favorites'] == true;
+          final bool isSelected = favorites
+              ? _favoritesOnly
+              : !_favoritesOnly && _selectedStatus == status;
+          final int count = favorites
+              ? _entries.where((e) => e.favorite).length
+              : _countForStatus(status);
           final Color statusColor = status != null
               ? _getStatusColor(status)
               : colorScheme.primary;
@@ -501,7 +543,8 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
             ),
             onSelected: (_) {
               setState(() {
-                _selectedStatus = status;
+                _favoritesOnly = favorites;
+                _selectedStatus = favorites ? null : status;
               });
             },
           );

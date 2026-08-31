@@ -56,6 +56,22 @@ export function isDefaultAvatar(src: string | null | undefined): boolean {
   return Boolean(value && AVATAR_PATH.test(value));
 }
 
+const MAX_BANNER_CHARS = 400_000;
+const BANNER_HOST =
+  /^https:\/\/(?:(?:shared|cdn)\.akamai\.steamstatic\.com|steamcdn-a\.akamaihd\.net|images\.igdb\.com)\//i;
+
+/** Custom photo, Steam/IGDB art, or null to use the automatic favorite hero. */
+export function parseBannerValue(raw: unknown): string | null | undefined {
+  if (raw === null) return null;
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "string") return undefined;
+  const value = raw.trim();
+  if (!value || value === "auto") return null;
+  if (DATA_IMAGE.test(value) && value.length <= MAX_BANNER_CHARS) return value;
+  if (BANNER_HOST.test(value)) return value;
+  return undefined;
+}
+
 export function sortAvatarSrcs(srcs: string[]): string[] {
   return [...srcs].sort((a, b) => {
     const n = (s: string) => Number(AVATAR_PATH.exec(s)?.[1] ?? 0);

@@ -159,6 +159,28 @@ String? upgradeSteamCapsule(String? url) {
   );
 }
 
+String? upgradeHeroUrl(String? url, [String? catalogId]) {
+  var normalized = normalizeArtUrl(url);
+  if (normalized == null) {
+    final steam = RegExp(r'^steam_(\d+)$').firstMatch(catalogId ?? '');
+    if (steam == null) return null;
+    return 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${steam.group(1)}/library_hero_2x.jpg';
+  }
+  normalized = normalized.replaceAll(
+    RegExp(r'/t_(thumb|cover_small|cover_big|screenshot_med|screenshot_big|720p)\b'),
+    '/t_1080p',
+  );
+  normalized = normalized.replaceFirst(
+    RegExp(r'/header(?:_2x)?\.jpg', caseSensitive: false),
+    '/library_hero_2x.jpg',
+  );
+  normalized = normalized.replaceFirst(
+    RegExp(r'/library_hero\.jpg', caseSensitive: false),
+    '/library_hero_2x.jpg',
+  );
+  return normalized;
+}
+
 class CatalogDetails extends CatalogGame {
   final String summary;
   final String? releaseDate;

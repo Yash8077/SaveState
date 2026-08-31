@@ -35,10 +35,15 @@ export const Route = createFileRoute("/api/profile")({
           if (!profile) return apiJson({ error: "Not found" }, 404);
           try {
             const { auth } = await import("@/lib/auth/server");
-            await auth.api.updateUser({
-              body: patch,
-              headers: request.headers,
-            });
+            const sessionPatch: { name?: string; image?: string | null } = {};
+            if (patch.name !== undefined) sessionPatch.name = patch.name;
+            if (patch.image !== undefined) sessionPatch.image = patch.image;
+            if (Object.keys(sessionPatch).length) {
+              await auth.api.updateUser({
+                body: sessionPatch,
+                headers: request.headers,
+              });
+            }
           } catch {
             /* SQL already saved; session cookie refresh is best-effort */
           }

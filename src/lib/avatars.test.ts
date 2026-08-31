@@ -5,6 +5,7 @@ import {
   defaultAvatarSrc,
   GUEST_AVATAR,
   parseAvatarValue,
+  parseBannerValue,
   parseDisplayName,
 } from "./avatars.ts";
 import { listBuiltInAvatars } from "./avatars.server.ts";
@@ -34,6 +35,26 @@ describe("avatars", () => {
     assert.equal(parseAvatarValue("data:text/html;base64,aaaa"), undefined);
     assert.equal(parseAvatarValue(null), null);
     assert.equal(GUEST_AVATAR, "/avatars/avatar_6.png");
+  });
+
+  it("accepts Steam/IGDB banner URLs and data images, not random hosts", () => {
+    assert.equal(parseBannerValue(null), null);
+    assert.equal(parseBannerValue("auto"), null);
+    assert.equal(
+      parseBannerValue(
+        "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1/library_hero_2x.jpg",
+      ),
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1/library_hero_2x.jpg",
+    );
+    assert.equal(
+      parseBannerValue("https://images.igdb.com/igdb/image/upload/t_1080p/abc.jpg"),
+      "https://images.igdb.com/igdb/image/upload/t_1080p/abc.jpg",
+    );
+    assert.equal(parseBannerValue("https://evil.example/x.jpg"), undefined);
+    assert.equal(
+      parseBannerValue("data:image/jpeg;base64,abc+/12=="),
+      "data:image/jpeg;base64,abc+/12==",
+    );
   });
 
   it("lists avatar_N.png files from disk in numeric order", () => {

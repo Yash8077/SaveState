@@ -63,3 +63,23 @@ export function upgradeSteamCapsule(url: string | null | undefined): string | nu
   if (!normalized) return null;
   return normalized.replace(/capsule_231x87(?=_2x)?\.jpg/i, "capsule_231x87_2x.jpg");
 }
+
+/** Prefer Steam library_hero_2x / IGDB 1080p so wide banners stay sharp. */
+export function upgradeHeroUrl(
+  url: string | null | undefined,
+  catalogId?: string | null,
+): string | null {
+  let normalized = normalizeArtUrl(url);
+  if (!normalized) {
+    const steam = /^steam_(\d+)$/.exec(catalogId ?? "");
+    return steam ? `${STEAM_IMG}/${steam[1]}/library_hero_2x.jpg` : null;
+  }
+  normalized = normalized.replace(
+    /\/t_(thumb|cover_small|cover_big|screenshot_med|screenshot_big|720p)\b/g,
+    "/t_1080p",
+  );
+  normalized = normalized
+    .replace(/\/header(?:_2x)?\.jpg/i, "/library_hero_2x.jpg")
+    .replace(/\/library_hero\.jpg/i, "/library_hero_2x.jpg");
+  return normalized;
+}

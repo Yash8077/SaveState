@@ -7,13 +7,15 @@ import { bundledAvatarSrcs } from "@/lib/avatar-files";
 import { ThemeAvatar } from "@/components/theme-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, upgradeHeroUrl } from "@/lib/utils";
+import type { GameEntry } from "@/lib/types";
 
 export type ProfileRecord = {
   id: string;
   name: string;
   email: string;
   image: string | null;
+  banner: string | null;
   hasPassword: boolean;
 };
 
@@ -46,6 +48,7 @@ async function refreshSession(qc: ReturnType<typeof useQueryClient>) {
 export async function patchProfile(fields: {
   name?: string;
   image?: string | null;
+  banner?: string | null;
 }): Promise<ProfileRecord> {
   const res = await profileRequest("/api/profile", {
     method: "PATCH",
@@ -93,6 +96,45 @@ function resizeImage(file: File): Promise<string> {
       );
       URL.revokeObjectURL(url);
       resolve(canvas.toDataURL("image/jpeg", 0.86));
+    };
+    raw.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not read that image"));
+    };
+    raw.src = url;
+  });
+}
+
+function resizeBanner(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const raw = new Image();
+    const url = URL.createObjectURL(file);
+    raw.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1600;
+      canvas.height = 500;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        reject(new Error("No canvas"));
+        return;
+      }
+      const target = 1600 / 500;
+      const source = raw.width / raw.height;
+      let sx = 0;
+      let sy = 0;
+      let sw = raw.width;
+      let sh = raw.height;
+      if (source > target) {
+        sw = raw.height * target;
+        sx = (raw.width - sw) / 2;
+      } else {
+        sh = raw.width / target;
+        sy = (raw.height - sh) / 2;
+      }
+      ctx.drawImage(raw, sx, sy, sw, sh, 0, 0, 1600, 500);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
     };
     raw.onerror = () => {
       URL.revokeObjectURL(url);
@@ -195,6 +237,102 @@ export function AvatarPicker({
       <div className="mt-3">
         <Button type="button" variant="ghost" size="sm" onClick={() => fileRef.current?.click()}>
           Custom photo
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(e) => void onPickCustom(e.target.files?.[0])}
+        />
+      </div>
+    </div>
+  );
+}
+
+export function BannerPicker({
+  value,
+  games,
+  onSaved,
+}: {
+  value: string | null;
+  games: GameEntry[];
+  onSaved?: (banner: string | null) => void;
+}) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const ranked = [
+    ...games.filter((game) => game.favorite),
+    ...games,
+  ];
+  const options = ranked
+    .map((game) => ({
+      id: game.catalogId,
+      title: game.title,
+      src: upgradeHeroUrl(game.headerUrl, game.catalogId),
+    }))
+    .filter((row): row is { id: string; title: string; src: string } => Boolean(row.src));
+  const unique = options.filter(
+    (row, i, list) => list.findIndex((item) => item.src === row.src) === i,
+  );
+
+  async function pick(next: string | null) {
+    setBusy(true);
+    try {
+      const json = await patchProfile({ banner: next });
+      await refreshSession(qc);
+      onSaved?.(json.banner);
+      toast.success(next ? "Banner updated" : "Using automatic banner");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save banner");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onPickCustom(file: File | undefined) {
+    if (!file) return;
+    try {
+      await pick(await resizeBanner(file));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not use that image");
+    }
+  }
+
+  return (
+    <div className={cn("space-y-4", busy && "pointer-events-none opacity-70")}>
+      <p className="text-sm text-muted">
+        Pick a game hero, upload a photo, or reset to the automatic favorite art.
+      </p>
+      {unique.length ? (
+        <div className="grid grid-cols-2 gap-2 min-[500px]:grid-cols-3">
+          {unique.slice(0, 12).map((row) => {
+            const selected = value === row.src;
+            return (
+              <button
+                key={row.id}
+                type="button"
+                onClick={() => void pick(row.src)}
+                className={cn(
+                  "overflow-hidden rounded-xl ring-2 ring-offset-2 ring-offset-elevated",
+                  selected ? "ring-accent" : "ring-transparent hover:ring-border",
+                )}
+              >
+                <img src={row.src} alt={row.title} className="aspect-[16/5] w-full object-cover" />
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-sm text-muted">Add games to your library to use their artwork.</p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={() => fileRef.current?.click()}>
+          Custom photo
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={() => void pick(null)}>
+          Automatic
         </Button>
         <input
           ref={fileRef}

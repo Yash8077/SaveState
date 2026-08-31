@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { KeyRound, Pencil } from "lucide-react";
+import { ImageIcon, KeyRound, Pencil } from "lucide-react";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useLibrary } from "@/hooks/use-library";
@@ -12,24 +12,33 @@ import { GameCard, RatingBadge } from "@/components/game-card";
 import { Poster } from "@/components/poster";
 import {
   AvatarPicker,
+  BannerPicker,
   NameEditor,
   PasswordEditor,
   Sheet,
   readProfile,
 } from "@/components/profile-editor";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatHours, normalizeArtUrl } from "@/lib/utils";
+import { formatHours, upgradeHeroUrl } from "@/lib/utils";
 import type { GameEntry } from "@/lib/types";
 
 export const Route = createFileRoute("/profile")({ component: ProfilePage });
 
-type SheetKind = "avatar" | "name" | "password" | null;
+type SheetKind = "avatar" | "name" | "password" | "banner" | null;
+const BEATEN_PREVIEW = 6;
+const FAVORITES_PREVIEW = 8;
 
-function bannerUrl(entries: GameEntry[]): string | null {
+function autoBanner(entries: GameEntry[]): string | null {
   const pick = [...entries.filter((e) => e.favorite), ...entries].find(
-    (e) => e.headerUrl || e.coverUrl,
+    (e) => e.headerUrl || e.coverUrl || /^steam_/.test(e.catalogId),
   );
-  return normalizeArtUrl(pick?.headerUrl || pick?.coverUrl);
+  return upgradeHeroUrl(pick?.headerUrl || pick?.coverUrl, pick?.catalogId);
+}
+
+function displayBanner(saved: string | null | undefined, entries: GameEntry[]): string | null {
+  if (saved?.startsWith("data:")) return saved;
+  if (saved) return upgradeHeroUrl(saved);
+  return autoBanner(entries);
 }
 
 function ProfilePage() {
@@ -61,7 +70,9 @@ function ProfilePage() {
         .sort((a, b) => (b.finishedAt ?? "").localeCompare(a.finishedAt ?? "")),
     [entries],
   );
-  const art = bannerUrl(entries);
+  const favoritePreview = favorites.slice(0, FAVORITES_PREVIEW);
+  const beatenPreview = beaten.slice(0, BEATEN_PREVIEW);
+  const art = displayBanner(profile.data?.banner, entries);
 
   if (isPending) return <Skeleton className="h-64 w-full rounded-2xl" />;
   if (!user) return <RedirectToSignIn />;
@@ -81,6 +92,15 @@ function ProfilePage() {
             <div className="size-full bg-subtle" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-elevated via-elevated/55 to-transparent" />
+          <button
+            type="button"
+            onClick={() => setSheet("banner")}
+            className="absolute top-3 right-3 inline-flex h-9 items-center gap-1.5 rounded-full bg-bg/70 px-3 text-xs font-medium backdrop-blur-sm"
+            aria-label="Change banner"
+          >
+            <ImageIcon className="size-3.5" />
+            Banner
+          </button>
         </div>
         <div className="relative -mt-12 flex flex-wrap items-end gap-4 px-5 pb-5">
           <button
@@ -137,9 +157,20 @@ function ProfilePage() {
 
       {favorites.length ? (
         <section>
-          <h2 className="mb-3 text-lg font-medium">Favorites</h2>
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 className="text-lg font-medium">Favorites</h2>
+            {favorites.length > FAVORITES_PREVIEW ? (
+              <Link
+                to="/library"
+                search={{ status: "favorites" }}
+                className="text-sm font-medium text-accent"
+              >
+                See all {favorites.length} →
+              </Link>
+            ) : null}
+          </div>
           <div className="grid grid-cols-3 gap-3 min-[600px]:grid-cols-4 min-[900px]:grid-cols-6">
-            {favorites.map((e) => (
+            {favoritePreview.map((e) => (
               <GameCard
                 key={e.id}
                 catalogId={e.catalogId}
@@ -160,9 +191,20 @@ function ProfilePage() {
 
       {beaten.length ? (
         <section>
-          <h2 className="mb-3 text-lg font-medium">Beaten</h2>
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 className="text-lg font-medium">Beaten</h2>
+            {beaten.length > BEATEN_PREVIEW ? (
+              <Link
+                to="/library"
+                search={{ status: "beaten" }}
+                className="text-sm font-medium text-accent"
+              >
+                See all {beaten.length} →
+              </Link>
+            ) : null}
+          </div>
           <div className="overflow-hidden rounded-2xl bg-elevated">
-            {beaten.map((e, i) => (
+            {beatenPreview.map((e, i) => (
               <Link
                 key={e.id}
                 to="/game/$catalogId"
@@ -202,6 +244,15 @@ function ProfilePage() {
           <AvatarPicker
             value={avatar}
             persist
+            onSaved={() => setSheet(null)}
+          />
+        </Sheet>
+      ) : null}
+      {sheet === "banner" ? (
+        <Sheet title="Change banner" onClose={() => setSheet(null)}>
+          <BannerPicker
+            value={profile.data?.banner ?? null}
+            games={entries}
             onSaved={() => setSheet(null)}
           />
         </Sheet>

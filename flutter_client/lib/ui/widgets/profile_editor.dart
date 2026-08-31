@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
 import 'user_avatar.dart';
@@ -619,6 +622,168 @@ class _PasswordFieldsState extends State<_PasswordFields> {
         FilledButton(
           onPressed: _busy ? null : _save,
           child: Text(_busy ? 'Updating…' : 'Update password'),
+        ),
+      ],
+    );
+  }
+}
+
+Future<void> showBannerPicker(
+  BuildContext context, {
+  required List<GameEntry> games,
+  String? banner,
+  VoidCallback? onSaved,
+}) {
+  final options = <({String id, String title, String src})>[];
+  final seen = <String>{};
+  for (final game in games) {
+    final src = upgradeHeroUrl(game.headerUrl, game.catalogId);
+    if (src == null || !seen.add(src)) continue;
+    options.add((id: game.catalogId, title: game.title, src: src));
+    if (options.length >= 12) break;
+  }
+  return _presentSheet(
+    context,
+    title: 'Change banner',
+    body: Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      child: _BannerBody(
+        options: options,
+        current: banner,
+        onSaved: onSaved,
+      ),
+    ),
+  );
+}
+
+class _BannerBody extends StatefulWidget {
+  final List<({String id, String title, String src})> options;
+  final String? current;
+  final VoidCallback? onSaved;
+  const _BannerBody({
+    required this.options,
+    required this.current,
+    this.onSaved,
+  });
+
+  @override
+  State<_BannerBody> createState() => _BannerBodyState();
+}
+
+class _BannerBodyState extends State<_BannerBody> {
+  late String? _current = widget.current;
+  bool _busy = false;
+
+  Future<void> _save(String? next) async {
+    setState(() => _busy = true);
+    try {
+      await context.read<ApiClient>().updateProfile(
+            banner: next,
+            clearBanner: next == null,
+          );
+      if (!mounted) return;
+      setState(() => _current = next);
+      widget.onSaved?.call();
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(next == null ? 'Using automatic banner' : 'Banner updated'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _custom() async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    final file = picked?.files.firstOrNull;
+    final bytes = file?.bytes;
+    if (bytes == null) return;
+    if (bytes.length > 280000) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pick a smaller photo (under 280 KB)')),
+      );
+      return;
+    }
+    final mime = (file?.extension ?? 'jpg').toLowerCase() == 'png'
+        ? 'png'
+        : 'jpeg';
+    await _save('data:image/$mime;base64,${base64Encode(bytes)}');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Pick a game hero, upload a photo, or reset to automatic art.',
+          style: TextStyle(color: cs.onSurfaceVariant),
+        ),
+        const SizedBox(height: 12),
+        if (widget.options.isEmpty)
+          Text(
+            'Add games to your library to use their artwork.',
+            style: TextStyle(color: cs.onSurfaceVariant),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: widget.options.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 16 / 5,
+            ),
+            itemBuilder: (context, i) {
+              final row = widget.options[i];
+              final selected = _current == row.src;
+              return InkWell(
+                onTap: _busy ? null : () => _save(row.src),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: selected ? cs.primary : Colors.transparent,
+                      width: 3,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: CachedNetworkImage(
+                      imageUrl: row.src,
+                      fit: BoxFit.cover,
+                      memCacheWidth: 800,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          children: [
+            FilledButton.tonal(
+              onPressed: _busy ? null : _custom,
+              child: const Text('Custom photo'),
+            ),
+            TextButton(
+              onPressed: _busy ? null : () => _save(null),
+              child: const Text('Automatic'),
+            ),
+          ],
         ),
       ],
     );

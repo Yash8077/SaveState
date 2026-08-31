@@ -1,11 +1,12 @@
 import type { Sql } from "./db.ts";
-import { parseAvatarValue, parseDisplayName } from "./avatars.ts";
+import { parseAvatarValue, parseBannerValue, parseDisplayName } from "./avatars.ts";
 
 export type Profile = {
   id: string;
   name: string;
   email: string;
   image: string | null;
+  banner: string | null;
   hasPassword: boolean;
 };
 
@@ -14,6 +15,7 @@ type UserRow = {
   name: string;
   email: string;
   image: string | null;
+  banner: string | null;
 };
 
 export async function userHasPassword(
@@ -36,7 +38,7 @@ export async function getProfile(
   userId: string,
 ): Promise<Profile | null> {
   const rows = await sql.query<UserRow>(
-    `select id, name, email, image from "user" where id = $1`,
+    `select id, name, email, image, banner from "user" where id = $1`,
     [userId],
   );
   const row = rows[0];
@@ -46,17 +48,21 @@ export async function getProfile(
     name: row.name,
     email: row.email,
     image: row.image ?? null,
+    banner: row.banner ?? null,
     hasPassword: await userHasPassword(sql, userId),
   };
 }
 
-export function profilePatchFromBody(body: unknown): {
+export type ProfilePatch = {
   name?: string;
   image?: string | null;
-} | null {
+  banner?: string | null;
+};
+
+export function profilePatchFromBody(body: unknown): ProfilePatch | null {
   if (!body || typeof body !== "object") return null;
-  const raw = body as { name?: unknown; image?: unknown };
-  const patch: { name?: string; image?: string | null } = {};
+  const raw = body as { name?: unknown; image?: unknown; banner?: unknown };
+  const patch: ProfilePatch = {};
   if ("name" in raw) {
     const name = parseDisplayName(raw.name);
     if (!name) return null;
@@ -67,24 +73,32 @@ export function profilePatchFromBody(body: unknown): {
     if (image === undefined) return null;
     patch.image = image;
   }
-  if (!("name" in patch) && !("image" in patch)) return null;
+  if ("banner" in raw) {
+    const banner = parseBannerValue(raw.banner);
+    if (banner === undefined) return null;
+    patch.banner = banner;
+  }
+  if (!("name" in patch) && !("image" in patch) && !("banner" in patch)) {
+    return null;
+  }
   return patch;
 }
 
 export async function updateProfileRow(
   sql: Sql,
   userId: string,
-  patch: { name?: string; image?: string | null },
+  patch: ProfilePatch,
 ): Promise<Profile | null> {
   const current = await getProfile(sql, userId);
   if (!current) return null;
   const name = patch.name ?? current.name;
   const image = patch.image !== undefined ? patch.image : current.image;
+  const banner = patch.banner !== undefined ? patch.banner : current.banner;
   await sql.query(
     `update "user"
-     set name = $2, image = $3, "updatedAt" = now()
+     set name = $2, image = $3, banner = $4, "updatedAt" = now()
      where id = $1`,
-    [userId, name, image],
+    [userId, name, image, banner],
   );
   return getProfile(sql, userId);
 }

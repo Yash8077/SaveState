@@ -13,7 +13,7 @@ import {
   steamReleaseKind,
 } from "./catalog.server.ts";
 import { FEATURED_SEED } from "./catalog-seed.ts";
-import { isLandscapeArt, upgradeSteamCapsule } from "./utils.ts";
+import { isLandscapeArt, upgradeHeroUrl, upgradeSteamCapsule } from "./utils.ts";
 import type { CatalogGame, FeaturedRail } from "./types.ts";
 
 function game(id: string, title: string): CatalogGame {
@@ -406,6 +406,16 @@ describe("Steam search ranking", () => {
     assert.equal(
       upgradeSteamCapsule("https://cdn.example/capsule_231x87.jpg"),
       "https://cdn.example/capsule_231x87_2x.jpg",
+    );
+    assert.match(
+      upgradeHeroUrl(
+        "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1/header.jpg",
+      ) ?? "",
+      /library_hero_2x\.jpg$/,
+    );
+    assert.match(
+      upgradeHeroUrl(null, "steam_570") ?? "",
+      /570\/library_hero_2x\.jpg$/,
     );
   });
 

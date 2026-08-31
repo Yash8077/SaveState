@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { RedirectToSignIn } from "@/lib/auth/gates";
@@ -45,18 +45,15 @@ export const Route = createFileRoute("/library")({
   component: LibraryPage,
 });
 
+const PAGE_SIZE = 60;
+
 function LibraryPage() {
   const { user, isPending } = useCurrentUserState();
   const { status = "all" } = Route.useSearch();
   const library = useLibrary();
   const [sort, setSort] = useState<LibrarySort>("name-asc");
   const [titleQuery, setTitleQuery] = useState("");
-
-  if (isPending) {
-    return <LibrarySkeleton />;
-  }
-  if (!user) return <RedirectToSignIn />;
-
+  const [visible, setVisible] = useState(PAGE_SIZE);
   const entries = library.data ?? [];
   const filtered = useMemo(() => {
     const needle = titleQuery.trim().toLowerCase();
@@ -71,6 +68,15 @@ function LibraryPage() {
     });
     return sortEntries(next, sort);
   }, [entries, status, sort, titleQuery]);
+
+  useEffect(() => {
+    setVisible(PAGE_SIZE);
+  }, [status, sort, titleQuery]);
+
+  if (isPending) {
+    return <LibrarySkeleton />;
+  }
+  if (!user) return <RedirectToSignIn />;
 
   const filters: { id: LibrarySearch["status"]; label: string }[] = [
     { id: "all", label: "All" },
@@ -152,8 +158,9 @@ function LibraryPage() {
           ) : null}
         </div>
       ) : (
+        <>
         <div className="poster-grid">
-          {filtered.map((e) => (
+          {filtered.slice(0, visible).map((e) => (
             <GameCard
               key={e.id}
               catalogId={e.catalogId}
@@ -169,6 +176,18 @@ function LibraryPage() {
             />
           ))}
         </div>
+        {visible < filtered.length ? (
+          <div className="flex justify-center pt-2">
+            <button
+              type="button"
+              onClick={() => setVisible((n) => n + PAGE_SIZE)}
+              className="h-11 rounded-full bg-subtle px-5 text-sm font-medium"
+            >
+              Load more ({filtered.length - visible} left)
+            </button>
+          </div>
+        ) : null}
+        </>
       )}
     </div>
   );

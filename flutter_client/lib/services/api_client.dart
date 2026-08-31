@@ -622,6 +622,8 @@ class ApiClient {
   Future<Map<String, dynamic>> updateProfile({
     String? name,
     String? image,
+    String? banner,
+    bool clearBanner = false,
   }) async {
     final decoded = await _send(
       'PATCH',
@@ -630,6 +632,8 @@ class ApiClient {
       body: {
         if (name != null) 'name': name,
         if (image != null) 'image': image,
+        if (clearBanner) 'banner': null,
+        if (!clearBanner && banner != null) 'banner': banner,
       },
     );
     if (decoded is Map<String, dynamic>) return decoded;

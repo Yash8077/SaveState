@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -22,6 +23,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   String _name = '';
   String? _image;
+  String? _banner;
   bool _hasPassword = false;
   bool _loading = true;
   String? _error;
@@ -44,15 +46,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   String? _bannerUrl() {
+    if (_banner != null && _banner!.isNotEmpty) {
+      if (_banner!.startsWith('data:')) return _banner;
+      return upgradeHeroUrl(_banner);
+    }
     GameEntry? pick;
     for (final e in _entries) {
-      if (e.favorite && (e.headerUrl != null || e.coverUrl != null)) {
+      if (e.favorite && (e.headerUrl != null || e.coverUrl != null || e.catalogId.startsWith('steam_'))) {
         pick = e;
         break;
       }
     }
-    pick ??= _entries.where((e) => e.headerUrl != null || e.coverUrl != null).firstOrNull;
-    return normalizeArtUrl(pick?.headerUrl ?? pick?.coverUrl);
+    pick ??= _entries.where((e) => e.headerUrl != null || e.coverUrl != null || e.catalogId.startsWith('steam_')).firstOrNull;
+    return upgradeHeroUrl(pick?.headerUrl ?? pick?.coverUrl, pick?.catalogId);
   }
 
   Future<void> _load() async {
@@ -79,6 +85,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _name = profile['name']?.toString() ?? auth.user?.name ?? '';
         _image = canonicalizeAvatar(profile['image']?.toString());
+        _banner = profile['banner']?.toString();
         _hasPassword = profile['hasPassword'] == true;
         _entries = library;
         _loading = false;
@@ -161,11 +168,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (banner != null)
+                    if (banner != null && banner.startsWith('data:'))
+                      Image.memory(
+                        base64Decode(banner.split(',').last),
+                        fit: BoxFit.cover,
+                      )
+                    else if (banner != null)
                       CachedNetworkImage(
                         imageUrl: banner,
                         fit: BoxFit.cover,
-                        memCacheWidth: 1200,
+                        memCacheWidth: 1600,
                         errorWidget: (_, __, ___) =>
                             ColoredBox(color: cs.surfaceContainerHighest),
                       )
@@ -181,6 +193,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             cs.surfaceContainerHigh.withValues(alpha: 0.92),
                           ],
                         ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: FilledButton.tonal(
+                        style: FilledButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                        onPressed: () => showBannerPicker(
+                          context,
+                          games: _entries,
+                          banner: _banner,
+                          onSaved: _load,
+                        ),
+                        child: const Text('Banner'),
                       ),
                     ),
                   ],
@@ -401,14 +430,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   List<Widget> _favorites(ColorScheme cs) {
-    final games = _entries.where((e) => e.favorite).map(_asCard).toList();
-    if (games.isEmpty) return const [];
+    final all = _entries.where((e) => e.favorite).toList();
+    if (all.isEmpty) return const [];
+    final games = all.take(8).map(_asCard).toList();
     return [
-      const Padding(
-        padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
-        child: Text(
-          'Favorites',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Favorites',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            ),
+            if (all.length > 8)
+              TextButton(
+                onPressed: () => context.go('/library?status=favorites'),
+                child: Text('See all ${all.length}'),
+              ),
+          ],
         ),
       ),
       LayoutBuilder(
@@ -439,12 +480,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final beaten = [..._entries.where((e) => e.status == GameStatus.beaten)]
       ..sort((a, b) => (b.finishedAt ?? '').compareTo(a.finishedAt ?? ''));
     if (beaten.isEmpty) return const [];
+    final preview = beaten.take(6).toList();
     return [
-      const Padding(
-        padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
-        child: Text(
-          'Beaten',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Beaten',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            ),
+            if (beaten.length > 6)
+              TextButton(
+                onPressed: () => context.go('/library?status=beaten'),
+                child: Text('See all ${beaten.length}'),
+              ),
+          ],
         ),
       ),
       Padding(
@@ -456,9 +509,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           child: Column(
             children: [
-              for (var i = 0; i < beaten.length; i++) ...[
+              for (var i = 0; i < preview.length; i++) ...[
                 if (i > 0) Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.4)),
-                _beatenRow(cs, beaten[i]),
+                _beatenRow(cs, preview[i]),
               ],
             ],
           ),
