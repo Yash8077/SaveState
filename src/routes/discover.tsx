@@ -10,7 +10,7 @@ export const Route = createFileRoute("/discover")({ component: Discover });
 function Discover() {
   const mounted = useMounted();
   const featured = useQuery({
-    queryKey: ["featured"],
+    queryKey: ["featured", "rel-18"],
     queryFn: ({ signal }) => getFeaturedRails(signal),
     staleTime: 30 * 60_000,
     placeholderData: FEATURED_SEED,

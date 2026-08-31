@@ -30,7 +30,7 @@ function Home() {
   const { appearance, setDynamicAccent } = useAppearance();
   const layout = useHomeLayout();
   const featured = useQuery({
-    queryKey: ["featured", "rel-17"],
+    queryKey: ["featured", "rel-18"],
     queryFn: ({ signal }) => getFeaturedRails(signal),
     staleTime: 30 * 60_000,
     placeholderData: FEATURED_SEED,

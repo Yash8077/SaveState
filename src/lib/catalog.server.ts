@@ -131,7 +131,6 @@ function fromSearchItem(item: SteamSearchItem): CatalogGame | null {
   if (/\b(soundtrack|ost|playtest|demo|bundle)\b/i.test(item.name)) {
     return null;
   }
-  const metascore = item.metascore ? Number(item.metascore) : NaN;
   const header = artUrl(item.id);
   return {
     id: steamCatalogId(item.id),
@@ -141,7 +140,7 @@ function fromSearchItem(item: SteamSearchItem): CatalogGame | null {
     headerUrl: heroUrl(item.id),
     capsuleUrl: upgradeSteamCapsule(item.tiny_image) ?? header,
     platforms: platformsFromFlags(item.platforms),
-    metacritic: Number.isFinite(metascore) ? metascore : null,
+    metacritic: null,
   };
 }
 
@@ -213,14 +212,12 @@ export function parseSteamSearchHtml(html: string): SteamSearchHit[] {
       /<img[^>]+src="([^"]+)"/i.exec(row);
     const capsuleRaw = imgMatch ? decodeSteamHtml(imgMatch[1]) : "";
     const capsule = capsuleRaw.replace(/&/g, "&") || null;
-    const scoreMatch = /search_metascore[^>]*>\s*(\d{2,3})/.exec(row);
-    const metascore = scoreMatch ? Number(scoreMatch[1]) : NaN;
     out.push({
       steamId,
       title,
       released: decodeSteamHtml(releasedMatch?.[1] ?? ""),
       capsule,
-      metacritic: Number.isFinite(metascore) ? metascore : null,
+      metacritic: null,
     });
   }
   return out;
@@ -650,7 +647,7 @@ export async function fetchSteamDetails(
 ): Promise<CatalogDetails | null> {
   const steamId = parseSteamId(catalogId);
   if (!steamId) return null;
-  const url = `https://store.steampowered.com/api/appdetails?appids=${steamId}&l=english&filters=basic,developers,publishers,genres,screenshots,metacritic,dlc`;
+  const url = `https://store.steampowered.com/api/appdetails?appids=${steamId}&l=english&filters=basic,developers,publishers,genres,screenshots,dlc`;
   const data = (await steamGet(url)) as Record<
     string,
     { success?: boolean; data?: SteamAppData }
@@ -679,12 +676,20 @@ export async function fetchSteamDetails(
         headerUrl: art,
         capsuleUrl: app.header_image ?? null,
         platforms: platformsFromFlags(app.platforms),
-        metacritic: app.metacritic?.score ?? null,
+        metacritic: null,
       },
     ])
   )[0]!;
+  let rating: number | null = null;
+  try {
+    const ratings = await fetchIgdbRatings([painted]);
+    rating = ratings.get(painted.id) ?? null;
+  } catch {
+    rating = null;
+  }
   return {
     ...painted,
+    metacritic: rating,
     summary: app.short_description ?? "",
     releaseDate: app.release_date?.date ?? null,
     comingSoon: Boolean(app.release_date?.coming_soon),

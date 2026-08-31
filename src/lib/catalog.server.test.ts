@@ -381,7 +381,7 @@ describe("Steam search ranking", () => {
       ["ELDEN RING", "How to Fish"],
     );
     assert.equal(hits[0]?.capsule, "https://cdn.example/apps/1245620/capsule_231x87.jpg");
-    assert.equal(hits[0]?.metacritic, 94);
+    assert.equal(hits[0]?.metacritic, null);
     assert.match(hits[1]?.capsule ?? "", /8f65bb2b78d37a9147aa79c970a51610e6955bf1/);
     assert.equal(steamReleaseKind("To be announced"), "upcoming");
     assert.equal(steamReleaseKind("Feb 24, 2022"), "old");
