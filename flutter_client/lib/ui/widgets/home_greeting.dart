@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../state/auth_controller.dart';
-import 'user_avatar.dart';
+import 'account_sheet.dart';
 
 class HomeGreeting extends StatelessWidget {
   const HomeGreeting({super.key});
@@ -55,24 +55,7 @@ class HomeGreeting extends StatelessWidget {
             icon: const Icon(Icons.search_rounded),
           ),
           const SizedBox(width: 4),
-          Material(
-            color: cs.primaryContainer,
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: () =>
-                  context.push(auth.isSignedIn ? '/profile' : '/login'),
-              child: SizedBox(
-                width: 42,
-                height: 42,
-                child: UserAvatar(
-                  image: user?.image ?? guestAvatar,
-                  name: name,
-                  size: 42,
-                ),
-              ),
-            ),
-          ),
+          const AccountAvatarButton(size: 42),
         ],
       ),
     );

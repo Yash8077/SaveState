@@ -17,8 +17,7 @@ class PillNav extends StatelessWidget {
   final int index;
   final List<PillDestination> destinations;
   final ValueChanged<int> onSelect;
-  final VoidCallback? onSettings;
-  final bool settingsSelected;
+  final Widget? account;
 
   const PillNav({
     super.key,
@@ -26,8 +25,7 @@ class PillNav extends StatelessWidget {
     required this.index,
     required this.destinations,
     required this.onSelect,
-    this.onSettings,
-    this.settingsSelected = false,
+    this.account,
   });
 
   @override
@@ -60,13 +58,11 @@ class PillNav extends StatelessWidget {
               direction: axis,
               mainAxisSize: MainAxisSize.min,
               children: [
-                for (var i = 0; i < destinations.length; i++)
-                  _PillButton(
-                    destination: destinations[i],
-                    selected: i == index,
-                    onTap: () => onSelect(i),
+                if (account != null) ...[
+                  Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: account!,
                   ),
-                if (onSettings != null) ...[
                   Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: vertical ? 10 : 6,
@@ -80,16 +76,13 @@ class PillNav extends StatelessWidget {
                       ),
                     ),
                   ),
-                  _PillButton(
-                    destination: const PillDestination(
-                      icon: Icons.settings_outlined,
-                      selectedIcon: Icons.settings_rounded,
-                      label: 'Settings',
-                    ),
-                    selected: settingsSelected,
-                    onTap: onSettings!,
-                  ),
                 ],
+                for (var i = 0; i < destinations.length; i++)
+                  _PillButton(
+                    destination: destinations[i],
+                    selected: i == index,
+                    onTap: () => onSelect(i),
+                  ),
               ],
             ),
           ),

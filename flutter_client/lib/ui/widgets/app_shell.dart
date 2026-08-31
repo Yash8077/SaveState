@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'account_sheet.dart';
 import 'pill_nav.dart';
 
 const _destinations = [
@@ -71,7 +72,7 @@ class AppShell extends StatelessWidget {
       index: index,
       destinations: _destinations,
       onSelect: (i) => _onItemTapped(i, context),
-      onSettings: () => context.push('/settings'),
+      account: const AccountAvatarButton(size: 38),
     );
 
     return PopScope(

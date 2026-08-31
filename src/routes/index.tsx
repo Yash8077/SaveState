@@ -3,13 +3,12 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppearance } from "@/components/appearance-provider";
+import { AccountMenu } from "@/components/account-menu";
 import { GameCard, GameRail } from "@/components/game-card";
-import { ThemeAvatar } from "@/components/theme-avatar";
 import { useHomeLayout } from "@/components/home-layout-provider";
 import { useLibrary } from "@/hooks/use-library";
 import { useMounted } from "@/hooks/use-mounted";
 import { getBecauseRail, getFeaturedRails, BECAUSE_STALE_MS, FEATURED_REL, FEATURED_STALE_MS } from "@/lib/api";
-import { GUEST_AVATAR } from "@/lib/avatars";
 import { pickBecauseSeeds, sortWishlist } from "@/lib/because";
 import { FEATURED_SEED } from "@/lib/catalog-seed";
 import { mergeHomeLayout, type HomeSectionPref } from "@/lib/home-layout";
@@ -103,7 +102,7 @@ function Home() {
 
   return (
     <div className="page-in space-y-7">
-      <HomeHello name={name} avatar={user?.profileImageUrl || GUEST_AVATAR} />
+      <HomeHello name={name} />
       {mounted && !signedIn ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-elevated px-4 py-3">
           <p className="text-sm text-muted">
@@ -296,10 +295,8 @@ function LibraryCard({ entry: e }: { entry: GameEntry }) {
 
 function HomeHello({
   name,
-  avatar,
 }: {
   name?: string;
-  avatar?: string | null;
 }) {
   const hour = new Date().getHours();
   const hello =
@@ -329,13 +326,7 @@ function HomeHello({
       >
         <Search className="size-4" />
       </Link>
-      <Link
-        to={name ? "/profile" : "/login"}
-        aria-label={name ? "Profile" : "Sign in"}
-        className="size-10 shrink-0 overflow-hidden rounded-full"
-      >
-        <ThemeAvatar src={avatar} name={name} className="size-10" />
-      </Link>
+      <AccountMenu />
     </div>
   );
 }

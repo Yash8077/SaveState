@@ -7,12 +7,9 @@ import {
   House,
   Library,
   Search,
-  Settings,
 } from "lucide-react";
+import { AccountMenu } from "@/components/account-menu";
 import { BrandMark } from "@/components/brand-mark";
-import { UserButton } from "@/lib/auth/gates";
-import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { useMounted } from "@/hooks/use-mounted";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -39,29 +36,6 @@ function isActive(pathname: string, to: string) {
 function pageTitle(pathname: string) {
   if (pathname.startsWith("/game/")) return "Details";
   return TITLES[pathname] ?? "SaveState";
-}
-
-function AuthSlot() {
-  const mounted = useMounted();
-  const { user, isPending } = useCurrentUserState();
-  if (!mounted || isPending) {
-    return <div className="size-10 animate-pulse rounded-full bg-subtle" />;
-  }
-  if (user) {
-    return (
-      <div className="max-w-40 [&_span.text-sm]:hidden sm:[&_span.text-sm]:inline [&_img]:size-10 [&_button]:min-h-10 [&_button]:rounded-full [&_button]:px-3 [&_button]:text-xs [&_button]:text-muted hover:[&_button]:text-fg">
-        <UserButton />
-      </div>
-    );
-  }
-  return (
-    <Link
-      to="/login"
-      className="inline-flex h-10 items-center rounded-full bg-accent px-4 text-sm font-medium text-accent-fg"
-    >
-      Sign in
-    </Link>
-  );
 }
 
 function NavItem({
@@ -147,7 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {pageTitle(pathname)}
           </h1>
           <div className="ml-auto flex items-center gap-1 pr-1">
-            {pathname !== "/discover" ? (
+            {pathname !== "/discover" && pathname !== "/settings" && pathname !== "/profile" ? (
               <Link
                 to="/discover"
                 search={{ q: "", focus: true }}
@@ -157,17 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Search className="size-5" />
               </Link>
             ) : null}
-            <Link
-              to="/settings"
-              aria-label="Settings"
-              className={cn(
-                "grid size-12 place-items-center rounded-full hover:bg-subtle",
-                pathname === "/settings" ? "text-accent" : "text-fg",
-              )}
-            >
-              <Settings className="size-5" />
-            </Link>
-            <AuthSlot />
+            <AccountMenu />
           </div>
         </header>
         ) : (
