@@ -1,9 +1,8 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../models/types.dart';
-import '../../services/api_client.dart';
 import '../open_game.dart';
 import 'game_card.dart';
 
@@ -27,7 +26,6 @@ class _HeroCarouselState extends State<HeroCarousel> {
   int _index = 0;
   int _page = 0;
   bool? _wide;
-  final Map<String, String> _summaries = {};
 
   int get _n => widget.games.length;
 
@@ -61,9 +59,6 @@ class _HeroCarouselState extends State<HeroCarousel> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _hydrateAround(_index);
-    });
     _arm();
   }
 
@@ -73,9 +68,6 @@ class _HeroCarouselState extends State<HeroCarousel> {
     if (oldWidget.games.length != widget.games.length ||
         oldWidget.autoplay != widget.autoplay) {
       _arm();
-      if (oldWidget.games.length != widget.games.length) {
-        _hydrateAround(_index);
-      }
     }
   }
 
@@ -89,20 +81,6 @@ class _HeroCarouselState extends State<HeroCarousel> {
         curve: Curves.easeOutCubic,
       );
     });
-  }
-
-  void _hydrateAround(int i) {
-    if (_n == 0) return;
-    final api = context.read<ApiClient>();
-    for (final delta in [-1, 0, 1]) {
-      final j = (i + delta) % _n;
-      final id = widget.games[(j + _n) % _n].id;
-      if (_summaries.containsKey(id)) continue;
-      api.getGameDetails(id).then((details) {
-        if (!mounted || details == null || details.summary.isEmpty) return;
-        setState(() => _summaries[id] = details.summary);
-      });
-    }
   }
 
   @override
@@ -128,14 +106,13 @@ class _HeroCarouselState extends State<HeroCarousel> {
   Widget _buildPhone(PageController controller) {
     final cs = Theme.of(context).colorScheme;
     final game = widget.games[_index.clamp(0, widget.games.length - 1)];
-    final summary = _summaries[game.id];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(22),
           child: AspectRatio(
-            aspectRatio: 16 / 9,
+            aspectRatio: 2,
             child: PageView.builder(
               controller: controller,
               padEnds: true,
@@ -145,7 +122,6 @@ class _HeroCarouselState extends State<HeroCarousel> {
                   _page = i;
                   _index = i % _n;
                 });
-                _hydrateAround(_index);
               },
               itemBuilder: (context, i) {
                 final game = widget.games[i % _n];
@@ -165,14 +141,13 @@ class _HeroCarouselState extends State<HeroCarousel> {
           ),
         ),
         const SizedBox(height: 14),
-        _TitleRow(game: game),
-        if (summary != null && summary.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          _SynopsisCard(
-            text: summary,
-            onTap: () => openGame(context, game),
+        SizedBox(
+          height: 28,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _TitleRow(game: game),
           ),
-        ],
+        ),
         if (widget.games.length > 1) ...[
           const SizedBox(height: 12),
           _Dots(
@@ -255,12 +230,19 @@ class _Art extends StatelessWidget {
     required this.onTap,
   });
 
+  String? _url() {
+    if (preferWide) {
+      return normalizeArtUrl(game.headerUrl) ??
+          normalizeArtUrl(game.coverUrl) ??
+          normalizeArtUrl(game.capsuleUrl);
+    }
+    return pickPortraitCover([game.coverUrl, game.capsuleUrl, game.headerUrl]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final art = preferWide
-        ? (game.headerUrl ?? game.coverUrl ?? game.capsuleUrl)
-        : (game.coverUrl ?? game.headerUrl ?? game.capsuleUrl);
+    final art = _url();
     return Material(
       color: cs.surfaceContainerHighest,
       child: InkWell(
@@ -268,18 +250,52 @@ class _Art extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            art == null
-                ? const SizedBox.expand()
-                : CachedNetworkImage(
-                    imageUrl: art,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
+            if (art != null)
+              preferWide
+                  ? _BannerFill(url: art)
+                  : CachedNetworkImage(
+                      imageUrl: art,
+                      fit: isLandscapeArt(art) ? BoxFit.contain : BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
             if (game.metacritic != null) RatingBadge(score: game.metacritic!),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _BannerFill extends StatelessWidget {
+  final String url;
+  const _BannerFill({required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ImageFiltered(
+          imageFilter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: Transform.scale(
+            scale: 1.18,
+            child: CachedNetworkImage(
+              imageUrl: url,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+          ),
+        ),
+        const ColoredBox(color: Color(0x66000000)),
+        CachedNetworkImage(
+          imageUrl: url,
+          fit: BoxFit.contain,
+          width: double.infinity,
+          height: double.infinity,
+        ),
+      ],
     );
   }
 }
@@ -299,55 +315,6 @@ class _TitleRow extends StatelessWidget {
         fontWeight: FontWeight.w800,
         letterSpacing: -0.2,
         height: 1.15,
-      ),
-    );
-  }
-}
-
-class _SynopsisCard extends StatelessWidget {
-  final String text;
-  final VoidCallback onTap;
-  final bool compact;
-  const _SynopsisCard({
-    required this.text,
-    required this.onTap,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Material(
-      color: cs.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(12, compact ? 8 : 10, 10, compact ? 8 : 10),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  text,
-                  maxLines: compact ? 2 : 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.35,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.north_east_rounded,
-                size: 16,
-                color: cs.onSurfaceVariant,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

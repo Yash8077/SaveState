@@ -192,17 +192,25 @@ export function HeroCarousel({
                 key={`${game.id}-phone-${i}`}
                 to="/game/$catalogId"
                 params={{ catalogId: game.id }}
-                className="hero-slide relative block aspect-video overflow-hidden rounded-2xl"
+                className="hero-slide relative block aspect-[2/1] overflow-hidden rounded-2xl bg-elevated"
                 {...bindPeek(game)}
               >
                 {art ? (
-                  <img
-                    src={art}
-                    alt=""
-                    loading={i >= origin && i < origin + 2 ? "eager" : "lazy"}
-                    fetchPriority={i === origin ? "high" : "low"}
-                    className="absolute inset-0 size-full object-cover object-center"
-                  />
+                  <>
+                    <img
+                      src={art}
+                      alt=""
+                      aria-hidden
+                      className="absolute inset-0 size-full scale-110 object-cover opacity-55 blur-xl"
+                    />
+                    <img
+                      src={art}
+                      alt=""
+                      loading={i >= origin && i < origin + 2 ? "eager" : "lazy"}
+                      fetchPriority={i === origin ? "high" : "low"}
+                      className="absolute inset-0 size-full object-contain"
+                    />
+                  </>
                 ) : (
                   <div className="absolute inset-0 bg-subtle" />
                 )}
