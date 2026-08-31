@@ -139,7 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               builder: (context, constraints) {
                 final wide = constraints.maxWidth >= 800;
                 final identity = [
-                  _banner(cs, height: wide ? 200 : 168),
+                  _bannerCard(cs, height: wide ? 200 : 168),
                   _identity(cs, auth),
                   const SizedBox(height: 12),
                   _stats(cs),
@@ -232,7 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _banner(ColorScheme cs, {required double height}) {
+  Widget _bannerCard(ColorScheme cs, {required double height}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -514,7 +514,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final preview = playing.take(2).map(_asCard).toList();
-              final columns = 2;
+              final columns =
+                  (constraints.maxWidth / 148).floor().clamp(3, 6);
               return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
