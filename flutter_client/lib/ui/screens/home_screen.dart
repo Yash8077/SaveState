@@ -6,6 +6,7 @@ import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
 import '../../state/home_layout_controller.dart';
+import '../auth_ready_load.dart';
 import '../widgets/game_rail.dart';
 import '../widgets/home_greeting.dart';
 
@@ -16,12 +17,17 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
   bool _isLoading = true;
   String? _errorMessage;
   List<FeaturedRail> _featuredRails = [];
   List<GameEntry> _library = [];
   FeaturedRail? _because;
+
+  @override
+  void onAuthReady(bool signedIn) {
+    _loadData();
+  }
 
   CatalogGame _asCard(GameEntry entry) {
     return CatalogGame(
@@ -93,12 +99,6 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
   }
 
   @override

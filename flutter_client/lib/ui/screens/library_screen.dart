@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../models/types.dart';
 import '../../services/api_client.dart';
+import '../auth_ready_load.dart';
 import '../open_game.dart';
 import '../widgets/game_card.dart';
 
@@ -16,7 +17,7 @@ class LibraryScreen extends StatefulWidget {
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen> {
+class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
   List<GameEntry> _entries = [];
   bool _isLoading = true;
   bool _isAuthError = false;
@@ -26,8 +27,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   String _titleQuery = '';
 
   @override
-  void initState() {
-    super.initState();
+  void onAuthReady(bool signedIn) {
     _fetchLibrary();
   }
 

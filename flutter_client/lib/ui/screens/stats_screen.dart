@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/types.dart';
 import '../../services/api_client.dart';
+import '../auth_ready_load.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -12,15 +13,14 @@ class StatsScreen extends StatefulWidget {
   State<StatsScreen> createState() => _StatsScreenState();
 }
 
-class _StatsScreenState extends State<StatsScreen> {
+class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
   List<GameEntry> _entries = [];
   bool _isLoading = true;
   bool _isAuthError = false;
   String _errorMessage = '';
 
   @override
-  void initState() {
-    super.initState();
+  void onAuthReady(bool signedIn) {
     _fetchStats();
   }
 
