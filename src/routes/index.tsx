@@ -77,6 +77,7 @@ function Home() {
           signedIn,
           mounted,
           name,
+          avatar: user?.profileImageUrl,
           hours,
           playing,
           backlog,
@@ -115,6 +116,7 @@ function renderHomeSection(
     signedIn: boolean;
     mounted: boolean;
     name?: string;
+    avatar?: string | null;
     hours: number;
     playing: GameEntry[];
     backlog: GameEntry[];
@@ -131,7 +133,7 @@ function renderHomeSection(
     case "hero":
       return ctx.slides.length ? (
         <div key="hero" className="space-y-3">
-          <HomeHello name={ctx.name} />
+          <HomeHello name={ctx.name} avatar={ctx.avatar} />
           <HeroCarousel games={ctx.slides} autoplay={ctx.autoplay} />
         </div>
       ) : null;
@@ -254,7 +256,13 @@ function LibraryCard({ entry: e }: { entry: GameEntry }) {
   );
 }
 
-function HomeHello({ name }: { name?: string }) {
+function HomeHello({
+  name,
+  avatar,
+}: {
+  name?: string;
+  avatar?: string | null;
+}) {
   const hour = new Date().getHours();
   const hello =
     hour >= 5 && hour < 12
@@ -284,11 +292,15 @@ function HomeHello({ name }: { name?: string }) {
         <Search className="size-4" />
       </Link>
       <Link
-        to={name ? "/settings" : "/login"}
-        aria-label={name ? "Settings" : "Sign in"}
-        className="grid size-10 shrink-0 place-items-center rounded-full bg-accent/20 text-sm font-semibold text-accent"
+        to={name ? "/profile" : "/login"}
+        aria-label={name ? "Profile" : "Sign in"}
+        className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent/20 text-sm font-semibold text-accent"
       >
-        {initial}
+        {avatar ? (
+          <img src={avatar} alt="" className="size-full object-cover" />
+        ) : (
+          initial
+        )}
       </Link>
     </div>
   );

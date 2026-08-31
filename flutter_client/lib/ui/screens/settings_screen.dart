@@ -191,15 +191,17 @@ class SettingsScreen extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             leading: Icon(Icons.person_outline, color: cs.primary),
             title: Text(auth.isSignedIn
-                ? (auth.user?.email ?? 'Signed in')
+                ? (auth.user?.name.isNotEmpty == true
+                    ? auth.user!.name
+                    : (auth.user?.email ?? 'Signed in'))
                 : 'Not signed in'),
             subtitle: Text(auth.isSignedIn
-                ? 'Library syncs to this account'
+                ? 'Open profile to change name, avatar, or password'
                 : 'Sign in to sync your library'),
             trailing: auth.isSignedIn
                 ? TextButton(
-                    onPressed: () => auth.signOut(),
-                    child: const Text('Sign out'),
+                    onPressed: () => context.push('/profile'),
+                    child: const Text('Profile'),
                   )
                 : TextButton(
                     onPressed: () => context.push('/login'),

@@ -13,11 +13,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as ApiConfigRouteImport } from './routes/api/config'
 import { Route as ApiLibraryRouteImport } from './routes/api/library'
+import { Route as ApiProfileRouteImport } from './routes/api/profile'
 import { Route as GameCatalogIdRouteImport } from './routes/game.$catalogId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiCatalogArtRouteImport } from './routes/api/catalog.art'
@@ -27,6 +29,7 @@ import { Route as ApiCatalogSearchRouteImport } from './routes/api/catalog.searc
 import { Route as ApiGoogleNativeRouteImport } from './routes/api/google.native'
 import { Route as ApiGoogleStartRouteImport } from './routes/api/google.start'
 import { Route as ApiLibraryIdRouteImport } from './routes/api/library.$id'
+import { Route as ApiProfilePasswordRouteImport } from './routes/api/profile.password'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +49,11 @@ const LibraryRoute = LibraryRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SearchRoute = SearchRouteImport.update({
@@ -71,6 +79,11 @@ const ApiConfigRoute = ApiConfigRouteImport.update({
 const ApiLibraryRoute = ApiLibraryRouteImport.update({
   id: '/api/library',
   path: '/api/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProfileRoute = ApiProfileRouteImport.update({
+  id: '/api/profile',
+  path: '/api/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GameCatalogIdRoute = GameCatalogIdRouteImport.update({
@@ -118,17 +131,24 @@ const ApiLibraryIdRoute = ApiLibraryIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ApiLibraryRoute,
 } as any)
+const ApiProfilePasswordRoute = ApiProfilePasswordRouteImport.update({
+  id: '/password',
+  path: '/password',
+  getParentRoute: () => ApiProfileRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/discover': typeof DiscoverRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
   '/api/config': typeof ApiConfigRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
+  '/api/profile': typeof ApiProfileRouteWithChildren
   '/game/$catalogId': typeof GameCatalogIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/catalog/art': typeof ApiCatalogArtRoute
@@ -138,17 +158,20 @@ export interface FileRoutesByFullPath {
   '/api/google/native': typeof ApiGoogleNativeRoute
   '/api/google/start': typeof ApiGoogleStartRoute
   '/api/library/$id': typeof ApiLibraryIdRoute
+  '/api/profile/password': typeof ApiProfilePasswordRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/discover': typeof DiscoverRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
   '/api/config': typeof ApiConfigRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
+  '/api/profile': typeof ApiProfileRouteWithChildren
   '/game/$catalogId': typeof GameCatalogIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/catalog/art': typeof ApiCatalogArtRoute
@@ -158,6 +181,7 @@ export interface FileRoutesByTo {
   '/api/google/native': typeof ApiGoogleNativeRoute
   '/api/google/start': typeof ApiGoogleStartRoute
   '/api/library/$id': typeof ApiLibraryIdRoute
+  '/api/profile/password': typeof ApiProfilePasswordRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -165,11 +189,13 @@ export interface FileRoutesById {
   '/discover': typeof DiscoverRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
   '/api/config': typeof ApiConfigRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
+  '/api/profile': typeof ApiProfileRouteWithChildren
   '/game/$catalogId': typeof GameCatalogIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/catalog/art': typeof ApiCatalogArtRoute
@@ -179,6 +205,7 @@ export interface FileRoutesById {
   '/api/google/native': typeof ApiGoogleNativeRoute
   '/api/google/start': typeof ApiGoogleStartRoute
   '/api/library/$id': typeof ApiLibraryIdRoute
+  '/api/profile/password': typeof ApiProfilePasswordRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -187,11 +214,13 @@ export interface FileRouteTypes {
     | '/discover'
     | '/library'
     | '/login'
+    | '/profile'
     | '/search'
     | '/settings'
     | '/stats'
     | '/api/config'
     | '/api/library'
+    | '/api/profile'
     | '/game/$catalogId'
     | '/api/auth/$'
     | '/api/catalog/art'
@@ -201,17 +230,20 @@ export interface FileRouteTypes {
     | '/api/google/native'
     | '/api/google/start'
     | '/api/library/$id'
+    | '/api/profile/password'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/discover'
     | '/library'
     | '/login'
+    | '/profile'
     | '/search'
     | '/settings'
     | '/stats'
     | '/api/config'
     | '/api/library'
+    | '/api/profile'
     | '/game/$catalogId'
     | '/api/auth/$'
     | '/api/catalog/art'
@@ -221,17 +253,20 @@ export interface FileRouteTypes {
     | '/api/google/native'
     | '/api/google/start'
     | '/api/library/$id'
+    | '/api/profile/password'
   id:
     | '__root__'
     | '/'
     | '/discover'
     | '/library'
     | '/login'
+    | '/profile'
     | '/search'
     | '/settings'
     | '/stats'
     | '/api/config'
     | '/api/library'
+    | '/api/profile'
     | '/game/$catalogId'
     | '/api/auth/$'
     | '/api/catalog/art'
@@ -241,6 +276,7 @@ export interface FileRouteTypes {
     | '/api/google/native'
     | '/api/google/start'
     | '/api/library/$id'
+    | '/api/profile/password'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -248,11 +284,13 @@ export interface RootRouteChildren {
   DiscoverRoute: typeof DiscoverRoute
   LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
+  ProfileRoute: typeof ProfileRoute
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
   StatsRoute: typeof StatsRoute
   ApiConfigRoute: typeof ApiConfigRoute
   ApiLibraryRoute: typeof ApiLibraryRouteWithChildren
+  ApiProfileRoute: typeof ApiProfileRouteWithChildren
   GameCatalogIdRoute: typeof GameCatalogIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCatalogArtRoute: typeof ApiCatalogArtRoute
@@ -293,6 +331,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/search': {
       id: '/search'
       path: '/search'
@@ -326,6 +371,13 @@ declare module '@tanstack/react-router' {
       path: '/api/library'
       fullPath: '/api/library'
       preLoaderRoute: typeof ApiLibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/profile': {
+      id: '/api/profile'
+      path: '/api/profile'
+      fullPath: '/api/profile'
+      preLoaderRoute: typeof ApiProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/game/$catalogId': {
@@ -391,6 +443,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLibraryIdRouteImport
       parentRoute: typeof ApiLibraryRoute
     }
+    '/api/profile/password': {
+      id: '/api/profile/password'
+      path: '/password'
+      fullPath: '/api/profile/password'
+      preLoaderRoute: typeof ApiProfilePasswordRouteImport
+      parentRoute: typeof ApiProfileRoute
+    }
   }
 }
 
@@ -406,16 +465,30 @@ const ApiLibraryRouteWithChildren = ApiLibraryRoute._addFileChildren(
   ApiLibraryRouteChildren,
 )
 
+interface ApiProfileRouteChildren {
+  ApiProfilePasswordRoute: typeof ApiProfilePasswordRoute
+}
+
+const ApiProfileRouteChildren: ApiProfileRouteChildren = {
+  ApiProfilePasswordRoute: ApiProfilePasswordRoute,
+}
+
+const ApiProfileRouteWithChildren = ApiProfileRoute._addFileChildren(
+  ApiProfileRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DiscoverRoute: DiscoverRoute,
   LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,
+  ProfileRoute: ProfileRoute,
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
   StatsRoute: StatsRoute,
   ApiConfigRoute: ApiConfigRoute,
   ApiLibraryRoute: ApiLibraryRouteWithChildren,
+  ApiProfileRoute: ApiProfileRouteWithChildren,
   GameCatalogIdRoute: GameCatalogIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCatalogArtRoute: ApiCatalogArtRoute,

@@ -3,25 +3,18 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../state/auth_controller.dart';
 import 'save_state_mark.dart';
+import 'user_avatar.dart';
 
 class HomeGreeting extends StatelessWidget {
   const HomeGreeting({super.key});
 
-  /// AnymeX-style time greetings. Pair is stable for the hour.
+  /// AnymeX-style time greetings. Stable for the whole window.
   static String hello([DateTime? now]) {
-    final t = now ?? DateTime.now();
-    final hour = t.hour;
-    final alt = (t.day + hour).isEven;
-    if (hour >= 5 && hour < 12) {
-      return alt ? 'Rise and shine' : 'Good morning';
-    }
-    if (hour >= 12 && hour < 17) {
-      return alt ? 'Happy snacking' : 'Good afternoon';
-    }
-    if (hour >= 17 && hour < 21) {
-      return alt ? 'Keep it chill' : 'Good evening';
-    }
-    return alt ? "You're up late" : 'Goodnight';
+    final hour = (now ?? DateTime.now()).hour;
+    if (hour >= 5 && hour < 12) return 'Rise and shine';
+    if (hour >= 12 && hour < 17) return 'Happy snacking';
+    if (hour >= 17 && hour < 21) return 'Keep it chill';
+    return "You're up late";
   }
 
   @override
@@ -31,8 +24,6 @@ class HomeGreeting extends StatelessWidget {
     final auth = context.watch<AuthController>();
     final user = auth.user;
     final name = user?.name.trim().split(RegExp(r'\s+')).first;
-    final initial =
-        (name != null && name.isNotEmpty) ? name[0].toUpperCase() : null;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 12, 2),
@@ -71,21 +62,17 @@ class HomeGreeting extends StatelessWidget {
             child: InkWell(
               customBorder: const CircleBorder(),
               onTap: () =>
-                  context.push(auth.isSignedIn ? '/settings' : '/login'),
+                  context.push(auth.isSignedIn ? '/profile' : '/login'),
               child: SizedBox(
                 width: 42,
                 height: 42,
-                child: Center(
-                  child: initial == null
-                      ? const SaveStateMark(size: 22)
-                      : Text(
-                          initial,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: cs.onPrimaryContainer,
-                          ),
-                        ),
-                ),
+                child: auth.isSignedIn
+                    ? UserAvatar(
+                        image: user?.image,
+                        name: name,
+                        size: 42,
+                      )
+                    : const Center(child: SaveStateMark(size: 22)),
               ),
             ),
           ),

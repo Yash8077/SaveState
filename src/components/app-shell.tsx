@@ -33,6 +33,7 @@ const TITLES: Record<string, string> = {
   "/library": "Library",
   "/stats": "Stats",
   "/settings": "Settings",
+  "/profile": "Profile",
 };
 
 function isActive(pathname: string, to: string) {

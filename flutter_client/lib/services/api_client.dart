@@ -15,7 +15,22 @@ class AuthUser {
   final String id;
   final String email;
   final String name;
-  AuthUser({required this.id, required this.email, required this.name});
+  final String? image;
+  AuthUser({
+    required this.id,
+    required this.email,
+    required this.name,
+    this.image,
+  });
+
+  AuthUser copyWith({String? name, String? image}) {
+    return AuthUser(
+      id: id,
+      email: email,
+      name: name ?? this.name,
+      image: image ?? this.image,
+    );
+  }
 }
 
 class ApiClient {
@@ -328,6 +343,7 @@ class ApiClient {
         id: userMap['id']?.toString() ?? '',
         email: userMap['email']?.toString() ?? '',
         name: userMap['name']?.toString() ?? '',
+        image: userMap['image']?.toString(),
       ),
       token: token,
     );
@@ -343,6 +359,7 @@ class ApiClient {
           id: u['id']?.toString() ?? '',
           email: u['email']?.toString() ?? '',
           name: u['name']?.toString() ?? '',
+          image: u['image']?.toString(),
         );
       }
     } on ApiException catch (e) {
@@ -356,5 +373,45 @@ class ApiClient {
     try {
       await _send('POST', _u('/api/auth/sign-out'), jsonBody: true, body: {});
     } catch (_) {}
+  }
+
+  Future<Map<String, dynamic>> getProfile() async {
+    final decoded = await _send('GET', _u('/api/profile'));
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    throw ApiException(500, 'Invalid profile');
+  }
+
+  Future<Map<String, dynamic>> updateProfile({
+    String? name,
+    String? image,
+  }) async {
+    final decoded = await _send(
+      'PATCH',
+      _u('/api/profile'),
+      jsonBody: true,
+      body: {
+        if (name != null) 'name': name,
+        if (image != null) 'image': image,
+      },
+    );
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    throw ApiException(500, 'Invalid profile');
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _send(
+      'POST',
+      _u('/api/profile/password'),
+      jsonBody: true,
+      body: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      },
+    );
   }
 }

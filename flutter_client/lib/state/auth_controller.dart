@@ -87,4 +87,10 @@ class AuthController extends ChangeNotifier {
     await _storage.write(key: _key, value: token);
     notifyListeners();
   }
+
+  Future<void> applyProfile({required String name, String? image}) async {
+    if (user == null) return;
+    user = user!.copyWith(name: name, image: image);
+    notifyListeners();
+  }
 }

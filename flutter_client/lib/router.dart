@@ -8,6 +8,7 @@ import 'ui/screens/stats_screen.dart';
 import 'ui/screens/login_screen.dart';
 import 'ui/screens/game_details_screen.dart';
 import 'ui/screens/settings_screen.dart';
+import 'ui/screens/profile_screen.dart';
 import 'ui/widgets/app_shell.dart';
 import 'models/types.dart';
 
@@ -64,6 +65,11 @@ final router = GoRouter(
       path: '/settings',
       parentNavigatorKey: _rootKey,
       builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/profile',
+      parentNavigatorKey: _rootKey,
+      builder: (context, state) => const ProfileScreen(),
     ),
     GoRoute(
       path: '/game/:id',
