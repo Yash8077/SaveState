@@ -6,6 +6,7 @@ import {
   GUEST_AVATAR,
   parseAvatarValue,
   parseBannerValue,
+  parseBannerY,
   parseDisplayName,
 } from "./avatars.ts";
 import { listBuiltInAvatars } from "./avatars.server.ts";
@@ -51,6 +52,9 @@ describe("avatars", () => {
       "https://images.igdb.com/igdb/image/upload/t_1080p/abc.jpg",
     );
     assert.equal(parseBannerValue("https://evil.example/x.jpg"), undefined);
+    assert.equal(parseBannerY(12), 12);
+    assert.equal(parseBannerY(140), 100);
+    assert.equal(parseBannerY(-4), 0);
     assert.equal(
       parseBannerValue("data:image/jpeg;base64,abc+/12=="),
       "data:image/jpeg;base64,abc+/12==",

@@ -623,6 +623,7 @@ class ApiClient {
     String? name,
     String? image,
     String? banner,
+    int? bannerY,
     bool clearBanner = false,
   }) async {
     final decoded = await _send(
@@ -634,6 +635,7 @@ class ApiClient {
         if (image != null) 'image': image,
         if (clearBanner) 'banner': null,
         if (!clearBanner && banner != null) 'banner': banner,
+        if (bannerY != null) 'bannerY': bannerY,
       },
     );
     if (decoded is Map<String, dynamic>) return decoded;

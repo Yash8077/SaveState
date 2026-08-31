@@ -73,6 +73,7 @@ function ProfilePage() {
   const favoritePreview = favorites.slice(0, FAVORITES_PREVIEW);
   const beatenPreview = beaten.slice(0, BEATEN_PREVIEW);
   const art = displayBanner(profile.data?.banner, entries);
+  const bannerY = profile.data?.bannerY ?? 50;
 
   if (isPending) return <Skeleton className="h-64 w-full rounded-2xl" />;
   if (!user) return <RedirectToSignIn />;
@@ -82,27 +83,31 @@ function ProfilePage() {
   const avatar = canonicalizeAvatar(profile.data?.image || user.profileImageUrl);
   const hasPassword = profile.data?.hasPassword === true;
 
-  return (
-    <div className="mx-auto max-w-5xl space-y-8 pb-10">
-      <section className="overflow-hidden rounded-3xl bg-elevated">
-        <div className="relative h-36 min-[700px]:h-44">
+  const identity = (
+    <div className="space-y-4">
+      <section>
+        <button
+          type="button"
+          onClick={() => setSheet("banner")}
+          className="relative block w-full overflow-hidden rounded-3xl bg-subtle"
+          aria-label="Change banner"
+        >
           {art ? (
-            <img src={art} alt="" className="size-full object-cover" />
+            <img
+              src={art}
+              alt=""
+              className="h-40 w-full object-cover min-[900px]:h-52"
+              style={{ objectPosition: `center ${bannerY}%` }}
+            />
           ) : (
-            <div className="size-full bg-subtle" />
+            <div className="h-40 w-full bg-subtle min-[900px]:h-52" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-elevated via-elevated/55 to-transparent" />
-          <button
-            type="button"
-            onClick={() => setSheet("banner")}
-            className="absolute top-3 right-3 inline-flex h-9 items-center gap-1.5 rounded-full bg-bg/70 px-3 text-xs font-medium backdrop-blur-sm"
-            aria-label="Change banner"
-          >
+          <span className="absolute top-3 right-3 inline-flex h-9 items-center gap-1.5 rounded-full bg-black/55 px-3 text-xs font-medium text-white backdrop-blur-sm">
             <ImageIcon className="size-3.5" />
             Banner
-          </button>
-        </div>
-        <div className="relative -mt-12 flex flex-wrap items-end gap-4 px-5 pb-5">
+          </span>
+        </button>
+        <div className="-mt-8 flex items-end gap-3 px-2">
           <button
             type="button"
             onClick={() => setSheet("avatar")}
@@ -112,7 +117,7 @@ function ProfilePage() {
             <ThemeAvatar
               src={avatar}
               name={name}
-              className="size-24 ring-4 ring-elevated"
+              className="size-20 ring-4 ring-bg sm:size-24"
             />
             <span className="absolute right-0 bottom-0 grid size-7 place-items-center rounded-full bg-accent text-accent-fg">
               <Pencil className="size-3.5" />
@@ -135,7 +140,7 @@ function ProfilePage() {
               <button
                 type="button"
                 onClick={() => setSheet("password")}
-                className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-full bg-subtle px-3 text-xs font-medium"
+                className="mt-1 inline-flex h-8 items-center gap-1.5 rounded-full bg-subtle px-3 text-xs font-medium"
               >
                 <KeyRound className="size-3.5" />
                 Change password
@@ -144,17 +149,20 @@ function ProfilePage() {
           </div>
         </div>
       </section>
-
       <Link
         to="/stats"
-        className="grid grid-cols-2 gap-2 min-[700px]:grid-cols-4"
+        className="grid grid-cols-2 gap-2"
       >
         <Chip label="Logged" value={String(entries.length)} />
         <Chip label="Hours" value={formatHours(hours)} />
         <Chip label="Avg score" value={avg == null ? "—" : avg.toFixed(1)} />
         <Chip label="Beaten this year" value={String(beatenThisYear)} />
       </Link>
+    </div>
+  );
 
+  const shelves = (
+    <div className="min-w-0 space-y-8">
       {favorites.length ? (
         <section>
           <div className="mb-3 flex items-baseline justify-between gap-3">
@@ -169,7 +177,7 @@ function ProfilePage() {
               </Link>
             ) : null}
           </div>
-          <div className="grid grid-cols-3 gap-3 min-[600px]:grid-cols-4 min-[900px]:grid-cols-6">
+          <div className="grid grid-cols-3 gap-3 min-[600px]:grid-cols-4 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4">
             {favoritePreview.map((e) => (
               <GameCard
                 key={e.id}
@@ -188,7 +196,6 @@ function ProfilePage() {
           </div>
         </section>
       ) : null}
-
       {beaten.length ? (
         <section>
           <div className="mb-3 flex items-baseline justify-between gap-3">
@@ -238,6 +245,15 @@ function ProfilePage() {
           </div>
         </section>
       ) : null}
+    </div>
+  );
+
+  return (
+    <div className="mx-auto max-w-6xl pb-10">
+      <div className="grid items-start gap-6 min-[900px]:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
+        {identity}
+        {shelves}
+      </div>
 
       {sheet === "avatar" ? (
         <Sheet title="Change avatar" onClose={() => setSheet(null)}>
@@ -252,8 +268,9 @@ function ProfilePage() {
         <Sheet title="Change banner" onClose={() => setSheet(null)}>
           <BannerPicker
             value={profile.data?.banner ?? null}
+            focusY={bannerY}
+            previewSrc={art}
             games={entries}
-            onSaved={() => setSheet(null)}
           />
         </Sheet>
       ) : null}

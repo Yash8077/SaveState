@@ -24,6 +24,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _name = '';
   String? _image;
   String? _banner;
+  int _bannerY = 50;
   bool _hasPassword = false;
   bool _loading = true;
   String? _error;
@@ -86,6 +87,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _name = profile['name']?.toString() ?? auth.user?.name ?? '';
         _image = canonicalizeAvatar(profile['image']?.toString());
         _banner = profile['banner']?.toString();
+        final y = profile['bannerY'];
+        _bannerY = y is num ? y.round().clamp(0, 100) : 50;
         _hasPassword = profile['hasPassword'] == true;
         _entries = library;
         _loading = false;
@@ -131,213 +134,248 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(title: const Text('Profile')),
       body: _loading && _entries.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.only(bottom: 32),
-              children: [
-                _hero(cs, auth),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: Text(_error!, style: TextStyle(color: cs.error)),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: _stats(cs),
-                ),
-                ..._favorites(cs),
-                ..._beaten(cs),
-              ],
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth >= 800;
+                final identity = [
+                  _banner(cs, height: wide ? 200 : 168),
+                  _identity(cs, auth),
+                  const SizedBox(height: 12),
+                  _stats(cs),
+                ];
+                if (wide) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 360,
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 8, 32),
+                          children: identity,
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(8, 8, 16, 32),
+                          children: [
+                            if (_error != null)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Text(_error!, style: TextStyle(color: cs.error)),
+                              ),
+                            ..._favorites(cs),
+                            ..._beaten(cs),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return ListView(
+                  padding: const EdgeInsets.only(bottom: 32),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: identity[0],
+                    ),
+                    identity[1],
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: Text(_error!, style: TextStyle(color: cs.error)),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                      child: _stats(cs),
+                    ),
+                    ..._favorites(cs),
+                    ..._beaten(cs),
+                  ],
+                );
+              },
             ),
     );
   }
 
-  Widget _hero(ColorScheme cs, AuthController auth) {
-    final display = _name.isEmpty ? 'Player' : _name;
-    final banner = _bannerUrl();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: ClipRRect(
+  Alignment get _bannerAlign =>
+      Alignment(0, ((_bannerY.clamp(0, 100) - 50) / 50));
+
+  Future<void> _openBanner() {
+    return showBannerPicker(
+      context,
+      games: _entries,
+      banner: _banner,
+      previewSrc: _bannerUrl(),
+      focusY: _bannerY,
+      onSaved: _load,
+    );
+  }
+
+  Widget _bannerArt(String? src, ColorScheme cs) {
+    if (src == null) return ColoredBox(color: cs.surfaceContainerHighest);
+    if (src.startsWith('data:')) {
+      return Image.memory(
+        base64Decode(src.split(',').last),
+        fit: BoxFit.cover,
+        alignment: _bannerAlign,
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: src,
+      fit: BoxFit.cover,
+      alignment: _bannerAlign,
+      memCacheWidth: 1600,
+      errorWidget: (_, __, ___) => ColoredBox(color: cs.surfaceContainerHighest),
+    );
+  }
+
+  Widget _banner(ColorScheme cs, {required double height}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _openBanner,
         borderRadius: BorderRadius.circular(24),
-        child: ColoredBox(
-          color: cs.surfaceContainerHigh,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                height: 148,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: SizedBox(
+            height: height,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _bannerArt(_bannerUrl(), cs),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: FilledButton.tonal(
+                    style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    onPressed: _openBanner,
+                    child: const Text('Banner'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _identity(ColorScheme cs, AuthController auth) {
+    final display = _name.isEmpty ? 'Player' : _name;
+    return Transform.translate(
+      offset: const Offset(0, -28),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => showAvatarPicker(
+                  context,
+                  name: display,
+                  image: _image,
+                  onSaved: _refreshIdentity,
+                ),
                 child: Stack(
-                  fit: StackFit.expand,
                   children: [
-                    if (banner != null && banner.startsWith('data:'))
-                      Image.memory(
-                        base64Decode(banner.split(',').last),
-                        fit: BoxFit.cover,
-                      )
-                    else if (banner != null)
-                      CachedNetworkImage(
-                        imageUrl: banner,
-                        fit: BoxFit.cover,
-                        memCacheWidth: 1600,
-                        errorWidget: (_, __, ___) =>
-                            ColoredBox(color: cs.surfaceContainerHighest),
-                      )
-                    else
-                      ColoredBox(color: cs.surfaceContainerHighest),
-                    DecoratedBox(
+                    Container(
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            cs.surfaceContainerHigh.withValues(alpha: 0.92),
-                          ],
-                        ),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: cs.surface, width: 4),
+                      ),
+                      child: UserAvatar(
+                        image: _image,
+                        name: display,
+                        size: 84,
                       ),
                     ),
                     Positioned(
-                      top: 10,
-                      right: 10,
-                      child: FilledButton.tonal(
-                        style: FilledButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                      right: 2,
+                      bottom: 2,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: cs.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: cs.surface, width: 2),
                         ),
-                        onPressed: () => showBannerPicker(
-                          context,
-                          games: _entries,
-                          banner: _banner,
-                          onSaved: _load,
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(
+                            Icons.edit_rounded,
+                            size: 14,
+                            color: cs.onPrimary,
+                          ),
                         ),
-                        child: const Text('Banner'),
                       ),
                     ),
                   ],
                 ),
               ),
-              Transform.translate(
-                offset: const Offset(0, -36),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: () => showAvatarPicker(
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            display,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Change name',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => showNameEditor(
                             context,
                             name: display,
                             image: _image,
                             onSaved: _refreshIdentity,
                           ),
-                          child: Stack(
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: cs.surfaceContainerHigh,
-                                    width: 4,
-                                  ),
-                                ),
-                                child: UserAvatar(
-                                  image: _image,
-                                  name: display,
-                                  size: 84,
-                                ),
-                              ),
-                              Positioned(
-                                right: 2,
-                                bottom: 2,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: cs.primary,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: cs.surfaceContainerHigh,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(6),
-                                    child: Icon(
-                                      Icons.edit_rounded,
-                                      size: 14,
-                                      color: cs.onPrimary,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      auth.user?.email ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: cs.onSurfaceVariant),
+                    ),
+                    if (_hasPassword)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: TextButton.icon(
+                          onPressed: () => showPasswordEditor(context),
+                          icon: const Icon(Icons.key_rounded, size: 16),
+                          label: const Text('Change password'),
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      display,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Change name',
-                                    visualDensity: VisualDensity.compact,
-                                    onPressed: () => showNameEditor(
-                                      context,
-                                      name: display,
-                                      image: _image,
-                                      onSaved: _refreshIdentity,
-                                    ),
-                                    icon: const Icon(Icons.edit_outlined, size: 18),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                auth.user?.email ?? '',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: cs.onSurfaceVariant),
-                              ),
-                              if (_hasPassword)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: TextButton.icon(
-                                    onPressed: () => showPasswordEditor(context),
-                                    icon: const Icon(Icons.key_rounded, size: 16),
-                                    label: const Text('Change password'),
-                                    style: TextButton.styleFrom(
-                                      visualDensity: VisualDensity.compact,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

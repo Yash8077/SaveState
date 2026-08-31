@@ -16,6 +16,7 @@ export type ProfileRecord = {
   email: string;
   image: string | null;
   banner: string | null;
+  bannerY: number;
   hasPassword: boolean;
 };
 
@@ -49,6 +50,7 @@ export async function patchProfile(fields: {
   name?: string;
   image?: string | null;
   banner?: string | null;
+  bannerY?: number;
 }): Promise<ProfileRecord> {
   const res = await profileRequest("/api/profile", {
     method: "PATCH",
@@ -252,16 +254,22 @@ export function AvatarPicker({
 
 export function BannerPicker({
   value,
+  focusY = 50,
   games,
+  previewSrc,
   onSaved,
 }: {
   value: string | null;
+  focusY?: number;
   games: GameEntry[];
-  onSaved?: (banner: string | null) => void;
+  previewSrc: string | null;
+  onSaved?: () => void;
 }) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [y, setY] = useState(focusY);
+  const [src, setSrc] = useState<string | null>(previewSrc);
   const ranked = [
     ...games.filter((game) => game.favorite),
     ...games,
@@ -270,20 +278,26 @@ export function BannerPicker({
     .map((game) => ({
       id: game.catalogId,
       title: game.title,
-      src: upgradeHeroUrl(game.headerUrl, game.catalogId),
+      art: upgradeHeroUrl(game.headerUrl, game.catalogId),
     }))
-    .filter((row): row is { id: string; title: string; src: string } => Boolean(row.src));
+    .filter((row): row is { id: string; title: string; art: string } => Boolean(row.art));
   const unique = options.filter(
-    (row, i, list) => list.findIndex((item) => item.src === row.src) === i,
+    (row, i, list) => list.findIndex((item) => item.art === row.art) === i,
   );
+
+  useEffect(() => {
+    setY(focusY);
+    setSrc(previewSrc);
+  }, [focusY, previewSrc]);
 
   async function pick(next: string | null) {
     setBusy(true);
     try {
-      const json = await patchProfile({ banner: next });
+      const json = await patchProfile({ banner: next, bannerY: y });
       await refreshSession(qc);
-      onSaved?.(json.banner);
+      setSrc(json.banner ?? previewSrc);
       toast.success(next ? "Banner updated" : "Using automatic banner");
+      onSaved?.();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save banner");
     } finally {
@@ -291,35 +305,80 @@ export function BannerPicker({
     }
   }
 
+  async function saveY(next: number) {
+    setY(next);
+    try {
+      await patchProfile({ bannerY: next });
+      await refreshSession(qc);
+      onSaved?.();
+    } catch {
+      /* slider can retry */
+    }
+  }
+
   async function onPickCustom(file: File | undefined) {
     if (!file) return;
     try {
-      await pick(await resizeBanner(file));
+      const data = await resizeBanner(file);
+      setSrc(data);
+      await pick(data);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not use that image");
     }
   }
 
+  const shown = src ?? previewSrc;
+
   return (
     <div className={cn("space-y-4", busy && "pointer-events-none opacity-70")}>
+      {shown ? (
+        <div className="overflow-hidden rounded-xl bg-subtle">
+          <img
+            src={shown}
+            alt=""
+            className="h-32 w-full object-cover min-[600px]:h-40"
+            style={{ objectPosition: `center ${y}%` }}
+          />
+        </div>
+      ) : null}
+      <label className="block text-sm text-muted">
+        Crop
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={y}
+          onChange={(e) => setY(Number(e.target.value))}
+          onPointerUp={() => void saveY(y)}
+          onKeyUp={() => void saveY(y)}
+          className="mt-2 w-full accent-[var(--color-accent)]"
+        />
+        <span className="mt-1 flex justify-between text-[11px] text-faint">
+          <span>Top</span>
+          <span>Bottom</span>
+        </span>
+      </label>
       <p className="text-sm text-muted">
         Pick a game hero, upload a photo, or reset to the automatic favorite art.
       </p>
       {unique.length ? (
         <div className="grid grid-cols-2 gap-2 min-[500px]:grid-cols-3">
           {unique.slice(0, 12).map((row) => {
-            const selected = value === row.src;
+            const selected = value === row.art || src === row.art;
             return (
               <button
                 key={row.id}
                 type="button"
-                onClick={() => void pick(row.src)}
+                onClick={() => {
+                  setSrc(row.art);
+                  void pick(row.art);
+                }}
                 className={cn(
                   "overflow-hidden rounded-xl ring-2 ring-offset-2 ring-offset-elevated",
                   selected ? "ring-accent" : "ring-transparent hover:ring-border",
                 )}
               >
-                <img src={row.src} alt={row.title} className="aspect-[16/5] w-full object-cover" />
+                <img src={row.art} alt={row.title} className="aspect-[16/5] w-full object-cover" />
               </button>
             );
           })}

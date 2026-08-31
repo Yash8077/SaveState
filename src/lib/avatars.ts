@@ -72,6 +72,13 @@ export function parseBannerValue(raw: unknown): string | null | undefined {
   return undefined;
 }
 
+export function parseBannerY(raw: unknown): number | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return undefined;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
 export function sortAvatarSrcs(srcs: string[]): string[] {
   return [...srcs].sort((a, b) => {
     const n = (s: string) => Number(AVATAR_PATH.exec(s)?.[1] ?? 0);

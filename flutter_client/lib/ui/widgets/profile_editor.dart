@@ -632,11 +632,17 @@ Future<void> showBannerPicker(
   BuildContext context, {
   required List<GameEntry> games,
   String? banner,
+  String? previewSrc,
+  int focusY = 50,
   VoidCallback? onSaved,
 }) {
+  final ranked = [
+    ...games.where((g) => g.favorite),
+    ...games,
+  ];
   final options = <({String id, String title, String src})>[];
   final seen = <String>{};
-  for (final game in games) {
+  for (final game in ranked) {
     final src = upgradeHeroUrl(game.headerUrl, game.catalogId);
     if (src == null || !seen.add(src)) continue;
     options.add((id: game.catalogId, title: game.title, src: src));
@@ -650,6 +656,8 @@ Future<void> showBannerPicker(
       child: _BannerBody(
         options: options,
         current: banner,
+        previewSrc: previewSrc,
+        focusY: focusY,
         onSaved: onSaved,
       ),
     ),
@@ -659,10 +667,14 @@ Future<void> showBannerPicker(
 class _BannerBody extends StatefulWidget {
   final List<({String id, String title, String src})> options;
   final String? current;
+  final String? previewSrc;
+  final int focusY;
   final VoidCallback? onSaved;
   const _BannerBody({
     required this.options,
     required this.current,
+    required this.previewSrc,
+    required this.focusY,
     this.onSaved,
   });
 
@@ -672,22 +684,39 @@ class _BannerBody extends StatefulWidget {
 
 class _BannerBodyState extends State<_BannerBody> {
   late String? _current = widget.current;
+  late String? _preview = widget.previewSrc ?? widget.current;
+  late double _y = widget.focusY.toDouble();
   bool _busy = false;
 
-  Future<void> _save(String? next) async {
+  Alignment get _align => Alignment(0, ((_y.clamp(0, 100) - 50) / 50));
+
+  Future<void> _save({String? next, bool clear = false, int? y}) async {
     setState(() => _busy = true);
     try {
       await context.read<ApiClient>().updateProfile(
             banner: next,
-            clearBanner: next == null,
+            clearBanner: clear,
+            bannerY: (y ?? _y.round()).clamp(0, 100),
           );
       if (!mounted) return;
-      setState(() => _current = next);
+      setState(() {
+        if (clear) {
+          _current = null;
+        } else if (next != null) {
+          _current = next;
+          _preview = next;
+        }
+      });
       widget.onSaved?.call();
-      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(next == null ? 'Using automatic banner' : 'Banner updated'),
+          content: Text(
+            clear
+                ? 'Using automatic banner'
+                : next != null
+                    ? 'Banner updated'
+                    : 'Crop saved',
+          ),
         ),
       );
     } catch (e) {
@@ -716,15 +745,61 @@ class _BannerBodyState extends State<_BannerBody> {
     final mime = (file?.extension ?? 'jpg').toLowerCase() == 'png'
         ? 'png'
         : 'jpeg';
-    await _save('data:image/$mime;base64,${base64Encode(bytes)}');
+    await _save(next: 'data:image/$mime;base64,${base64Encode(bytes)}');
+  }
+
+  Widget _previewImage(String src) {
+    if (src.startsWith('data:')) {
+      return Image.memory(
+        base64Decode(src.split(',').last),
+        fit: BoxFit.cover,
+        alignment: _align,
+        width: double.infinity,
+        height: 120,
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: src,
+      fit: BoxFit.cover,
+      alignment: _align,
+      memCacheWidth: 1200,
+      width: double.infinity,
+      height: 120,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final shown = _preview;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (shown != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: _previewImage(shown),
+          ),
+        const SizedBox(height: 8),
+        Text('Crop', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
+        Slider(
+          value: _y.clamp(0, 100),
+          min: 0,
+          max: 100,
+          onChanged: (v) => setState(() => _y = v),
+          onChangeEnd: (v) => _save(y: v.round()),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Top', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
+              Text('Bottom', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
         Text(
           'Pick a game hero, upload a photo, or reset to automatic art.',
           style: TextStyle(color: cs.onSurfaceVariant),
@@ -750,7 +825,7 @@ class _BannerBodyState extends State<_BannerBody> {
               final row = widget.options[i];
               final selected = _current == row.src;
               return InkWell(
-                onTap: _busy ? null : () => _save(row.src),
+                onTap: _busy ? null : () => _save(next: row.src),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
@@ -780,7 +855,7 @@ class _BannerBodyState extends State<_BannerBody> {
               child: const Text('Custom photo'),
             ),
             TextButton(
-              onPressed: _busy ? null : () => _save(null),
+              onPressed: _busy ? null : () => _save(clear: true),
               child: const Text('Automatic'),
             ),
           ],
