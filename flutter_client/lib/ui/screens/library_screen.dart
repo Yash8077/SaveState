@@ -32,14 +32,24 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
   }
 
   Future<void> _fetchLibrary() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-      _isAuthError = false;
-    });
+    final api = context.read<ApiClient>();
+    if (_entries.isEmpty && api.cachedLibrary != null) {
+      setState(() {
+        _entries = api.cachedLibrary!;
+        _isLoading = false;
+        _isAuthError = false;
+        _errorMessage = '';
+      });
+    } else if (_entries.isEmpty) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+        _isAuthError = false;
+      });
+    }
 
     try {
-      final entries = await context.read<ApiClient>().getLibrary();
+      final entries = await api.getLibrary();
       if (mounted) {
         setState(() {
           _entries = entries;

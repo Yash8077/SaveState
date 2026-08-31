@@ -61,15 +61,10 @@ class GameCardWidget extends StatelessWidget {
                           CachedNetworkImage(
                             imageUrl: coverUrl,
                             fit: fitFor(coverUrl),
+                            memCacheWidth: 360,
+                            fadeInDuration: const Duration(milliseconds: 120),
                             placeholder: (context, url) => Container(
                               color: colorScheme.surfaceContainerHighest,
-                              child: const Center(
-                                child: SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                              ),
                             ),
                             errorWidget: (context, url, error) {
                               final tried = <String>{url};

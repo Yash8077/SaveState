@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/types.dart';
 
 class ApiException implements Exception {
@@ -31,6 +32,22 @@ class AuthUser {
       image: image ?? this.image,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'email': email,
+        'name': name,
+        'image': image,
+      };
+
+  factory AuthUser.fromJson(Map<String, dynamic> json) {
+    return AuthUser(
+      id: json['id']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      image: json['image'] as String?,
+    );
+  }
 }
 
 class ApiClient {
@@ -51,8 +68,100 @@ class ApiClient {
   static const _featuredTtl = Duration(minutes: 30);
   static const _becauseTtl = Duration(hours: 6);
   static const _searchTtl = Duration(minutes: 10);
+  static const _libraryTtl = Duration(minutes: 2);
+  static const _httpTimeout = Duration(seconds: 10);
+  static const _featuredDiskKey = 'cache_featured_v1';
+  static const _libraryDiskKey = 'cache_library_v1';
+  static const _becauseDiskKey = 'cache_because_v1';
 
-  ApiClient({http.Client? client}) : _client = client ?? http.Client();
+  SharedPreferences? _prefs;
+  bool _hydrated = false;
+
+  List<GameEntry>? get cachedLibrary => _libraryCache;
+  List<FeaturedRail>? get cachedFeatured => _featuredCache;
+  FeaturedRail? cachedBecause(List<String> seeds) {
+    final key = seeds.where((id) => id.isNotEmpty).take(8).join(',');
+    if (key.isEmpty) return null;
+    return _becauseCache[key]?.rail;
+  }
+
+  Future<void> hydrate() async {
+    if (_hydrated) return;
+    _hydrated = true;
+    try {
+      _prefs = await SharedPreferences.getInstance();
+    } catch (_) {
+      return;
+    }
+    final featuredRaw = _prefs?.getString(_featuredDiskKey);
+    if (featuredRaw != null) {
+      try {
+        final decoded = jsonDecode(featuredRaw);
+        if (decoded is List) {
+          _featuredCache = [
+            for (final row in decoded)
+              if (row is Map)
+                FeaturedRail.fromJson(Map<String, dynamic>.from(row)),
+          ];
+          _featuredAt = DateTime.now().subtract(const Duration(days: 1));
+        }
+      } catch (_) {}
+    }
+    final libraryRaw = _prefs?.getString(_libraryDiskKey);
+    if (libraryRaw != null) {
+      try {
+        final decoded = jsonDecode(libraryRaw);
+        if (decoded is List) {
+          _libraryCache = [
+            for (final row in decoded)
+              if (row is Map)
+                GameEntry.fromJson(Map<String, dynamic>.from(row)),
+          ];
+          _libraryAt = DateTime.now().subtract(const Duration(days: 1));
+        }
+      } catch (_) {}
+    }
+    final becauseRaw = _prefs?.getString(_becauseDiskKey);
+    if (becauseRaw != null) {
+      try {
+        final decoded = jsonDecode(becauseRaw);
+        if (decoded is Map) {
+          final key = decoded['key']?.toString() ?? '';
+          final rail = decoded['rail'];
+          if (key.isNotEmpty && rail is Map) {
+            _becauseCache[key] = (
+              at: DateTime.now().subtract(const Duration(days: 1)),
+              rail: FeaturedRail.fromJson(Map<String, dynamic>.from(rail)),
+            );
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _persistFeatured(List<FeaturedRail> rails) async {
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.setString(
+      _featuredDiskKey,
+      jsonEncode([for (final rail in rails) rail.toJson()]),
+    );
+  }
+
+  Future<void> _persistLibrary(List<GameEntry> items) async {
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.setString(
+      _libraryDiskKey,
+      jsonEncode([for (final item in items) item.toJson()]),
+    );
+  }
+
+  Future<void> _persistBecause(String key, FeaturedRail rail) async {
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.setString(
+      _becauseDiskKey,
+      jsonEncode({'key': key, 'rail': rail.toJson()}),
+    );
+  }
 
   Map<String, String> _headers({bool json = false}) {
     final h = <String, String>{
@@ -77,24 +186,30 @@ class ApiClient {
     bool jsonBody = false,
   }) async {
     final headers = _headers(json: jsonBody);
-    final http.Response res;
+    late final http.Response res;
+    try {
     switch (method) {
       case 'GET':
-        res = await _client.get(uri, headers: headers);
+        res = await _client.get(uri, headers: headers).timeout(_httpTimeout);
         break;
       case 'POST':
-        res = await _client.post(uri,
-            headers: headers, body: jsonBody ? jsonEncode(body) : body);
+        res = await _client
+            .post(uri, headers: headers, body: jsonBody ? jsonEncode(body) : body)
+            .timeout(_httpTimeout);
         break;
       case 'PATCH':
-        res = await _client.patch(uri,
-            headers: headers, body: jsonEncode(body));
+        res = await _client
+            .patch(uri, headers: headers, body: jsonEncode(body))
+            .timeout(_httpTimeout);
         break;
       case 'DELETE':
-        res = await _client.delete(uri, headers: headers);
+        res = await _client.delete(uri, headers: headers).timeout(_httpTimeout);
         break;
       default:
         throw ApiException(0, 'Unsupported $method');
+    }
+    } on TimeoutException {
+      throw ApiException(0, 'Request timed out');
     }
 
     if (res.statusCode >= 400) {
@@ -173,6 +288,7 @@ class ApiClient {
             .toList();
         _featuredCache = rails;
         _featuredAt = DateTime.now();
+        unawaited(_persistFeatured(rails));
         return rails;
       } finally {
         _featuredInflight = null;
@@ -203,6 +319,7 @@ class ApiClient {
         if (decoded is Map<String, dynamic>) {
           final rail = FeaturedRail.fromJson(decoded);
           _becauseCache[key] = (at: DateTime.now(), rail: rail);
+          unawaited(_persistBecause(key, rail));
           if (_becauseCache.length > 20) {
             _becauseCache.remove(_becauseCache.keys.first);
           }
@@ -258,7 +375,7 @@ class ApiClient {
     if (!force &&
         _libraryCache != null &&
         _libraryAt != null &&
-        DateTime.now().difference(_libraryAt!) < const Duration(seconds: 45)) {
+        DateTime.now().difference(_libraryAt!) < _libraryTtl) {
       return _libraryCache!;
     }
     final decoded = await _send('GET', _u('/api/library'));
@@ -274,12 +391,23 @@ class ApiClient {
     }
     _libraryCache = items;
     _libraryAt = DateTime.now();
+    unawaited(_persistLibrary(items));
     return items;
   }
 
   void _invalidateLibrary() {
     _libraryCache = null;
     _libraryAt = null;
+    unawaited(_prefs?.remove(_libraryDiskKey));
+  }
+
+  Future<void> clearUserCaches() async {
+    _libraryCache = null;
+    _libraryAt = null;
+    _becauseCache.clear();
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.remove(_libraryDiskKey);
+    await _prefs!.remove(_becauseDiskKey);
   }
 
   Future<GameEntry> addToLibrary(

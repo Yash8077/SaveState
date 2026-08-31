@@ -61,10 +61,17 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   Future<void> _loadRails({bool force = false}) async {
-    if (_rails.isNotEmpty && !force) return;
-    setState(() => _railsLoading = _rails.isEmpty);
+    final api = context.read<ApiClient>();
+    if (!force && _rails.isEmpty && (api.cachedFeatured?.isNotEmpty ?? false)) {
+      setState(() {
+        _rails = api.cachedFeatured!;
+        _railsLoading = false;
+      });
+    } else if (_rails.isEmpty) {
+      setState(() => _railsLoading = true);
+    }
     try {
-      final rails = await context.read<ApiClient>().getFeaturedRails(force: force);
+      final rails = await api.getFeaturedRails(force: force);
       if (!mounted) return;
       setState(() {
         _rails = rails;
@@ -73,7 +80,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = _hasSearched ? _errorMessage : e.toString();
+        if (_rails.isEmpty) {
+          _errorMessage = _hasSearched ? _errorMessage : e.toString();
+        }
         _railsLoading = false;
       });
     }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:dynamic_color/dynamic_color.dart';
@@ -8,12 +9,16 @@ import 'state/home_layout_controller.dart';
 import 'state/theme_controller.dart';
 import 'router.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   final api = ApiClient();
+  await api.hydrate();
   final auth = AuthController(api);
   final theme = ThemeController();
   final catalog = CatalogController();
   final homeLayout = HomeLayoutController();
+  unawaited(api.getFeaturedRails());
+  unawaited(auth.load());
   runApp(
     MultiProvider(
       providers: [
@@ -54,7 +59,6 @@ class _SaveStateAppState extends State<SaveStateApp> {
   @override
   void initState() {
     super.initState();
-    widget.auth.load();
     widget.theme.load();
     widget.catalog.load();
     widget.homeLayout.load();

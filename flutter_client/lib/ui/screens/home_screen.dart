@@ -39,38 +39,55 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
   }
 
   Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    final api = context.read<ApiClient>();
+    final layout = context.read<HomeLayoutController>();
+    final signedIn = context.read<AuthController>().isSignedIn;
+    final wantPs = layout.enabled(LayoutSurface.home, 'playstation');
+    final wantRecs =
+        signedIn && layout.enabled(LayoutSurface.home, 'recommended');
+
+    if (_library.isEmpty && api.cachedLibrary != null) {
+      _library = api.cachedLibrary!;
+    }
+    if (_featuredRails.isEmpty && api.cachedFeatured != null && wantPs) {
+      _featuredRails = api.cachedFeatured!;
+    }
+    if (_because == null && wantRecs) {
+      final seeds = pickBecauseSeeds(_library);
+      _because = api.cachedBecause([for (final seed in seeds) seed.catalogId]);
+    }
+    final hasCache =
+        _library.isNotEmpty || _featuredRails.isNotEmpty || _because != null;
+    if (mounted) {
+      setState(() {
+        _errorMessage = null;
+        _isLoading = !hasCache;
+      });
+    }
 
     try {
-      final api = context.read<ApiClient>();
-      final layout = context.read<HomeLayoutController>();
-      final signedIn = context.read<AuthController>().isSignedIn;
-      final wantPs = layout.enabled(LayoutSurface.home, 'playstation');
-      final wantRecs = signedIn &&
-          layout.enabled(LayoutSurface.home, 'recommended');
-
-      List<GameEntry> library = const [];
-      if (signedIn) {
+      final libraryFuture = () async {
+        if (!signedIn) return const <GameEntry>[];
         try {
-          library = await api.getLibrary();
+          return await api.getLibrary();
         } on ApiException catch (e) {
           if (e.status != 401) rethrow;
+          return const <GameEntry>[];
         }
-      }
-
-      List<FeaturedRail> rails = const [];
-      if (wantPs) {
+      }();
+      final railsFuture = () async {
+        if (!wantPs) return const <FeaturedRail>[];
         try {
-          rails = await api.getFeaturedRails();
+          return await api.getFeaturedRails();
         } catch (_) {
-          rails = const [];
+          return _featuredRails;
         }
-      }
+      }();
+      final results = await Future.wait<Object>([libraryFuture, railsFuture]);
+      var library = results[0] as List<GameEntry>;
+      var rails = results[1] as List<FeaturedRail>;
 
-      FeaturedRail? because;
+      FeaturedRail? because = _because;
       if (wantRecs) {
         final seeds = pickBecauseSeeds(library);
         if (seeds.length >= 2) {
@@ -79,9 +96,13 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
               [for (final seed in seeds) seed.catalogId],
             );
           } catch (_) {
-            because = null;
+            because ??= null;
           }
+        } else {
+          because = null;
         }
+      } else {
+        because = null;
       }
 
       if (!mounted) return;
@@ -91,10 +112,16 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
         _because = because;
         _isLoading = false;
       });
+      for (final game in [
+        ...library.take(4).map(_asCard),
+        ...rails.expand((rail) => rail.games.take(3)),
+      ].take(10)) {
+        api.prefetchGameDetails(game.id);
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          if (!hasCache) _errorMessage = e.toString();
           _isLoading = false;
         });
       }

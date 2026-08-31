@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_client.dart';
 
 class AuthController extends ChangeNotifier {
@@ -9,6 +11,7 @@ class AuthController extends ChangeNotifier {
   final ApiClient api;
   static const _storage = FlutterSecureStorage();
   static const _key = 'savestate.session';
+  static const _userKey = 'savestate.user_v1';
 
   AuthUser? user;
   bool ready = false;
@@ -17,20 +20,37 @@ class AuthController extends ChangeNotifier {
   bool get isSignedIn => user != null;
 
   Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
     final token = await _storage.read(key: _key);
     api.sessionToken = token;
     if (token != null) {
-      try {
-        user = await api.getSession();
-        if (user == null) {
-          await _storage.delete(key: _key);
-          api.sessionToken = null;
-        }
-      } catch (_) {
-        user = null;
+      final cached = prefs.getString(_userKey);
+      if (cached != null) {
+        try {
+          final decoded = jsonDecode(cached);
+          if (decoded is Map) {
+            user = AuthUser.fromJson(Map<String, dynamic>.from(decoded));
+          }
+        } catch (_) {}
       }
     }
     ready = true;
+    notifyListeners();
+    if (token == null) return;
+    try {
+      final next = await api.getSession();
+      if (next == null) {
+        user = null;
+        api.sessionToken = null;
+        await _storage.delete(key: _key);
+        await prefs.remove(_userKey);
+      } else {
+        user = next;
+        await prefs.setString(_userKey, jsonEncode(next.toJson()));
+      }
+    } catch (_) {
+      /* keep the cached user so Home can still load the library */
+    }
     notifyListeners();
   }
 
@@ -78,6 +98,9 @@ class AuthController extends ChangeNotifier {
     api.sessionToken = null;
     user = null;
     await _storage.delete(key: _key);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_userKey);
+    await api.clearUserCaches();
     notifyListeners();
   }
 
@@ -85,6 +108,8 @@ class AuthController extends ChangeNotifier {
     api.sessionToken = token;
     user = next;
     await _storage.write(key: _key, value: token);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userKey, jsonEncode(next.toJson()));
     notifyListeners();
   }
 
@@ -96,6 +121,8 @@ class AuthController extends ChangeNotifier {
       name: name,
       image: image,
     );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userKey, jsonEncode(user!.toJson()));
     notifyListeners();
   }
 }

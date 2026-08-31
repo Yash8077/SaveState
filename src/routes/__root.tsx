@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   createRootRoute,
   HeadContent,
@@ -6,7 +6,7 @@ import {
   Scripts,
   useRouterState,
 } from "@tanstack/react-router";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
@@ -14,6 +14,7 @@ import { AppearanceProvider } from "@/components/appearance-provider";
 import { HomeLayoutProvider } from "@/components/home-layout-provider";
 import { CatalogProviderGate } from "@/components/catalog-provider";
 import { AppShell } from "@/components/app-shell";
+import { FEATURED_REL, FEATURED_STALE_MS, getFeaturedRails } from "@/lib/api";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "SaveState";
@@ -96,6 +97,7 @@ function RootDocument() {
         <CatalogProviderGate>
         <AuthProvider>
           <QueryClientProvider client={queryClient}>
+            <PrefetchCatalog />
             {isLogin ? (
               <Outlet />
             ) : (
@@ -120,4 +122,16 @@ function RootDocument() {
       </body>
     </html>
   );
+}
+
+function PrefetchCatalog() {
+  const qc = useQueryClient();
+  useEffect(() => {
+    void qc.prefetchQuery({
+      queryKey: ["featured", FEATURED_REL],
+      queryFn: ({ signal }) => getFeaturedRails(signal),
+      staleTime: FEATURED_STALE_MS,
+    });
+  }, [qc]);
+  return null;
 }
