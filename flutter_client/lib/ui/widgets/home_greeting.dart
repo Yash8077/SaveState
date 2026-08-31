@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../state/auth_controller.dart';
-import 'save_state_mark.dart';
 import 'user_avatar.dart';
 
 class HomeGreeting extends StatelessWidget {
@@ -66,13 +65,11 @@ class HomeGreeting extends StatelessWidget {
               child: SizedBox(
                 width: 42,
                 height: 42,
-                child: auth.isSignedIn
-                    ? UserAvatar(
-                        image: user?.image,
-                        name: name,
-                        size: 42,
-                      )
-                    : const Center(child: SaveStateMark(size: 22)),
+                child: UserAvatar(
+                  image: user?.image ?? guestAvatar,
+                  name: name,
+                  size: 42,
+                ),
               ),
             ),
           ),

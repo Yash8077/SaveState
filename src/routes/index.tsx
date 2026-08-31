@@ -10,6 +10,7 @@ import { useHomeLayout } from "@/components/home-layout-provider";
 import { useLibrary } from "@/hooks/use-library";
 import { useMounted } from "@/hooks/use-mounted";
 import { getFeaturedRails } from "@/lib/api";
+import { GUEST_AVATAR } from "@/lib/avatars";
 import { FEATURED_SEED } from "@/lib/catalog-seed";
 import { heroSlides } from "@/lib/hero";
 import {
@@ -78,7 +79,7 @@ function Home() {
           signedIn,
           mounted,
           name,
-          avatar: user?.profileImageUrl,
+          avatar: user?.profileImageUrl || GUEST_AVATAR,
           hours,
           playing,
           backlog,

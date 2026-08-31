@@ -1,4 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <circle cx="50" cy="50" r="50" fill="currentColor"/>
-  <ellipse cx="50" cy="52" rx="18" ry="16" fill="#f4f8f9"/><polygon points="50,28 58,44 42,44" fill="#f4f8f9"/><circle cx="44" cy="50" r="3" fill="#0b1416"/><circle cx="56" cy="50" r="3" fill="#0b1416"/><polygon points="50,54 46,60 54,60" fill="#0b1416"/>
-</svg>
