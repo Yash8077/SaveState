@@ -4,7 +4,7 @@ import { GamePeek } from "@/components/game-peek";
 import { RatingBadge } from "@/components/game-card";
 import { usePeek } from "@/hooks/use-peek";
 import type { CatalogGame } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, isLandscapeArt, pickPortraitCover } from "@/lib/utils";
 
 function loopGames(games: CatalogGame[]) {
   if (games.length < 2) return games;
@@ -32,12 +32,8 @@ function targetLeft(el: HTMLDivElement, child: HTMLElement) {
   return child.offsetLeft - (el.clientWidth - child.clientWidth) / 2;
 }
 
-function TitleOverlay({ title }: { title: string }) {
-  return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-8 pb-2">
-      <p className="truncate pr-12 text-sm font-medium text-white">{title}</p>
-    </div>
-  );
+function posterUrl(game: CatalogGame) {
+  return pickPortraitCover(game.coverUrl, game.capsuleUrl, game.headerUrl);
 }
 
 export function HeroCarousel({
@@ -47,8 +43,7 @@ export function HeroCarousel({
   games: CatalogGame[];
   autoplay?: boolean;
 }) {
-  const phone = useRef<HTMLDivElement>(null);
-  const wide = useRef<HTMLDivElement>(null);
+  const track = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const peek = usePeek<CatalogGame & { catalogId: string }>();
@@ -57,12 +52,6 @@ export function HeroCarousel({
   const n = games.length;
   const looped = loopGames(games);
   const origin = n > 1 ? n : 0;
-
-  function tracks() {
-    return [phone.current, wide.current].filter(
-      (el): el is HTMLDivElement => Boolean(el && el.clientWidth > 8),
-    );
-  }
 
   function snapTo(el: HTMLDivElement, i: number, smooth: boolean) {
     const child = el.children[i] as HTMLElement | undefined;
@@ -98,29 +87,27 @@ export function HeroCarousel({
 
     const bind = () => {
       if (cancelled) return;
-      const nodes = tracks();
-      if (!nodes.length) {
+      const el = track.current;
+      if (!el || el.clientWidth < 8) {
         requestAnimationFrame(bind);
         return;
       }
-      nodes.forEach((el) => snapTo(el, origin, false));
-      nodes.forEach((el) => {
-        const scroll = () => {
-          if (jumping.current || n < 2) return;
-          setIndex(closestIndex(el) % n);
-          window.clearTimeout(settle.current);
-          settle.current = window.setTimeout(() => wrapCopies(el), 140);
-        };
-        const end = () => {
-          window.clearTimeout(settle.current);
-          wrapCopies(el);
-        };
-        el.addEventListener("scroll", scroll, { passive: true });
-        el.addEventListener("scrollend", end);
-        cleanups.push(() => {
-          el.removeEventListener("scroll", scroll);
-          el.removeEventListener("scrollend", end);
-        });
+      snapTo(el, origin, false);
+      const scroll = () => {
+        if (jumping.current || n < 2) return;
+        setIndex(closestIndex(el) % n);
+        window.clearTimeout(settle.current);
+        settle.current = window.setTimeout(() => wrapCopies(el), 140);
+      };
+      const end = () => {
+        window.clearTimeout(settle.current);
+        wrapCopies(el);
+      };
+      el.addEventListener("scroll", scroll, { passive: true });
+      el.addEventListener("scrollend", end);
+      cleanups.push(() => {
+        el.removeEventListener("scroll", scroll);
+        el.removeEventListener("scrollend", end);
       });
     };
 
@@ -137,10 +124,10 @@ export function HeroCarousel({
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) return;
     const id = window.setInterval(() => {
-      for (const el of tracks()) {
-        const next = closestIndex(el) + 1;
-        if (next < el.children.length) snapTo(el, next, true);
-      }
+      const el = track.current;
+      if (!el) return;
+      const next = closestIndex(el) + 1;
+      if (next < el.children.length) snapTo(el, next, true);
     }, 6000);
     return () => window.clearInterval(id);
   }, [n, paused, peek.target, autoplay]);
@@ -150,16 +137,16 @@ export function HeroCarousel({
   function go(real: number) {
     const target = ((real % n) + n) % n;
     setIndex(target);
-    for (const el of tracks()) {
-      const closest = closestIndex(el);
-      const copies = [target, target + n, target + 2 * n].filter(
-        (i) => i >= 0 && i < el.children.length,
-      );
-      const nearest = copies.sort(
-        (a, b) => Math.abs(a - closest) - Math.abs(b - closest),
-      )[0];
-      if (nearest != null) snapTo(el, nearest, true);
-    }
+    const el = track.current;
+    if (!el) return;
+    const closest = closestIndex(el);
+    const copies = [target, target + n, target + 2 * n].filter(
+      (i) => i >= 0 && i < el.children.length,
+    );
+    const nearest = copies.sort(
+      (a, b) => Math.abs(a - closest) - Math.abs(b - closest),
+    )[0];
+    if (nearest != null) snapTo(el, nearest, true);
   }
 
   function bindPeek(game: CatalogGame) {
@@ -183,89 +170,67 @@ export function HeroCarousel({
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="hero-phone">
-        <div ref={phone} className="hero-track">
-          {looped.map((game, i) => {
-            const art = game.headerUrl || game.coverUrl;
-            return (
-              <Link
-                key={`${game.id}-phone-${i}`}
-                to="/game/$catalogId"
-                params={{ catalogId: game.id }}
-                className="hero-slide relative block aspect-[2/1] overflow-hidden rounded-2xl bg-elevated"
-                {...bindPeek(game)}
-              >
-                {art ? (
-                  <>
-                    <img
-                      src={art}
-                      alt=""
-                      aria-hidden
-                      className="absolute inset-0 size-full scale-110 object-cover opacity-55 blur-xl"
-                    />
-                    <img
-                      src={art}
-                      alt=""
-                      loading={i >= origin && i < origin + 2 ? "eager" : "lazy"}
-                      fetchPriority={i === origin ? "high" : "low"}
-                      className="absolute inset-0 size-full object-contain"
-                    />
-                  </>
-                ) : (
-                  <div className="absolute inset-0 bg-subtle" />
-                )}
-                <TitleOverlay title={game.title} />
-                <RatingBadge score={game.metacritic} />
-              </Link>
-            );
-          })}
-        </div>
-        {n > 1 ? (
-          <div className="mt-3 flex justify-center gap-1.5">
-            {games.map((game, i) => (
-              <button
-                key={game.id}
-                type="button"
-                aria-label={`Show ${game.title}`}
-                onClick={() => go(i)}
-                className={cn(
-                  "h-1.5 rounded-full transition-[width,background-color] duration-150 ease-[var(--ease-smooth-out)]",
-                  i === index ? "w-5 bg-accent" : "w-1.5 bg-fg/35",
-                )}
-              />
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      <div ref={wide} className="hero-wide-track">
+      <div ref={track} className="hero-track">
         {looped.map((game, i) => {
-          const art = game.coverUrl || game.headerUrl;
+          const art = posterUrl(game);
           const selected = n > 0 && i % n === index;
+          const landscape = isLandscapeArt(art);
           return (
             <Link
-              key={`${game.id}-wide-${i}`}
+              key={`${game.id}-${i}`}
               to="/game/$catalogId"
               params={{ catalogId: game.id }}
-              className={cn("hero-wide-slide", selected && "is-active")}
+              className={cn("hero-slide", selected && "is-active")}
               {...bindPeek(game)}
             >
               <div className="hero-poster relative bg-elevated">
                 {art ? (
-                  <img
-                    src={art}
-                    alt=""
-                    loading={i >= origin && i < origin + 2 ? "eager" : "lazy"}
-                    className="size-full object-cover"
-                  />
+                  landscape ? (
+                    <>
+                      <img
+                        src={art}
+                        alt=""
+                        aria-hidden
+                        className="absolute inset-0 size-full scale-110 object-cover opacity-50 blur-xl"
+                      />
+                      <img
+                        src={art}
+                        alt=""
+                        className="absolute inset-0 size-full object-contain"
+                      />
+                    </>
+                  ) : (
+                    <img
+                      src={art}
+                      alt=""
+                      loading={i >= origin && i < origin + 2 ? "eager" : "lazy"}
+                      className="size-full object-cover"
+                    />
+                  )
                 ) : null}
-                <TitleOverlay title={game.title} />
                 <RatingBadge score={game.metacritic} />
               </div>
+              <p className="mt-2 h-5 truncate text-sm font-medium">{game.title}</p>
             </Link>
           );
         })}
       </div>
+      {n > 1 ? (
+        <div className="mt-3 flex justify-center gap-1.5">
+          {games.map((game, i) => (
+            <button
+              key={game.id}
+              type="button"
+              aria-label={`Show ${game.title}`}
+              onClick={() => go(i)}
+              className={cn(
+                "h-1.5 rounded-full transition-[width,background-color] duration-150 ease-[var(--ease-smooth-out)]",
+                i === index ? "w-5 bg-accent" : "w-1.5 bg-fg/35",
+              )}
+            />
+          ))}
+        </div>
+      ) : null}
       {peek.target ? (
         <GamePeek game={peek.target} onClose={peek.close} />
       ) : null}

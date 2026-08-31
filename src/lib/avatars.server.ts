@@ -10,10 +10,11 @@ function avatarDirs(): string[] {
     path.join(cwd, "public", "avatars"),
     path.join(cwd, "dist", "client", "avatars"),
     path.join(cwd, ".output", "public", "avatars"),
+    path.join(cwd, ".output", "public", "client", "avatars"),
   ];
 }
 
-/** Every `avatar_N.png` in public/avatars. New files show up on redeploy. */
+/** Every `avatar_N.png` found on disk. */
 export function listBuiltInAvatars(): string[] {
   const found = new Set<string>();
   for (const dir of avatarDirs()) {

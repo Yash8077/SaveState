@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -50,12 +51,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
       for (final path in manifest.listAssets()) {
-        final match =
-            RegExp(r'^assets/avatars/(avatar_\d+)\.png$').firstMatch(path);
+        final match = RegExp(r'avatars/(avatar_\d+)\.png$').firstMatch(path);
         if (match != null) found.add('/avatars/${match.group(1)}.png');
       }
     } catch (_) {}
+    try {
+      final raw = await rootBundle.loadString('AssetManifest.json');
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        for (final key in decoded.keys) {
+          final match =
+              RegExp(r'avatars/(avatar_\d+)\.png$').firstMatch(key.toString());
+          if (match != null) found.add('/avatars/${match.group(1)}.png');
+        }
+      }
+    } catch (_) {}
     found.addAll(await api.listAvatars());
+    if (found.isEmpty) {
+      for (var i = 1; i <= 32; i++) {
+        found.add('/avatars/avatar_$i.png');
+      }
+    }
     final list = found.toList();
     int n(String s) =>
         int.tryParse(RegExp(r'avatar_(\d+)').firstMatch(s)?.group(1) ?? '') ?? 0;

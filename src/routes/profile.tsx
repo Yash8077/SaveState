@@ -6,7 +6,8 @@ import { RedirectToSignIn } from "@/lib/auth/gates";
 import { authClient, getBearerToken, signOut } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useLibrary } from "@/hooks/use-library";
-import { canonicalizeAvatar } from "@/lib/avatars";
+import { canonicalizeAvatar, sortAvatarSrcs } from "@/lib/avatars";
+import { bundledAvatarSrcs } from "@/lib/avatar-files";
 import { ThemeAvatar } from "@/components/theme-avatar";
 import { GameCard, GameRail } from "@/components/game-card";
 import { Button } from "@/components/ui/button";
@@ -97,13 +98,22 @@ function ProfilePage() {
     queryFn: readProfile,
     enabled: Boolean(user),
   });
+  const bundled = bundledAvatarSrcs();
   const avatars = useQuery({
     queryKey: ["avatars"],
     queryFn: async () => {
-      const res = await fetch("/api/config");
-      const json = (await res.json()) as { avatars?: string[] };
-      return json.avatars ?? [];
+      try {
+        const res = await fetch("/api/config");
+        const json = (await res.json()) as { avatars?: string[] };
+        if (json.avatars?.length) {
+          return sortAvatarSrcs([...new Set([...json.avatars, ...bundled])]);
+        }
+      } catch {
+        /* picker still has the bundled list */
+      }
+      return bundled;
     },
+    initialData: bundled,
   });
   const [name, setName] = useState("");
   const [image, setImage] = useState<string | null>(null);
