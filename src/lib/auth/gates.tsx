@@ -1,5 +1,6 @@
 import { Link, Navigate } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
+import { ThemeAvatar } from "@/components/theme-avatar";
 import { authEnabled, signOut } from "./client";
 import { useCurrentUser, useCurrentUserState } from "./use-current-user";
 
@@ -63,17 +64,11 @@ export function UserButton() {
         aria-label="Profile"
         className="flex items-center gap-2 rounded-full"
       >
-        {user.profileImageUrl ? (
-          <img
-            src={user.profileImageUrl}
-            alt=""
-            className="h-8 w-8 rounded-full object-cover"
-          />
-        ) : (
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-black/10 text-sm font-medium dark:bg-white/20">
-            {label.charAt(0).toUpperCase()}
-          </span>
-        )}
+        <ThemeAvatar
+          src={user.profileImageUrl}
+          name={label}
+          className="size-8"
+        />
         <span className="text-sm font-medium">{label}</span>
       </Link>
       {authEnabled && (

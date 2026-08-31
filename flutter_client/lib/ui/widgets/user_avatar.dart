@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../services/api_client.dart';
 
-String? resolveAvatarUrl(String? image) {
-  if (image == null || image.isEmpty) return null;
-  if (image.startsWith('/')) return '${ApiClient.origin}$image';
-  return image;
-}
+final _badge = RegExp(r'^/avatars/([a-z]+)\.svg$');
 
 class UserAvatar extends StatelessWidget {
   final String? image;
@@ -18,32 +14,45 @@ class UserAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final src = resolveAvatarUrl(image);
     final initial = (name != null && name!.trim().isNotEmpty)
         ? name!.trim()[0].toUpperCase()
         : '?';
+    final match = image == null ? null : _badge.firstMatch(image!.trim());
     Widget child;
-    if (src == null) {
+    if (match != null) {
+      child = SvgPicture.asset(
+        'assets/avatars/${match.group(1)}.svg',
+        fit: BoxFit.cover,
+        theme: SvgTheme(currentColor: cs.primary),
+        placeholderBuilder: (_) => ColoredBox(color: cs.primary),
+      );
+    } else if (image != null && image!.isNotEmpty) {
+      final src = image!.startsWith('/')
+          ? '${ApiClient.origin}$image'
+          : image!;
+      if (src.endsWith('.svg')) {
+        child = SvgPicture.network(
+          src,
+          fit: BoxFit.cover,
+          theme: SvgTheme(currentColor: cs.primary),
+          placeholderBuilder: (_) => ColoredBox(color: cs.primary),
+        );
+      } else {
+        child = Image.network(src, fit: BoxFit.cover);
+      }
+    } else {
       child = Text(
         initial,
         style: TextStyle(
           fontWeight: FontWeight.w800,
           fontSize: size * 0.4,
-          color: cs.onPrimaryContainer,
+          color: cs.onPrimary,
         ),
       );
-    } else if (src.endsWith('.svg')) {
-      child = SvgPicture.network(
-        src,
-        fit: BoxFit.cover,
-        placeholderBuilder: (_) => ColoredBox(color: cs.primaryContainer),
-      );
-    } else {
-      child = Image.network(src, fit: BoxFit.cover);
     }
     return ClipOval(
       child: ColoredBox(
-        color: cs.primaryContainer,
+        color: cs.primary,
         child: SizedBox(width: size, height: size, child: child),
       ),
     );

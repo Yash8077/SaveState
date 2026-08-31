@@ -6,6 +6,7 @@ import { RedirectToSignIn } from "@/lib/auth/gates";
 import { authClient, getBearerToken } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { DEFAULT_AVATARS, defaultAvatarSrc } from "@/lib/avatars";
+import { ThemeAvatar } from "@/components/theme-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -167,15 +168,11 @@ function ProfilePage() {
 
       <section className="rounded-2xl bg-elevated p-5">
         <div className="flex items-center gap-4">
-          <div className="size-20 overflow-hidden rounded-full bg-subtle">
-            {preview ? (
-              <img src={preview} alt="" className="size-full object-cover" />
-            ) : (
-              <div className="grid size-full place-items-center text-2xl font-semibold text-accent">
-                {(name || "?").charAt(0).toUpperCase()}
-              </div>
-            )}
-          </div>
+          <ThemeAvatar
+            src={preview}
+            name={name}
+            className="size-20"
+          />
           <div className="min-w-0">
             <p className="text-lg font-medium truncate">{name || "Player"}</p>
             <p className="text-sm text-muted">Pick a badge or upload a photo.</p>
@@ -198,7 +195,7 @@ function ProfilePage() {
                 aria-label={avatar.name}
                 title={avatar.name}
               >
-                <img src={src} alt="" className="aspect-square w-full object-cover" />
+                <ThemeAvatar src={src} name={avatar.name} className="aspect-square w-full" />
               </button>
             );
           })}

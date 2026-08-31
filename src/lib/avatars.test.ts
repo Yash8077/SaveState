@@ -24,6 +24,6 @@ describe("avatars", () => {
     );
     assert.equal(parseAvatarValue("data:text/html;base64,aaaa"), undefined);
     assert.equal(parseAvatarValue(null), null);
-    assert.equal(DEFAULT_AVATARS.length, 12);
+    assert.equal(DEFAULT_AVATARS.length, 20);
   });
 });

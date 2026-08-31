@@ -19,6 +19,14 @@ const _avatars = <({String id, String name})>[
   (id: 'alien', name: 'Nova'),
   (id: 'knight', name: 'Aegis'),
   (id: 'slime', name: 'Bloom'),
+  (id: 'pad', name: 'Pad'),
+  (id: 'cart', name: 'Cart'),
+  (id: 'dice', name: 'Dice'),
+  (id: 'sword', name: 'Blade'),
+  (id: 'potion', name: 'Flask'),
+  (id: 'arcade', name: 'Arcade'),
+  (id: 'chest', name: 'Loot'),
+  (id: 'ghost', name: 'Haunt'),
 ];
 
 String avatarPath(String id) => '/avatars/$id.svg';

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAppearance } from "@/components/appearance-provider";
 import { GameCard, GameRail } from "@/components/game-card";
 import { HeroCarousel } from "@/components/hero-carousel";
+import { ThemeAvatar } from "@/components/theme-avatar";
 import { useHomeLayout } from "@/components/home-layout-provider";
 import { useLibrary } from "@/hooks/use-library";
 import { useMounted } from "@/hooks/use-mounted";
@@ -272,7 +273,6 @@ function HomeHello({
         : hour >= 17 && hour < 21
           ? "Keep it chill"
           : "You're up late";
-  const initial = name?.charAt(0).toUpperCase() || "S";
   return (
     <div className="flex items-center gap-2">
       <p className="min-w-0 flex-1 truncate text-2xl font-medium tracking-tight">
@@ -294,13 +294,9 @@ function HomeHello({
       <Link
         to={name ? "/profile" : "/login"}
         aria-label={name ? "Profile" : "Sign in"}
-        className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent/20 text-sm font-semibold text-accent"
+        className="size-10 shrink-0 overflow-hidden rounded-full"
       >
-        {avatar ? (
-          <img src={avatar} alt="" className="size-full object-cover" />
-        ) : (
-          initial
-        )}
+        <ThemeAvatar src={avatar} name={name} className="size-10" />
       </Link>
     </div>
   );

@@ -679,7 +679,7 @@ class _StatsScreenState extends State<StatsScreen> {
               Expanded(
                 child: _buildMiniInsightTile(
                   label: 'Avg Score',
-                  value: avgScore != null ? '$avgScore/100' : 'N/A',
+                  value: avgScore != null ? '$avgScore/10' : 'N/A',
                   caption: 'User ratings',
                   colorScheme: colorScheme,
                 ),
