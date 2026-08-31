@@ -10,6 +10,7 @@ import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
 import '../../state/home_layout_controller.dart';
 import '../../state/theme_controller.dart';
+import '../widgets/profile_editor.dart';
 import '../widgets/save_state_mark.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -54,7 +55,7 @@ class SettingsScreen extends StatelessWidget {
             context,
             icon: Icons.person_outline,
             title: 'Account',
-            hint: 'Profile and sign in',
+            hint: 'Name, avatar, and password',
             page: const _AccountPage(),
           ),
           const SizedBox(height: 24),
@@ -349,22 +350,17 @@ class _AccountPage extends StatelessWidget {
     final auth = context.watch<AuthController>();
     return Scaffold(
       appBar: AppBar(title: const Text('Account')),
-      body: ListTile(
-        leading: const Icon(Icons.person_outline),
-        title: Text(auth.isSignedIn
-            ? (auth.user?.name.isNotEmpty == true
-                ? auth.user!.name
-                : (auth.user?.email ?? 'Signed in'))
-            : 'Not signed in'),
-        subtitle: Text(auth.isSignedIn
-            ? 'Open profile to change name, avatar, or password'
-            : 'Sign in to sync your library'),
-        trailing: TextButton(
-          onPressed: () =>
-              context.push(auth.isSignedIn ? '/profile' : '/login'),
-          child: Text(auth.isSignedIn ? 'Profile' : 'Sign in'),
-        ),
-      ),
+      body: auth.isSignedIn
+          ? const SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 32),
+              child: ProfileEditor(),
+            )
+          : Center(
+              child: FilledButton(
+                onPressed: () => context.push('/login'),
+                child: const Text('Sign in'),
+              ),
+            ),
     );
   }
 }

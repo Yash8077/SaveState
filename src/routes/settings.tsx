@@ -6,6 +6,7 @@ import {
   ChevronRight,
   LayoutGrid,
   Palette,
+  UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -28,6 +29,7 @@ import {
   type LibraryBackup,
 } from "@/lib/library-backup";
 import { Button } from "@/components/ui/button";
+import { ProfileEditor } from "@/components/profile-editor";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -39,7 +41,7 @@ const MODES: { id: ThemeMode; label: string; hint: string }[] = [
   { id: "system", label: "System", hint: "Follow device" },
 ];
 
-type Page = "home" | "appearance" | "order-home" | "order-discover" | "backup";
+type Page = "home" | "appearance" | "order-home" | "order-discover" | "backup" | "account";
 
 const PAGES: {
   id: Exclude<Page, "home">;
@@ -71,6 +73,12 @@ const PAGES: {
     hint: "Export and import your library",
     icon: Archive,
   },
+  {
+    id: "account",
+    label: "Account",
+    hint: "Name, avatar, and password",
+    icon: UserRound,
+  },
 ];
 
 function SettingsPage() {
@@ -82,7 +90,7 @@ function SettingsPage() {
       {page === "home" ? (
         <>
           <h1 className="text-2xl font-medium tracking-tight">Settings</h1>
-          <p className="mt-1 text-sm text-muted">Appearance, order, and backup.</p>
+          <p className="mt-1 text-sm text-muted">Appearance, order, backup, and account.</p>
           <nav className="mt-5 overflow-hidden rounded-2xl bg-elevated">
             {PAGES.map((item, i) => {
               const Icon = item.icon;
@@ -128,6 +136,7 @@ function SettingsPage() {
               <HomeLayoutEditor surface="discover" />
             ) : null}
             {page === "backup" ? <BackupPane /> : null}
+            {page === "account" ? <AccountPane /> : null}
           </div>
         </>
       )}
@@ -393,6 +402,29 @@ function BackupPane() {
           onChange={(e) => void importFile(e.target.files?.[0])}
         />
       </div>
+    </section>
+  );
+}
+
+function AccountPane() {
+  const { user, isPending } = useCurrentUserState();
+  if (isPending) return null;
+  if (!user) {
+    return (
+      <section className="rounded-2xl bg-elevated p-5">
+        <p className="text-sm text-muted">Sign in to change your name, avatar, or password.</p>
+        <Link
+          to="/login"
+          className="mt-4 inline-flex h-10 items-center rounded-full bg-accent px-4 text-sm font-medium text-accent-fg"
+        >
+          Sign in
+        </Link>
+      </section>
+    );
+  }
+  return (
+    <section className="rounded-2xl bg-elevated p-5">
+      <ProfileEditor />
     </section>
   );
 }

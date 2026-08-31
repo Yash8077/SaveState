@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +6,7 @@ import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
 import '../widgets/game_rail.dart';
+import '../widgets/profile_editor.dart';
 import '../widgets/user_avatar.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -18,65 +17,16 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _name = TextEditingController();
-  final _current = TextEditingController();
-  final _next = TextEditingController();
-  final _confirm = TextEditingController();
+  String _name = '';
   String? _image;
-  bool _hasPassword = false;
   bool _loading = true;
-  bool _saving = false;
-  bool _passwordBusy = false;
   String? _error;
   List<GameEntry> _entries = const [];
-  List<String> _avatarSrcs = const [];
 
   @override
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _current.dispose();
-    _next.dispose();
-    _confirm.dispose();
-    super.dispose();
-  }
-
-  Future<List<String>> _discoverAvatars(ApiClient api) async {
-    final found = <String>{};
-    try {
-      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-      for (final path in manifest.listAssets()) {
-        final match = RegExp(r'avatars/(avatar_\d+)\.png$').firstMatch(path);
-        if (match != null) found.add('/avatars/${match.group(1)}.png');
-      }
-    } catch (_) {}
-    try {
-      final raw = await rootBundle.loadString('AssetManifest.json');
-      final decoded = jsonDecode(raw);
-      if (decoded is Map) {
-        for (final key in decoded.keys) {
-          final match =
-              RegExp(r'avatars/(avatar_\d+)\.png$').firstMatch(key.toString());
-          if (match != null) found.add('/avatars/${match.group(1)}.png');
-        }
-      }
-    } catch (_) {}
-    found.addAll(await api.listAvatars());
-    if (found.isEmpty) {
-      for (var i = 1; i <= 32; i++) {
-        found.add('/avatars/avatar_$i.png');
-      }
-    }
-    final list = found.toList();
-    int n(String s) =>
-        int.tryParse(RegExp(r'avatar_(\d+)').firstMatch(s)?.group(1) ?? '') ?? 0;
-    list.sort((a, b) => n(a).compareTo(n(b)));
-    return list;
   }
 
   CatalogGame _asCard(GameEntry entry) {
@@ -95,98 +45,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _loading = false);
       return;
     }
+    final api = context.read<ApiClient>();
+    if (_entries.isEmpty && api.cachedLibrary != null) {
+      _entries = api.cachedLibrary!;
+    }
+    _name = auth.user?.name ?? '';
+    _image = auth.user?.image;
     try {
-      final api = context.read<ApiClient>();
       final profile = await api.getProfile();
-      final avatars = await _discoverAvatars(api);
-      List<GameEntry> library = const [];
+      List<GameEntry> library = _entries;
       try {
         library = await api.getLibrary();
       } on ApiException catch (e) {
         if (e.status != 401) rethrow;
       }
       if (!mounted) return;
-      _name.text = profile['name']?.toString() ?? auth.user?.name ?? '';
       setState(() {
+        _name = profile['name']?.toString() ?? auth.user?.name ?? '';
         _image = canonicalizeAvatar(profile['image']?.toString());
-        _hasPassword = profile['hasPassword'] == true;
         _entries = library;
-        _avatarSrcs = avatars;
         _loading = false;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
         _loading = false;
-        _name.text = auth.user?.name ?? '';
+        _name = auth.user?.name ?? '';
         _image = auth.user?.image;
       });
     }
   }
 
-  Future<void> _save() async {
-    final name = _name.text.trim();
-    if (name.isEmpty || name.length > 40) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name must be 1–40 characters')),
-      );
-      return;
-    }
-    setState(() => _saving = true);
-    try {
-      final profile = await context.read<ApiClient>().updateProfile(
-            name: name,
-            image: _image,
-          );
-      if (!mounted) return;
-      await context.read<AuthController>().applyProfile(
-            name: profile['name']?.toString() ?? name,
-            image: profile['image']?.toString() ?? _image,
-          );
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile saved')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  Future<void> _savePassword() async {
-    if (_next.text.length < 8) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('New password needs at least 8 characters')),
-      );
-      return;
-    }
-    if (_next.text != _confirm.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('New passwords do not match')),
-      );
-      return;
-    }
-    setState(() => _passwordBusy = true);
-    try {
-      await context.read<ApiClient>().changePassword(
-            currentPassword: _current.text,
-            newPassword: _next.text,
-          );
-      if (!mounted) return;
-      _current.clear();
-      _next.clear();
-      _confirm.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password updated')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-    } finally {
-      if (mounted) setState(() => _passwordBusy = false);
-    }
+  Future<void> _edit() async {
+    await showProfileEditor(context, onSaved: () {
+      final auth = context.read<AuthController>();
+      setState(() {
+        _name = auth.user?.name ?? _name;
+        _image = auth.user?.image ?? _image;
+      });
+    });
+    if (mounted) _load();
   }
 
   @override
@@ -208,49 +108,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
-      body: _loading
+      body: _loading && _entries.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth >= 800;
-                final identity = _identity(cs, auth);
-                final account = _account(cs, auth);
-                final shelves = _shelves(cs);
-                if (wide) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 360,
-                        child: ListView(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 8, 32),
-                          children: [identity, const SizedBox(height: 16), account],
-                        ),
-                      ),
-                      Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.fromLTRB(8, 8, 8, 32),
-                          children: shelves,
-                        ),
-                      ),
-                    ],
-                  );
-                }
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 32),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: identity,
-                    ),
-                    ...shelves,
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                      child: account,
-                    ),
-                  ],
-                );
-              },
+          : ListView(
+              padding: const EdgeInsets.only(bottom: 32),
+              children: [
+                _identity(cs, auth),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Text(_error!, style: TextStyle(color: cs.error)),
+                  ),
+                ..._shelves(),
+              ],
             ),
     );
   }
@@ -267,78 +137,116 @@ class _ProfileScreenState extends State<ProfileScreen> {
             e.status == GameStatus.beaten &&
             (e.finishedAt?.startsWith(year) ?? false))
         .length;
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    final display = _name.isEmpty ? 'Player' : _name;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(height: 88, color: cs.primary.withValues(alpha: 0.55)),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Transform.translate(
-                  offset: const Offset(0, -28),
-                  child: UserAvatar(
-                    image: _image,
-                    name: _name.text,
-                    size: 84,
-                  ),
-                ),
-                Transform.translate(
-                  offset: const Offset(0, -16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: _edit,
+                  child: Stack(
                     children: [
-                      Text(
-                        _name.text.isEmpty ? 'Player' : _name.text,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
+                      UserAvatar(image: _image, name: display, size: 84),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: cs.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: cs.surface, width: 2),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(6),
+                            child: Icon(
+                              Icons.edit_rounded,
+                              size: 14,
+                              color: cs.onPrimary,
+                            ),
+                          ),
                         ),
-                      ),
-                      Text(
-                        auth.user?.email ?? '',
-                        style: TextStyle(color: cs.onSurfaceVariant),
                       ),
                     ],
                   ),
                 ),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(_error!, style: TextStyle(color: cs.error)),
-                  ),
-                Row(
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: _chip(cs, 'Logged', '${_entries.length}')),
-                    const SizedBox(width: 8),
-                    Expanded(child: _chip(cs, 'Hours', '${hours}h')),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _chip(
-                        cs,
-                        'Avg score',
-                        avg == null ? '—' : avg.toStringAsFixed(1),
+                    Text(
+                      display,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _chip(cs, 'Beaten this year', '$beatenYear'),
+                    Text(
+                      auth.user?.email ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: cs.onSurfaceVariant),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () => context.push('/stats'),
-                  child: const Text('Full stats'),
-                ),
-              ],
+              ),
+              TextButton(onPressed: _edit, child: const Text('Edit')),
+            ],
+          ),
+          const SizedBox(height: 16),
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => context.push('/stats'),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth >= 560;
+                final chips = [
+                  _chip(cs, 'Logged', '${_entries.length}'),
+                  _chip(cs, 'Hours', '${hours}h'),
+                  _chip(cs, 'Avg score', avg == null ? '—' : avg.toStringAsFixed(1)),
+                  _chip(cs, 'Beaten this year', '$beatenYear'),
+                ];
+                if (wide) {
+                  return Row(
+                    children: [
+                      for (var i = 0; i < chips.length; i++) ...[
+                        if (i > 0) const SizedBox(width: 8),
+                        Expanded(child: chips[i]),
+                      ],
+                    ],
+                  );
+                }
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: chips[0]),
+                        const SizedBox(width: 8),
+                        Expanded(child: chips[1]),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: chips[2]),
+                        const SizedBox(width: 8),
+                        Expanded(child: chips[3]),
+                      ],
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -374,7 +282,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  List<Widget> _shelves(ColorScheme cs) {
+  List<Widget> _shelves() {
     final playing = _entries
         .where((e) => e.status == GameStatus.playing)
         .map(_asCard)
@@ -386,233 +294,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final beatenCards = beaten.take(12).map(_asCard).toList();
     return [
       if (playing.isNotEmpty)
-        GameRailWidget(title: 'Currently playing', games: playing)
-      else
-        _empty(cs, 'Currently playing', 'Nothing in progress.'),
+        GameRailWidget(title: 'Currently playing', games: playing),
       if (favorites.isNotEmpty)
-        GameRailWidget(title: 'Favorites', games: favorites)
-      else
-        _empty(cs, 'Favorites', 'Star a game to pin it here.'),
+        GameRailWidget(title: 'Favorites', games: favorites),
       if (beatenCards.isNotEmpty)
-        GameRailWidget(title: 'Recently beaten', games: beatenCards)
-      else
-        _empty(cs, 'Recently beaten', 'Finish something and it lands here.'),
+        GameRailWidget(title: 'Recently beaten', games: beatenCards),
     ];
-  }
-
-  Widget _empty(ColorScheme cs, String title, String hint) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            Text(hint, style: TextStyle(color: cs.onSurfaceVariant)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openPicker(ColorScheme cs) async {
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setLocal) {
-            return Dialog(
-              insetPadding: const EdgeInsets.all(20),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440, maxHeight: 560),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Choose avatar',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            icon: const Icon(Icons.close_rounded),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Flexible(
-                        child: GridView.builder(
-                          shrinkWrap: true,
-                          itemCount: _avatarSrcs.length,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 4,
-                            mainAxisSpacing: 10,
-                            crossAxisSpacing: 10,
-                          ),
-                          itemBuilder: (context, i) {
-                            final src = _avatarSrcs[i];
-                            final selected = canonicalizeAvatar(_image) == src;
-                            return InkWell(
-                              customBorder: const CircleBorder(),
-                              onTap: () {
-                                setState(() => _image = src);
-                                setLocal(() {});
-                              },
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: selected
-                                        ? cs.primary
-                                        : Colors.transparent,
-                                    width: 3,
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(2),
-                                  child: UserAvatar(
-                                    image: src,
-                                    name: 'Avatar',
-                                    size: 72,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Done'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _account(ColorScheme cs, AuthController auth) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Account',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Name, avatar, and password.',
-              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                UserAvatar(image: _image, name: _name.text, size: 64),
-                const SizedBox(width: 12),
-                FilledButton.tonal(
-                  onPressed: () => _openPicker(cs),
-                  child: const Text('Change avatar'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: _name,
-              maxLength: 40,
-              decoration: const InputDecoration(
-                labelText: 'Display name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 8),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: Text(_saving ? 'Saving…' : 'Save profile'),
-            ),
-            const SizedBox(height: 8),
-            if (!_hasPassword)
-              Text(
-                'You signed in with Google, so there is no password to change here.',
-                style: TextStyle(color: cs.onSurfaceVariant),
-              )
-            else
-              ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                title: const Text('Change password'),
-                children: [
-                  TextField(
-                    controller: _current,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Current password',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _next,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'New password',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _confirm,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Confirm new password',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  FilledButton.tonal(
-                    onPressed: _passwordBusy ? null : _savePassword,
-                    child: Text(_passwordBusy ? 'Updating…' : 'Update password'),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: () async {
-                await auth.signOut();
-                if (context.mounted) context.go('/');
-              },
-              child: const Text('Sign out'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
