@@ -8,6 +8,7 @@ import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
 import 'user_avatar.dart';
+import 'm3_progress.dart';
 
 Future<List<String>> discoverAvatars(ApiClient api) async {
   final found = <String>{};
@@ -172,7 +173,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
     if (_loading) {
       return const Padding(
         padding: EdgeInsets.all(32),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(child: M3Loading()),
       );
     }
     return Column(

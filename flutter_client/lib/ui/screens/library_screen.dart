@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:expressive_refresh/expressive_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +10,7 @@ import '../../services/api_client.dart';
 import '../auth_ready_load.dart';
 import '../open_game.dart';
 import '../widgets/game_card.dart';
+import '../widgets/m3_progress.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -264,10 +266,7 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(
-              strokeWidth: 3,
-              color: colorScheme.primary,
-            ),
+            const M3Loading(),
             const SizedBox(height: 16),
             Text(
               'Loading library...',
@@ -384,7 +383,7 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
     }
 
     if (_entries.isEmpty) {
-      return RefreshIndicator(
+      return ExpressiveRefreshIndicator(
         onRefresh: _fetchLibrary,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -437,7 +436,7 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
 
     final filtered = _filteredEntries;
 
-    return RefreshIndicator(
+    return ExpressiveRefreshIndicator(
       onRefresh: _fetchLibrary,
       child: Column(
         children: [
@@ -659,8 +658,8 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
                                   child: SizedBox(
                                     width: 24,
                                     height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
+                                    child: M3Loading(
+                                      size: 24,
                                       color: colorScheme.primary.withOpacity(0.6),
                                     ),
                                   ),

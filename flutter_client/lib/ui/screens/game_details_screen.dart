@@ -8,6 +8,7 @@ import '../../state/auth_controller.dart';
 import '../widgets/list_editor_sheet.dart';
 import '../widgets/screenshot_gallery.dart';
 import '../widgets/game_card.dart';
+import '../widgets/m3_progress.dart';
 import '../open_game.dart';
 import '../../date_format.dart';
 
@@ -283,7 +284,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               icon: const Icon(Icons.arrow_back),
             ),
           ),
-          body: const Center(child: CircularProgressIndicator()),
+          body: const Center(child: M3Loading()),
         ),
       );
     }
@@ -462,7 +463,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           ),
           if (_refreshing)
             const SliverToBoxAdapter(
-              child: LinearProgressIndicator(minHeight: 2),
+              child: M3LinearProgress(minHeight: 2),
             ),
           SliverToBoxAdapter(
             child: Padding(

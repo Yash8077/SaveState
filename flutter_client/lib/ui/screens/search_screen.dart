@@ -8,6 +8,7 @@ import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../open_game.dart';
 import '../widgets/game_card.dart';
+import '../widgets/m3_progress.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? q;
@@ -254,9 +255,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   child: SizedBox(
                                     width: 20.0,
                                     height: 20.0,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.0,
-                                    ),
+                                    child: M3Loading(size: 20),
                                   ),
                                 ),
                               ),

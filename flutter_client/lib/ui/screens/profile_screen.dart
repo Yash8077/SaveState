@@ -10,6 +10,7 @@ import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
 import '../open_game.dart';
 import '../widgets/game_card.dart';
+import '../widgets/m3_progress.dart';
 import '../widgets/profile_editor.dart';
 import '../widgets/user_avatar.dart';
 
@@ -133,7 +134,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
       body: _loading && _entries.isEmpty
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: M3Loading())
           : LayoutBuilder(
               builder: (context, constraints) {
                 final wide = constraints.maxWidth >= 800;

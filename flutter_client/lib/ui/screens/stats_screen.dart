@@ -1,3 +1,4 @@
+import 'package:expressive_refresh/expressive_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../auth_ready_load.dart';
+import '../widgets/m3_progress.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -126,10 +128,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(
-              strokeWidth: 3,
-              color: colorScheme.primary,
-            ),
+            const M3Loading(),
             const SizedBox(height: 16),
             Text(
               'Computing statistics...',
@@ -246,7 +245,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
     }
 
     if (_entries.isEmpty) {
-      return RefreshIndicator(
+      return ExpressiveRefreshIndicator(
         onRefresh: _fetchStats,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -321,7 +320,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
         ? (totalHours / gamesWithHours).toStringAsFixed(1)
         : '0';
 
-    return RefreshIndicator(
+    return ExpressiveRefreshIndicator(
       onRefresh: _fetchStats,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -588,11 +587,11 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                   const SizedBox(height: 6),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
+                    child: M3LinearProgress(
                       value: percentage,
                       minHeight: 6,
                       backgroundColor: colorScheme.surfaceContainerHighest,
-                      valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                      color: statusColor,
                     ),
                   ),
                 ],

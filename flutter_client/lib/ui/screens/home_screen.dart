@@ -1,3 +1,4 @@
+import 'package:expressive_refresh/expressive_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -145,10 +146,9 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
   Widget _buildBody(ColorScheme colorScheme) {
     if (_isLoading) return const _HomeScreenSkeleton();
     if (_errorMessage != null) return _buildErrorView(colorScheme);
-    return RefreshIndicator(
+    return ExpressiveRefreshIndicator(
       onRefresh: _loadData,
       color: colorScheme.primary,
-      backgroundColor: colorScheme.surfaceContainerHigh,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),

@@ -21,6 +21,8 @@ dependencies:
   flutter_svg: ^2.0.16
   file_picker: ^10.3.3
   share_plus: ^10.1.4
+  material3_expressive_loading_indicator: ^0.1.2
+  expressive_refresh: ^0.1.2
 
 dev_dependencies:
   flutter_test:

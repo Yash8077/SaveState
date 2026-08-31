@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
+import '../widgets/m3_progress.dart';
 import '../widgets/save_state_mark.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -237,11 +238,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: FilledButton(
             onPressed: _busy ? null : _submit,
             child: _busy
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2.4),
-                  )
+                ? const M3Loading(size: 22)
                 : Text(_signup ? 'Create account' : 'Sign in'),
           ),
         ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:expressive_refresh/expressive_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -10,6 +11,7 @@ import '../open_game.dart';
 import '../widgets/game_card.dart';
 import '../widgets/game_rail.dart';
 import '../widgets/hero_carousel.dart';
+import '../widgets/m3_progress.dart';
 
 class DiscoverScreen extends StatefulWidget {
   final String? q;
@@ -227,7 +229,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   Widget _buildContent(ColorScheme colorScheme) {
     if (_hasSearched && _ready) {
       if (_isLoading && _results.isEmpty) {
-        return const Center(child: CircularProgressIndicator());
+        return const Center(child: M3Loading());
       }
       if (_errorMessage != null) {
         return _message(
@@ -250,9 +252,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     }
 
     if (_railsLoading && _rails.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: M3Loading());
     }
-    return RefreshIndicator(
+    return ExpressiveRefreshIndicator(
       onRefresh: () => _loadRails(force: true),
       child: _storefront(),
     );
