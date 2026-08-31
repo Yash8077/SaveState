@@ -21,6 +21,7 @@ export const addToLibraryInput = z.object({
   catalogId: z.string().min(1),
   status: statusSchema.optional(),
   score: z.number().int().min(1).max(10).nullable().optional(),
+  hours: z.number().min(0).max(10000).nullable().optional(),
   favorite: z.boolean().optional(),
   startedAt: z.string().nullable().optional(),
   finishedAt: z.string().nullable().optional(),

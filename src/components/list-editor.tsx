@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { DateField } from "@/components/date-field";
 import { STATUSES, STATUS_LABEL, type Status } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -8,6 +9,7 @@ import { cn } from "@/lib/utils";
 export type ListEditorValue = {
   status: Status;
   score: number | null;
+  hours: number | null;
   favorite: boolean;
   startedAt: string | null;
   finishedAt: string | null;
@@ -16,6 +18,14 @@ export type ListEditorValue = {
 function dateValue(raw: string | null | undefined): string {
   if (!raw) return "";
   return raw.slice(0, 10);
+}
+
+function parseHours(raw: string): number | null {
+  const text = raw.trim();
+  if (!text) return null;
+  const n = Number(text);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
 }
 
 export function ListEditor({
@@ -35,6 +45,11 @@ export function ListEditor({
 }) {
   const [status, setStatus] = useState<Status>(initial?.status ?? "playing");
   const [score, setScore] = useState<number | null>(initial?.score ?? null);
+  const [hours, setHours] = useState(
+    initial?.hours != null && Number.isFinite(initial.hours)
+      ? String(initial.hours)
+      : "",
+  );
   const [favorite, setFavorite] = useState(Boolean(initial?.favorite));
   const [startedAt, setStartedAt] = useState(dateValue(initial?.startedAt));
   const [finishedAt, setFinishedAt] = useState(dateValue(initial?.finishedAt));
@@ -46,6 +61,7 @@ export function ListEditor({
       await onSave({
         status,
         score,
+        hours: parseHours(hours),
         favorite,
         startedAt: startedAt || null,
         finishedAt: finishedAt || null,
@@ -118,6 +134,17 @@ export function ListEditor({
             </button>
           ))}
         </div>
+
+        <label className="mt-5 block text-sm text-muted">
+          Hours played
+          <Input
+            className="mt-1.5 h-12 rounded-2xl border-b-0 bg-subtle"
+            inputMode="decimal"
+            placeholder="0"
+            value={hours}
+            onChange={(e) => setHours(e.target.value)}
+          />
+        </label>
 
         <div className="mt-5 space-y-4">
           <DateField

@@ -117,6 +117,16 @@ describe("library CRUD against PGLite", () => {
     assert.equal(entry.favorite, true);
   });
 
+  it("saves hours on first add", async () => {
+    const entry = await addToLibraryRow(sql, "user-hours", {
+      catalogId: "steam_730",
+      status: "playing",
+      snapshot,
+      hours: 12.5,
+    });
+    assert.equal(entry.hours, 12.5);
+  });
+
   it("updates, paginates with (updated_at, id) cursors, and deletes", async () => {
     const custom = await addCustomGameRow(sql, "user-a", {
       title: "Custom Quest",

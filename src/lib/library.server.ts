@@ -167,10 +167,10 @@ export async function addToLibraryRow(
     `insert into game_entries (
       user_id, catalog_id, title, cover_url, header_url, summary, release_date,
       platforms, genres, metacritic, developers, publishers, screenshots,
-      status, score, favorite, started_at, finished_at, updated_at
+      status, score, hours, favorite, started_at, finished_at, updated_at
     ) values (
       $1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10,$11::jsonb,$12::jsonb,$13::jsonb,
-      $14,$15,$16,$17,$18, now()
+      $14,$15,$16,$17,$18,$19, now()
     )
     on conflict (user_id, catalog_id) do update set
       title = excluded.title,
@@ -185,6 +185,11 @@ export async function addToLibraryRow(
       publishers = excluded.publishers,
       screenshots = excluded.screenshots,
       status = excluded.status,
+      score = excluded.score,
+      hours = excluded.hours,
+      favorite = excluded.favorite,
+      started_at = excluded.started_at,
+      finished_at = excluded.finished_at,
       updated_at = now()
     returning ${ENTRY_SELECT}`,
     [
@@ -203,6 +208,7 @@ export async function addToLibraryRow(
       jsonbBind(s.screenshots),
       status,
       data.score ?? null,
+      data.hours ?? null,
       Boolean(data.favorite),
       toIsoDate(data.startedAt),
       toIsoDate(data.finishedAt),
