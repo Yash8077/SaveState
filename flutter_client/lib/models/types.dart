@@ -130,6 +130,9 @@ String? normalizeArtUrl(String? url) {
   if (trimmed.startsWith('http://')) {
     return 'https://${trimmed.substring(7)}';
   }
+  if (trimmed.startsWith('/')) {
+    return 'https://save-state-jade.vercel.app$trimmed';
+  }
   return trimmed;
 }
 

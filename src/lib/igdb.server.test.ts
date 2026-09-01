@@ -149,14 +149,14 @@ describe("IGDB field selection", () => {
     assert.ok(DETAIL_FIELDS.startsWith(CARD_FIELDS));
   });
 
-  it("targets PlayStation 5, not only Steam PC ports", () => {
+  it("targets PlayStation 5 and PS4, not only Steam PC ports", () => {
     assert.equal(PLAYSTATION_PS5_ID, 167);
     assert.equal(PLAYSTATION_PC_ID, 6);
     const popular = playstationPopularBody();
     const fresh = playstationFreshBody(1_704_067_200_000);
-    assert.match(popular, /platforms = \(167\)/);
+    assert.match(popular, /platforms = \(167,48\)/);
     assert.match(popular, /game_type != 11/);
-    assert.match(fresh, /platforms != \(6\)/);
+    assert.match(fresh, /platforms = \(167,48\)/);
     assert.match(fresh, /sort hypes desc/);
   });
 });

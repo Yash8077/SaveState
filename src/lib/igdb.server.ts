@@ -1094,7 +1094,7 @@ export const PLAYSTATION_FALLBACK_TITLES = [
 
 export function playstationPopularBody(): string {
   return `fields ${CARD_FIELDS};
-       where cover != null & version_parent = null & category = 0 & platforms = (${PLAYSTATION_PS5_ID}) & (game_type != ${GAME_TYPE.port} | game_type = null);
+       where cover != null & version_parent = null & (category = 0 | game_type = ${GAME_TYPE.main_game} | game_type = null) & platforms = (${PLAYSTATION_PLATFORM_IDS}) & (game_type != ${GAME_TYPE.port} | game_type = null);
        sort aggregated_rating_count desc;
        limit 20;`;
 }
@@ -1102,7 +1102,7 @@ export function playstationPopularBody(): string {
 export function playstationFreshBody(now = Date.now()): string {
   const cutoff = Math.floor(now / 1000) - PLAYSTATION_FRESH_SECONDS;
   return `fields ${CARD_FIELDS};
-       where cover != null & version_parent = null & category = 0 & platforms = (${PLAYSTATION_PS5_ID}) & platforms != (${PLAYSTATION_PC_ID}) & first_release_date > ${cutoff} & (game_type != ${GAME_TYPE.port} | game_type = null);
+       where cover != null & version_parent = null & (category = 0 | game_type = ${GAME_TYPE.main_game} | game_type = null) & platforms = (${PLAYSTATION_PLATFORM_IDS}) & first_release_date > ${cutoff} & (game_type != ${GAME_TYPE.port} | game_type = null);
        sort hypes desc;
        limit 20;`;
 }
