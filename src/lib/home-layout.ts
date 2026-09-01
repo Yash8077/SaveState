@@ -81,7 +81,7 @@ export const HOME_SECTION_META: Record<
   },
   playstation: {
     title: "Popular on PlayStation",
-    hint: "Popular PS5 and PS4 titles",
+    hint: "Popular PlayStation 5 titles",
     catalog: true,
     surface: "home",
   },

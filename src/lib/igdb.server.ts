@@ -1069,8 +1069,8 @@ export async function lookupIgdbByTitles(titles: string[]): Promise<CatalogGame[
   }
 }
 
-/** IGDB platform ids: PS5 = 167, PS4 = 48, PC = 6. */
-export const PLAYSTATION_PLATFORM_IDS = "167,48";
+/** IGDB platform id: PS5 = 167. */
+export const PLAYSTATION_PLATFORM_IDS = "167";
 export const PLAYSTATION_PS5_ID = 167;
 export const PLAYSTATION_PC_ID = 6;
 export const PLAYSTATION_FRESH_SECONDS = 18 * 30 * 24 * 60 * 60;

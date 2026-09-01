@@ -79,12 +79,12 @@ export async function fillMissingCovers(
   }
 }
 
-/** IGDB platform ids: PS5 = 167, PS4 = 48. */
+/** IGDB platform id: PS5 = 167. */
 export async function fetchPlaystationRail(): Promise<FeaturedRail | null> {
   if (!isIgdbReady()) return null;
   const rows = await igdbGames(
     `fields name, cover.image_id, first_release_date, aggregated_rating;
-     where cover != null & version_parent = null & (category = 0 | game_type = 0 | game_type = null) & platforms = (167,48) & aggregated_rating_count > 20;
+     where cover != null & version_parent = null & (category = 0 | game_type = 0 | game_type = null) & platforms = (167) & aggregated_rating_count > 20;
      sort aggregated_rating_count desc;
      limit 16;`,
   );
