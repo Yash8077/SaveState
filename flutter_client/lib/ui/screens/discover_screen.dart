@@ -278,7 +278,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       }
       final rail = railsById[section.id];
       if (rail == null || rail.games.isEmpty) continue;
-      children.add(GameRailWidget(title: rail.title, games: rail.games));
+      final title = homeSectionTitles[rail.id] ?? rail.title;
+      children.add(GameRailWidget(title: title, games: rail.games));
     }
     if (children.isEmpty) {
       children.add(

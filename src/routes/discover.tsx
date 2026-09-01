@@ -14,7 +14,7 @@ import { useMounted } from "@/hooks/use-mounted";
 import { getFeaturedRails, searchGames, FEATURED_REL, FEATURED_STALE_MS, SEARCH_STALE_MS } from "@/lib/api";
 import { FEATURED_SEED } from "@/lib/catalog-seed";
 import { heroSlides } from "@/lib/hero";
-import { mergeDiscoverLayout } from "@/lib/home-layout";
+import { homeSectionTitle, mergeDiscoverLayout } from "@/lib/home-layout";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import type { FeaturedRail } from "@/lib/types";
 
@@ -206,8 +206,9 @@ function Discover() {
 }
 
 function CatalogRail({ rail }: { rail: FeaturedRail }) {
+  const title = homeSectionTitle(rail.id) || rail.title;
   return (
-    <GameRail title={rail.title}>
+    <GameRail title={title}>
       {rail.games.map((g, i) => (
         <GameCard
           key={`${rail.id}-${g.id}`}

@@ -1151,7 +1151,7 @@ export async function fetchIgdbPlaystation(): Promise<FeaturedRail | null> {
     games = mixPlaystationGames(games, fallback.filter((game) => Boolean(game.coverUrl)));
   }
   if (!games.length) return null;
-  return { id: "playstation", title: "PlayStation", games: games.slice(0, 12) };
+  return { id: "playstation", title: "Popular on PlayStation", games: games.slice(0, 12) };
 }
 
 export function popularityValue(

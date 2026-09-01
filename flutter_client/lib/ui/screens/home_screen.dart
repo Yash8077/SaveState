@@ -267,7 +267,8 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
         case 'playstation':
           final rail = railsById['playstation'];
           if (rail != null && rail.games.isNotEmpty) {
-            out.add(GameRailWidget(title: rail.title, games: rail.games));
+            final title = homeSectionTitles['playstation'] ?? rail.title;
+            out.add(GameRailWidget(title: title, games: rail.games));
           }
           break;
       }

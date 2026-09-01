@@ -10,7 +10,7 @@ import { useMounted } from "@/hooks/use-mounted";
 import { getBecauseRail, getFeaturedRails, BECAUSE_STALE_MS, FEATURED_REL, FEATURED_STALE_MS } from "@/lib/api";
 import { pickBecauseSeeds, sortWishlist } from "@/lib/because";
 import { FEATURED_SEED } from "@/lib/catalog-seed";
-import { mergeHomeLayout, type HomeSectionPref } from "@/lib/home-layout";
+import { homeSectionTitle, mergeHomeLayout, type HomeSectionPref } from "@/lib/home-layout";
 import { tintForCatalog } from "@/lib/tints";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { formatHours } from "@/lib/utils";
@@ -258,8 +258,9 @@ function renderHomeSection(
 }
 
 function CatalogRail({ rail }: { rail: FeaturedRail }) {
+  const title = homeSectionTitle(rail.id) || rail.title;
   return (
-    <GameRail title={rail.title}>
+    <GameRail title={title}>
       {rail.games.map((g, i) => (
         <GameCard
           key={`${rail.id}-${g.id}`}
