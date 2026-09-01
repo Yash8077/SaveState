@@ -29,7 +29,7 @@ function Home() {
     [layout.homeSections],
   );
   const wantPlaystation = sections.some(
-    (row) => row.id === "playstation" && row.enabled,
+    (row) => row.id.startsWith("playstation") && row.enabled,
   );
   const featured = useQuery({
     queryKey: ["featured", FEATURED_REL],
@@ -247,10 +247,12 @@ function renderHomeSection(
           ))}
         </GameRail>
       );
-    case "playstation": {
-      const rail = ctx.railsById.get("playstation");
+    case "playstation":
+    case "playstation_upcoming":
+    case "playstation_classics": {
+      const rail = ctx.railsById.get(section.id);
       if (!rail?.games.length) return null;
-      return <CatalogRail key="playstation" rail={rail} />;
+      return <CatalogRail key={section.id} rail={rail} />;
     }
     default:
       return null;

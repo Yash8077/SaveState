@@ -26,6 +26,8 @@ const defaultHomeSections = <String>[
   'wishlist',
   'recommended',
   'playstation',
+  'playstation_upcoming',
+  'playstation_classics',
 ];
 
 const defaultDiscoverSections = <String>[
@@ -35,6 +37,8 @@ const defaultDiscoverSections = <String>[
   'coming_soon',
   'specials',
   'playstation',
+  'playstation_upcoming',
+  'playstation_classics',
 ];
 
 const homeSectionTitles = <String, String>{
@@ -49,6 +53,8 @@ const homeSectionTitles = <String, String>{
   'coming_soon': 'Coming soon',
   'specials': 'On sale',
   'playstation': 'Popular on PlayStation',
+  'playstation_upcoming': 'Upcoming on PlayStation',
+  'playstation_classics': 'PlayStation Classics',
 };
 
 const homeSectionHints = <String, String>{
@@ -62,7 +68,9 @@ const homeSectionHints = <String, String>{
   'new_releases': 'Popular new Steam games',
   'coming_soon': 'Most wishlisted upcoming games',
   'specials': 'Steam specials',
-  'playstation': 'Popular PlayStation 5 titles',
+  'playstation': 'Popular PS4 & PS5 titles',
+  'playstation_upcoming': 'Hyped upcoming PlayStation releases',
+  'playstation_classics': 'Legendary PS1, PS2 & PS3 classics',
 };
 
 List<HomeSectionPref> mergeSectionList(

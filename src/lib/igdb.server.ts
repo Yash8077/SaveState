@@ -1069,34 +1069,83 @@ export async function lookupIgdbByTitles(titles: string[]): Promise<CatalogGame[
   }
 }
 
-/** IGDB platform id: PS5 = 167. */
-export const PLAYSTATION_PLATFORM_IDS = "167";
+/** IGDB platform ids: PS5 = 167, PS4 = 48, PS3 = 9, PS2 = 8, PS1 = 7, PSP = 38, PS Vita = 46, PC = 6. */
+export const PLAYSTATION_PLATFORM_IDS = "167,48";
+export const PLAYSTATION_POPULAR_PLATFORM_IDS = "167,48";
+export const PLAYSTATION_CLASSIC_PLATFORM_IDS = "7,8,9,38,46";
 export const PLAYSTATION_PS5_ID = 167;
+export const PLAYSTATION_PS4_ID = 48;
 export const PLAYSTATION_PC_ID = 6;
 export const PLAYSTATION_FRESH_SECONDS = 18 * 30 * 24 * 60 * 60;
 
 export const PLAYSTATION_FALLBACK_TITLES = [
   "Astro Bot",
   "Marvel's Spider-Man 2",
-  "Marvel's Wolverine",
   "God of War Ragnarök",
   "The Last of Us Part II",
   "Ghost of Tsushima",
   "Horizon Forbidden West",
+  "Bloodborne",
   "Returnal",
   "Ratchet & Clank: Rift Apart",
   "Gran Turismo 7",
   "Stellar Blade",
   "Final Fantasy VII Rebirth",
   "Demon's Souls",
+  "Uncharted 4: A Thief's End",
+];
+
+export const PLAYSTATION_UPCOMING_FALLBACK_TITLES = [
+  "Grand Theft Auto VI",
+  "Marvel's Wolverine",
   "Death Stranding 2: On the Beach",
+  "Resident Evil Requiem",
+  "Crimson Desert",
+  "Intergalactic: The Heretic Prophet",
+  "Phantom Blade Zero",
+  "Judas",
+  "Pragmata",
+  "Monster Hunter Wilds",
+];
+
+export const PLAYSTATION_CLASSICS_FALLBACK_TITLES = [
+  "Metal Gear Solid",
+  "Final Fantasy VII",
+  "Shadow of the Colossus",
+  "Silent Hill 2",
+  "God of War II",
+  "Crash Bandicoot",
+  "Spyro the Dragon",
+  "Gran Turismo 2",
+  "Uncharted 2: Among Thieves",
+  "The Last of Us",
+  "Castlevania: Symphony of the Night",
+  "Tekken 3",
+  "Kingdom Hearts II",
+  "Persona 4",
+  "Ico",
 ];
 
 export function playstationPopularBody(): string {
   return `fields ${CARD_FIELDS};
-       where cover != null & version_parent = null & (category = 0 | game_type = ${GAME_TYPE.main_game} | game_type = null) & platforms = (${PLAYSTATION_PLATFORM_IDS}) & (game_type != ${GAME_TYPE.port} | game_type = null);
+       where cover != null & version_parent = null & (category = 0 | game_type = ${GAME_TYPE.main_game} | game_type = null) & platforms = (${PLAYSTATION_POPULAR_PLATFORM_IDS}) & (game_type != ${GAME_TYPE.port} | game_type = null);
        sort aggregated_rating_count desc;
        limit 20;`;
+}
+
+export function playstationUpcomingBody(now = Date.now()): string {
+  const currentSec = Math.floor(now / 1000);
+  return `fields ${CARD_FIELDS};
+       where cover != null & version_parent = null & (category = 0 | game_type = ${GAME_TYPE.main_game} | game_type = null) & platforms = (${PLAYSTATION_POPULAR_PLATFORM_IDS}) & (first_release_date > ${currentSec} | first_release_date = null) & hypes > 0;
+       sort hypes desc;
+       limit 20;`;
+}
+
+export function playstationClassicsBody(): string {
+  return `fields ${CARD_FIELDS};
+       where cover != null & version_parent = null & (category = 0 | game_type = ${GAME_TYPE.main_game} | game_type = null) & platforms = (${PLAYSTATION_CLASSIC_PLATFORM_IDS}) & (total_rating > 75 | aggregated_rating > 75);
+       sort aggregated_rating_count desc;
+       limit 24;`;
 }
 
 export function playstationFreshBody(now = Date.now()): string {
@@ -1130,28 +1179,72 @@ export function mixPlaystationGames(
 }
 
 export async function fetchIgdbPlaystation(): Promise<FeaturedRail | null> {
-  const [rated, hyped] = await Promise.all([
-    igdb<IgdbGame[]>("games", playstationPopularBody()),
-    igdb<IgdbGame[]>("games", playstationFreshBody()),
-  ]);
-  const toCards = (rows: IgdbGame[] | undefined) => {
-    const games: CatalogGame[] = [];
-    const seen = new Set<string>();
-    for (const row of rows ?? []) {
-      const mapped = toGame(row);
-      if (!mapped?.coverUrl || seen.has(mapped.id)) continue;
-      seen.add(mapped.id);
-      games.push(slimCatalogGame(mapped));
-    }
-    return games;
-  };
-  let games = mixPlaystationGames(toCards(hyped), toCards(rated));
+  const rows = await igdb<IgdbGame[]>("games", playstationPopularBody());
+  const games: CatalogGame[] = [];
+  const seen = new Set<string>();
+  for (const row of rows ?? []) {
+    const mapped = toGame(row);
+    if (!mapped?.coverUrl || seen.has(mapped.id)) continue;
+    seen.add(mapped.id);
+    games.push(slimCatalogGame(mapped));
+  }
   if (games.length < 8) {
     const fallback = await lookupIgdbByTitles(PLAYSTATION_FALLBACK_TITLES);
-    games = mixPlaystationGames(games, fallback.filter((game) => Boolean(game.coverUrl)));
+    for (const g of fallback) {
+      if (g.coverUrl && !seen.has(g.id)) {
+        seen.add(g.id);
+        games.push(g);
+      }
+    }
   }
   if (!games.length) return null;
   return { id: "playstation", title: "Popular on PlayStation", games: games.slice(0, 12) };
+}
+
+export async function fetchIgdbPlaystationUpcoming(): Promise<FeaturedRail | null> {
+  const rows = await igdb<IgdbGame[]>("games", playstationUpcomingBody());
+  const games: CatalogGame[] = [];
+  const seen = new Set<string>();
+  for (const row of rows ?? []) {
+    const mapped = toGame(row);
+    if (!mapped?.coverUrl || seen.has(mapped.id)) continue;
+    seen.add(mapped.id);
+    games.push(slimCatalogGame(mapped));
+  }
+  if (games.length < 6) {
+    const fallback = await lookupIgdbByTitles(PLAYSTATION_UPCOMING_FALLBACK_TITLES);
+    for (const g of fallback) {
+      if (g.coverUrl && !seen.has(g.id)) {
+        seen.add(g.id);
+        games.push(g);
+      }
+    }
+  }
+  if (!games.length) return null;
+  return { id: "playstation_upcoming", title: "Upcoming on PlayStation", games: games.slice(0, 12) };
+}
+
+export async function fetchIgdbPlaystationClassics(): Promise<FeaturedRail | null> {
+  const rows = await igdb<IgdbGame[]>("games", playstationClassicsBody());
+  const games: CatalogGame[] = [];
+  const seen = new Set<string>();
+  for (const row of rows ?? []) {
+    const mapped = toGame(row);
+    if (!mapped?.coverUrl || seen.has(mapped.id)) continue;
+    seen.add(mapped.id);
+    games.push(slimCatalogGame(mapped));
+  }
+  if (games.length < 6) {
+    const fallback = await lookupIgdbByTitles(PLAYSTATION_CLASSICS_FALLBACK_TITLES);
+    for (const g of fallback) {
+      if (g.coverUrl && !seen.has(g.id)) {
+        seen.add(g.id);
+        games.push(g);
+      }
+    }
+  }
+  if (!games.length) return null;
+  return { id: "playstation_classics", title: "PlayStation Classics", games: games.slice(0, 12) };
 }
 
 export function popularityValue(

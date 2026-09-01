@@ -20,9 +20,12 @@ import {
   relatedIdsMissingArt,
   PLAYSTATION_PC_ID,
   PLAYSTATION_PS5_ID,
+  PLAYSTATION_CLASSIC_PLATFORM_IDS,
   mixPlaystationGames,
   playstationFreshBody,
   playstationPopularBody,
+  playstationUpcomingBody,
+  playstationClassicsBody,
   applyIgdbRatings,
   igdbRating100,
   popularityValue,
@@ -149,15 +152,23 @@ describe("IGDB field selection", () => {
     assert.ok(DETAIL_FIELDS.startsWith(CARD_FIELDS));
   });
 
-  it("targets PlayStation 5, not only Steam PC ports", () => {
+  it("targets PlayStation 5 and PS4 for popular and upcoming, and retro platforms for classics", () => {
     assert.equal(PLAYSTATION_PS5_ID, 167);
     assert.equal(PLAYSTATION_PC_ID, 6);
+    assert.equal(PLAYSTATION_CLASSIC_PLATFORM_IDS, "7,8,9,38,46");
+
     const popular = playstationPopularBody();
-    const fresh = playstationFreshBody(1_704_067_200_000);
-    assert.match(popular, /platforms = \(167\)/);
-    assert.match(popular, /game_type != 11/);
-    assert.match(fresh, /platforms = \(167\)/);
-    assert.match(fresh, /sort hypes desc/);
+    const upcoming = playstationUpcomingBody(1_704_067_200_000);
+    const classics = playstationClassicsBody();
+
+    assert.match(popular, /platforms = \(167,48\)/);
+    assert.match(popular, /sort aggregated_rating_count desc/);
+
+    assert.match(upcoming, /platforms = \(167,48\)/);
+    assert.match(upcoming, /sort hypes desc/);
+
+    assert.match(classics, /platforms = \(7,8,9,38,46\)/);
+    assert.match(classics, /total_rating > 75/);
   });
 });
 

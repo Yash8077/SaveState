@@ -1,14 +1,26 @@
 import type { CatalogDetails, CatalogGame, FeaturedRail } from "./types.ts";
-import { FEATURED_SEED, playstationSeedRail, seedRelated, slimCatalogGame, steamIgdbRating } from "./catalog-seed.ts";
+import {
+  FEATURED_SEED,
+  playstationSeedRail,
+  playstationUpcomingSeedRail,
+  playstationClassicsSeedRail,
+  seedRelated,
+  slimCatalogGame,
+  steamIgdbRating,
+} from "./catalog-seed.ts";
 import {
   fetchIgdbDetails,
   fetchIgdbPlaystation,
+  fetchIgdbPlaystationUpcoming,
+  fetchIgdbPlaystationClassics,
   fetchIgdbRatings,
   applyIgdbRatings,
   igdbCatalogId,
   isIgdbReady,
   lookupIgdbByTitles,
   PLAYSTATION_FALLBACK_TITLES,
+  PLAYSTATION_UPCOMING_FALLBACK_TITLES,
+  PLAYSTATION_CLASSICS_FALLBACK_TITLES,
   searchIgdb,
 } from "./igdb.server.ts";
 import {
@@ -865,7 +877,7 @@ export async function fetchPlaystationRail(): Promise<FeaturedRail | null> {
       const igdb = await fetchIgdbPlaystation();
       if (igdb?.games.length) return igdb;
     } catch {
-      /* try title lookup / Wikipedia next — never Steam PC ports */
+      /* try title lookup / Wikipedia next */
     }
     try {
       const named = await lookupIgdbByTitles(PLAYSTATION_FALLBACK_TITLES);
@@ -891,6 +903,48 @@ export async function fetchPlaystationRail(): Promise<FeaturedRail | null> {
     /* seed last */
   }
   return playstationSeedRail();
+}
+
+export async function fetchPlaystationUpcomingRail(): Promise<FeaturedRail | null> {
+  if (isIgdbReady()) {
+    try {
+      const igdb = await fetchIgdbPlaystationUpcoming();
+      if (igdb?.games.length) return igdb;
+    } catch {
+      /* try title lookup next */
+    }
+    try {
+      const named = await lookupIgdbByTitles(PLAYSTATION_UPCOMING_FALLBACK_TITLES);
+      const games = named.filter((game) => Boolean(game.coverUrl)).slice(0, 12);
+      if (games.length) {
+        return { id: "playstation_upcoming", title: "Upcoming on PlayStation", games };
+      }
+    } catch {
+      /* seed next */
+    }
+  }
+  return playstationUpcomingSeedRail();
+}
+
+export async function fetchPlaystationClassicsRail(): Promise<FeaturedRail | null> {
+  if (isIgdbReady()) {
+    try {
+      const igdb = await fetchIgdbPlaystationClassics();
+      if (igdb?.games.length) return igdb;
+    } catch {
+      /* try title lookup next */
+    }
+    try {
+      const named = await lookupIgdbByTitles(PLAYSTATION_CLASSICS_FALLBACK_TITLES);
+      const games = named.filter((game) => Boolean(game.coverUrl)).slice(0, 12);
+      if (games.length) {
+        return { id: "playstation_classics", title: "PlayStation Classics", games };
+      }
+    } catch {
+      /* seed next */
+    }
+  }
+  return playstationClassicsSeedRail();
 }
 
 export function rankRailGames(
@@ -942,6 +996,8 @@ export type FeaturedSources = {
   igdbReady: () => boolean;
   fetchSteamFeatured: () => Promise<FeaturedRail[]>;
   fetchPlaystationRail: () => Promise<FeaturedRail | null>;
+  fetchPlaystationUpcomingRail?: () => Promise<FeaturedRail | null>;
+  fetchPlaystationClassicsRail?: () => Promise<FeaturedRail | null>;
   fetchAnticipated?: () => Promise<CatalogGame[]>;
   popularity?: (games: CatalogGame[]) => Promise<Map<string, number>>;
   fetchRatings?: (games: CatalogGame[]) => Promise<Map<string, number>>;
@@ -967,6 +1023,32 @@ export async function refreshFeaturedWith(
     }
   } catch {
     /* PlayStation rail is extra */
+  }
+  try {
+    const upcoming = sources.fetchPlaystationUpcomingRail
+      ? await sources.fetchPlaystationUpcomingRail()
+      : null;
+    if (upcoming?.games.length) {
+      rails = [
+        ...rails.filter((rail) => rail.id !== "playstation_upcoming"),
+        upcoming,
+      ];
+    }
+  } catch {
+    /* Upcoming PlayStation rail is extra */
+  }
+  try {
+    const classics = sources.fetchPlaystationClassicsRail
+      ? await sources.fetchPlaystationClassicsRail()
+      : null;
+    if (classics?.games.length) {
+      rails = [
+        ...rails.filter((rail) => rail.id !== "playstation_classics"),
+        classics,
+      ];
+    }
+  } catch {
+    /* PlayStation Classics rail is extra */
   }
   if (!rails.length) rails = FEATURED_SEED;
   if (!rails.some((rail) => rail.id === "popular")) {
@@ -1003,6 +1085,8 @@ export async function refreshFeatured(
     igdbReady: isIgdbReady,
     fetchSteamFeatured,
     fetchPlaystationRail,
+    fetchPlaystationUpcomingRail,
+    fetchPlaystationClassicsRail,
     fetchRatings: fetchIgdbRatings,
   });
 }

@@ -269,6 +269,26 @@ export function playstationSeedRail(): FeaturedRail {
   };
 }
 
+export function playstationUpcomingSeedRail(): FeaturedRail {
+  return {
+    id: "playstation_upcoming",
+    title: "Upcoming on PlayStation",
+    games: pick([
+      2322010, 2197550, 2694490, 1601580, 2622380,
+    ]),
+  };
+}
+
+export function playstationClassicsSeedRail(): FeaturedRail {
+  return {
+    id: "playstation_classics",
+    title: "PlayStation Classics",
+    games: pick([
+      292030, 1174180, 271590, 620, 1086940,
+    ]),
+  };
+}
+
 function norm(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }

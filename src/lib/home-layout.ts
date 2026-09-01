@@ -10,6 +10,8 @@ export const HOME_SECTION_IDS = [
   "wishlist",
   "recommended",
   "playstation",
+  "playstation_upcoming",
+  "playstation_classics",
 ] as const;
 
 export const DISCOVER_SECTION_IDS = [
@@ -19,6 +21,8 @@ export const DISCOVER_SECTION_IDS = [
   "coming_soon",
   "specials",
   "playstation",
+  "playstation_upcoming",
+  "playstation_classics",
 ] as const;
 
 export const HOME_SECTION_META: Record<
@@ -81,7 +85,19 @@ export const HOME_SECTION_META: Record<
   },
   playstation: {
     title: "Popular on PlayStation",
-    hint: "Popular PlayStation 5 titles",
+    hint: "Popular PS4 & PS5 titles",
+    catalog: true,
+    surface: "home",
+  },
+  playstation_upcoming: {
+    title: "Upcoming on PlayStation",
+    hint: "Hyped upcoming PlayStation releases",
+    catalog: true,
+    surface: "home",
+  },
+  playstation_classics: {
+    title: "PlayStation Classics",
+    hint: "Legendary PS1, PS2 & PS3 classics",
     catalog: true,
     surface: "home",
   },
@@ -99,7 +115,7 @@ const LEGACY_KEY = "savestate-home-layout";
 const AUTOPLAY_KEY = "savestate-hero-autoplay";
 
 export function isCatalogSection(id: string): boolean {
-  return Boolean(HOME_SECTION_META[id]?.catalog) || id === "playstation";
+  return Boolean(HOME_SECTION_META[id]?.catalog) || id.startsWith("playstation");
 }
 
 function normalizeId(id: string): string {

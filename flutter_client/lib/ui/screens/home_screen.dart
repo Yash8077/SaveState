@@ -43,7 +43,9 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
     final api = context.read<ApiClient>();
     final layout = context.read<HomeLayoutController>();
     final signedIn = context.read<AuthController>().isSignedIn;
-    final wantPs = layout.enabled(LayoutSurface.home, 'playstation');
+    final wantPs = layout.enabled(LayoutSurface.home, 'playstation') ||
+        layout.enabled(LayoutSurface.home, 'playstation_upcoming') ||
+        layout.enabled(LayoutSurface.home, 'playstation_classics');
     final wantRecs =
         signedIn && layout.enabled(LayoutSurface.home, 'recommended');
 
@@ -265,9 +267,11 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
           }
           break;
         case 'playstation':
-          final rail = railsById['playstation'];
+        case 'playstation_upcoming':
+        case 'playstation_classics':
+          final rail = railsById[section.id];
           if (rail != null && rail.games.isNotEmpty) {
-            final title = homeSectionTitles['playstation'] ?? rail.title;
+            final title = homeSectionTitles[section.id] ?? rail.title;
             out.add(GameRailWidget(title: title, games: rail.games));
           }
           break;
