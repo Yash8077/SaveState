@@ -48,7 +48,7 @@ const homeSectionTitles = <String, String>{
   'new_releases': 'New releases',
   'coming_soon': 'Coming soon',
   'specials': 'On sale',
-  'playstation': 'PlayStation',
+  'playstation': 'Popular on PlayStation',
 };
 
 const homeSectionHints = <String, String>{
@@ -62,7 +62,7 @@ const homeSectionHints = <String, String>{
   'new_releases': 'Popular new Steam games',
   'coming_soon': 'Most wishlisted upcoming games',
   'specials': 'Steam specials',
-  'playstation': 'PS5 exclusives and popular titles',
+  'playstation': 'Popular PS5 and PS4 titles',
 };
 
 List<HomeSectionPref> mergeSectionList(

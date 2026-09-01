@@ -80,8 +80,8 @@ export const HOME_SECTION_META: Record<
     surface: "discover",
   },
   playstation: {
-    title: "PlayStation",
-    hint: "PS5 exclusives and popular titles",
+    title: "Popular on PlayStation",
+    hint: "Popular PS5 and PS4 titles",
     catalog: true,
     surface: "home",
   },

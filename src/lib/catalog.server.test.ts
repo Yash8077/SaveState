@@ -225,7 +225,7 @@ describe("refreshFeatured uses Steam plus a PlayStation rail", () => {
         igdbFeaturedStarted = true;
         return {
           id: "playstation",
-          title: "PlayStation",
+          title: "Popular on PlayStation",
           games: [game("igdb_167", "Astro Bot")],
         };
       },
@@ -266,7 +266,7 @@ describe("refreshFeatured uses Steam plus a PlayStation rail", () => {
       },
       fetchPlaystationRail: async () => ({
         id: "playstation",
-        title: "PlayStation",
+        title: "Popular on PlayStation",
         games: [game("igdb_167", "Astro Bot")],
       }),
     });
@@ -291,7 +291,7 @@ describe("refreshFeatured uses Steam plus a PlayStation rail", () => {
         playstationStarted = true;
         return {
           id: "playstation",
-          title: "PlayStation",
+          title: "Popular on PlayStation",
           games: [game("steam_1593500", "God of War")],
         };
       },

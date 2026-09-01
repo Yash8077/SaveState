@@ -97,7 +97,7 @@ export async function fetchPlaystationRail(): Promise<FeaturedRail | null> {
     games.push(slimCatalogGame(mapped));
   }
   if (!games.length) return null;
-  return { id: "playstation", title: "PlayStation", games };
+  return { id: "playstation", title: "Popular on PlayStation", games };
 }
 
 export function igdbCoverUrl(imageId: string | undefined): string | null {

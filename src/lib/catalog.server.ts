@@ -871,7 +871,7 @@ export async function fetchPlaystationRail(): Promise<FeaturedRail | null> {
       const named = await lookupIgdbByTitles(PLAYSTATION_FALLBACK_TITLES);
       const games = named.filter((game) => Boolean(game.coverUrl)).slice(0, 12);
       if (games.length) {
-        return { id: "playstation", title: "PlayStation", games };
+        return { id: "playstation", title: "Popular on PlayStation", games };
       }
     } catch {
       /* Wikipedia discovery below */
@@ -885,7 +885,7 @@ export async function fetchPlaystationRail(): Promise<FeaturedRail | null> {
     );
     const games = found.filter((game): game is CatalogGame => Boolean(game));
     if (games.length) {
-      return { id: "playstation", title: "PlayStation", games: games.slice(0, 12) };
+      return { id: "playstation", title: "Popular on PlayStation", games: games.slice(0, 12) };
     }
   } catch {
     /* seed last */
