@@ -137,6 +137,11 @@ const RAW: ReadonlyArray<readonly [number, string]> = [
   [594650, "Hunt: Showdown"],
   [2142790, "Fields of Mistria"],
   [2669320, "EA SPORTS FC 25"],
+  [39140, "FINAL FANTASY VII"],
+  [2131630, "METAL GEAR SOLID - Master Collection Version"],
+  [731490, "Crash Bandicoot N. Sane Trilogy"],
+  [996580, "Spyro Reignited Trilogy"],
+  [1113000, "Persona 4 Golden"],
 ];
 
 /** IGDB-style 0–100 totals for well-known Steam apps (live IGDB overwrites). */
@@ -158,7 +163,8 @@ const STEAM_IGDB_RATING: Record<number, number> = {
   2124490: 87, 1196590: 84, 1551360: 92, 252950: 86, 289070: 88,
   489830: 81, 377160: 84, 22380: 84, 435150: 93, 2183900: 79,
   1888160: 85, 2767030: 78, 108600: 87, 391540: 92, 1671210: 86,
-  440: 92, 550: 89, 4000: 84, 546560: 93,
+  440: 92, 550: 89, 4000: 84, 546560: 93, 39140: 87, 2131630: 87,
+  731490: 89, 996580: 88, 1113000: 93,
 };
 
 export function steamIgdbRating(steamId: number | null | undefined): number | null {
@@ -274,7 +280,7 @@ export function playstationUpcomingSeedRail(): FeaturedRail {
     id: "playstation_upcoming",
     title: "Upcoming on PlayStation",
     games: pick([
-      2322010, 2197550, 2694490, 1601580, 2622380,
+      2246340, 1903340, 1771300, 2054970,
     ]),
   };
 }
@@ -284,7 +290,7 @@ export function playstationClassicsSeedRail(): FeaturedRail {
     id: "playstation_classics",
     title: "PlayStation Classics",
     games: pick([
-      292030, 1174180, 271590, 620, 1086940,
+      39140, 2131630, 731490, 996580, 1113000, 2124490, 1888930,
     ]),
   };
 }

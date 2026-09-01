@@ -20,6 +20,7 @@ import {
   relatedIdsMissingArt,
   PLAYSTATION_PC_ID,
   PLAYSTATION_PS5_ID,
+  PLAYSTATION_UPCOMING_PLATFORM_IDS,
   PLAYSTATION_CLASSIC_PLATFORM_IDS,
   mixPlaystationGames,
   playstationFreshBody,
@@ -152,9 +153,10 @@ describe("IGDB field selection", () => {
     assert.ok(DETAIL_FIELDS.startsWith(CARD_FIELDS));
   });
 
-  it("targets PlayStation 5 and PS4 for popular and upcoming, and retro platforms for classics", () => {
+  it("targets PlayStation 5 and PS4 for popular, PS5 for upcoming, and retro platforms for classics", () => {
     assert.equal(PLAYSTATION_PS5_ID, 167);
     assert.equal(PLAYSTATION_PC_ID, 6);
+    assert.equal(PLAYSTATION_UPCOMING_PLATFORM_IDS, "167");
     assert.equal(PLAYSTATION_CLASSIC_PLATFORM_IDS, "7,8,9,38,46");
 
     const popular = playstationPopularBody();
@@ -164,8 +166,9 @@ describe("IGDB field selection", () => {
     assert.match(popular, /platforms = \(167,48\)/);
     assert.match(popular, /sort aggregated_rating_count desc/);
 
-    assert.match(upcoming, /platforms = \(167,48\)/);
+    assert.match(upcoming, /platforms = \(167\)/);
     assert.match(upcoming, /sort hypes desc/);
+    assert.doesNotMatch(upcoming, /first_release_date = null/);
 
     assert.match(classics, /platforms = \(7,8,9,38,46\)/);
     assert.match(classics, /total_rating > 75/);

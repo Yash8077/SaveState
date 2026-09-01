@@ -1072,6 +1072,7 @@ export async function lookupIgdbByTitles(titles: string[]): Promise<CatalogGame[
 /** IGDB platform ids: PS5 = 167, PS4 = 48, PS3 = 9, PS2 = 8, PS1 = 7, PSP = 38, PS Vita = 46, PC = 6. */
 export const PLAYSTATION_PLATFORM_IDS = "167,48";
 export const PLAYSTATION_POPULAR_PLATFORM_IDS = "167,48";
+export const PLAYSTATION_UPCOMING_PLATFORM_IDS = "167";
 export const PLAYSTATION_CLASSIC_PLATFORM_IDS = "7,8,9,38,46";
 export const PLAYSTATION_PS5_ID = 167;
 export const PLAYSTATION_PS4_ID = 48;
@@ -1136,7 +1137,7 @@ export function playstationPopularBody(): string {
 export function playstationUpcomingBody(now = Date.now()): string {
   const currentSec = Math.floor(now / 1000);
   return `fields ${CARD_FIELDS};
-       where cover != null & version_parent = null & (category = 0 | game_type = ${GAME_TYPE.main_game} | game_type = null) & platforms = (${PLAYSTATION_POPULAR_PLATFORM_IDS}) & (first_release_date > ${currentSec} | first_release_date = null) & hypes > 0;
+       where cover != null & version_parent = null & (category = 0 | game_type = ${GAME_TYPE.main_game} | game_type = null) & platforms = (${PLAYSTATION_UPCOMING_PLATFORM_IDS}) & first_release_date > ${currentSec} & hypes > 0;
        sort hypes desc;
        limit 20;`;
 }
