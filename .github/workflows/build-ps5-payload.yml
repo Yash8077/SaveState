@@ -1,10 +1,6 @@
 name: build-ps5-payload
 
 on:
-  # push:
-  #   paths:
-  #     - "ps5/**"
-  #     - ".github/workflows/build-ps5-payload.yml"
   workflow_dispatch:
 
 jobs:
@@ -19,15 +15,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang-18 lld-18 wget unzip
 
-      # Install the packaged PS5 payload SDK from ps5-payload-dev/pacbrew-repo.
-      # This is the same toolchain used by ps5-payload-dev/fetchpkg and, unlike
-      # building only ps5-payload-dev/sdk from source, it includes the PS5 cURL
-      # headers, libraries, CA bundle and prospero-curl-config helper.
       - name: Install PS5 payload SDK + cURL stack
         run: |
           wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
           sudo tar xf ps5-payload-dev.tar.gz -C /
-
           test -x /opt/ps5-payload-sdk/bin/prospero-curl-config
           /opt/ps5-payload-sdk/bin/prospero-curl-config --cflags
           /opt/ps5-payload-sdk/bin/prospero-curl-config --libs
@@ -36,12 +27,10 @@ jobs:
         working-directory: ps5/activity_logger
         run: |
           curl -fsSL -o sqlite.zip https://sqlite.org/2024/sqlite-amalgamation-3450000.zip
-
           if ! unzip -t sqlite.zip > /dev/null 2>&1; then
             echo "Downloaded file is not a valid zip archive"
             exit 1
           fi
-
           unzip -o sqlite.zip
           cp sqlite-amalgamation-*/sqlite3.c sqlite-amalgamation-*/sqlite3.h .
 

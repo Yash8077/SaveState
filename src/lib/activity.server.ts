@@ -12,39 +12,25 @@ function newDeviceToken(): string {
   return `${TOKEN_PREFIX}${randomBytes(32).toString("base64url")}`;
 }
 
-export async function createPs5Device(
-  sql: Sql,
-  userId: string,
-  name = "PS5",
-): Promise<{ id: string; name: string; token: string }> {
+export async function createPs5Device(sql: Sql, userId: string, name = "PS5") {
   const id = randomUUID();
   const token = newDeviceToken();
   await sql.query(
-    `insert into ps5_devices (id, user_id, name, token_hash)
-     values ($1, $2, $3, $4)`,
+    `insert into ps5_devices (id, user_id, name, token_hash) values ($1, $2, $3, $4)`,
     [id, userId, name, hashToken(token)],
   );
   return { id, name, token };
 }
 
-export async function listPs5Devices(
-  sql: Sql,
-  userId: string,
-): Promise<Array<{ id: string; name: string; createdAt: string; lastSeenAt: string | null }>> {
+export async function listPs5Devices(sql: Sql, userId: string) {
   return sql.query(
     `select id, name, created_at::text as "createdAt", last_seen_at::text as "lastSeenAt"
-       from ps5_devices
-      where user_id = $1
-      order by created_at desc`,
+       from ps5_devices where user_id = $1 order by created_at desc`,
     [userId],
   );
 }
 
-export async function authenticatePs5Device(
-  sql: Sql,
-  deviceId: string,
-  token: string,
-): Promise<{ id: string; userId: string }> {
+export async function authenticatePs5Device(sql: Sql, deviceId: string, token: string) {
   const rows = await sql.query<{ id: string; user_id: string }>(
     `select id, user_id from ps5_devices where id = $1 and token_hash = $2 limit 1`,
     [deviceId, hashToken(token)],
@@ -68,15 +54,7 @@ export async function ingestPs5Activity(
        values ($1, $2, $3, $4, $5, $6, $7)
        on conflict (device_id, source_rowid) do nothing
        returning true as inserted`,
-      [
-        device.userId,
-        device.id,
-        event.sourceRowid,
-        event.titleId,
-        event.titleName ?? null,
-        event.createdDate,
-        event.totalFgTime,
-      ],
+      [device.userId, device.id, event.sourceRowid, event.titleId, event.titleName ?? null, event.createdDate, event.totalFgTime],
     );
     if (rows.length) accepted += 1;
     else duplicates += 1;
@@ -92,76 +70,143 @@ export type ActivityDashboard = {
     titleName: string | null;
     createdDate: string;
     seconds: number;
+    platform: "ps4" | "ps5";
+    libraryGameId: number | null;
   }>;
   games: Array<{
     titleId: string;
-    titleName: string | null;
+    titleName: string;
     seconds: number;
     sessions: number;
     lastPlayed: string;
+    platform: "ps4" | "ps5";
+    libraryGameId: number | null;
   }>;
   daily: Array<{
     date: string;
     titleId: string;
-    titleName: string | null;
+    titleName: string;
     seconds: number;
     sessions: number;
+    platform: "ps4" | "ps5";
   }>;
 };
 
-export async function getActivityDashboard(
-  sql: Sql,
-  userId: string,
-  limit = 100,
-): Promise<ActivityDashboard> {
+function platformExpression(): string {
+  return `case when e.title_id like 'PPSA%' then 'ps5' when e.title_id like 'CUSA%' then 'ps4' else '' end`;
+}
+
+function libraryGameJoin(alias: string): string {
+  return `left join lateral (
+    select ge.id
+      from game_entries ge
+     where ge.user_id = $1
+       and regexp_replace(lower(ge.title), '[^a-z0-9]+', '', 'g') =
+           regexp_replace(lower(${alias}.name), '[^a-z0-9]+', '', 'g')
+     order by ge.updated_at desc
+     limit 1
+  ) lib on true`;
+}
+
+export async function getActivityDashboard(sql: Sql, userId: string, limit = 100): Promise<ActivityDashboard> {
   const safeLimit = Math.min(200, Math.max(1, limit));
+  const platform = platformExpression();
+
   const totals = await sql.query<{
     seconds: number | string;
     sessions: number | string;
     games: number | string;
     days: number | string;
   }>(
-    `select coalesce(sum(total_fg_time), 0)::bigint as seconds,
+    `select coalesce(sum(e.total_fg_time), 0)::bigint as seconds,
             count(*)::bigint as sessions,
-            count(distinct title_id)::bigint as games,
-            count(distinct substr(created_date, 1, 10))::bigint as days
-       from ps5_activity_events where user_id = $1`,
+            count(distinct e.title_id)::bigint as games,
+            count(distinct substr(e.created_date, 1, 10))::bigint as days
+       from ps5_activity_events e
+      where e.user_id = $1
+        and exists (
+          select 1 from playstation_titles t
+           where t.platform = ${platform}
+             and t.title_id = e.title_id
+             and t.is_game = true
+        )`,
     [userId],
   );
+
   const recent = await sql.query(
-    `select title_id as "titleId", max(title_name) as "titleName",
-            created_date as "createdDate", total_fg_time as seconds
-       from ps5_activity_events
-      where user_id = $1
-      order by created_date desc, id desc
+    `select e.title_id as "titleId",
+            coalesce(t.name, e.title_name) as "titleName",
+            e.created_date as "createdDate",
+            e.total_fg_time as seconds,
+            t.platform,
+            lib.id as "libraryGameId"
+       from ps5_activity_events e
+       join lateral (
+         select t.name, t.platform
+           from playstation_titles t
+          where t.platform = ${platform}
+            and t.title_id = e.title_id
+            and t.is_game = true
+          order by case t.region when 'IN' then 0 when 'AS' then 1 when 'EP' then 2 when 'UP' then 3 when 'JP' then 4 else 5 end
+          limit 1
+       ) t on true
+       ${libraryGameJoin("t")}
+      where e.user_id = $1
+      order by e.created_date desc, e.id desc
       limit $2`,
     [userId, safeLimit],
   );
+
   const games = await sql.query(
-    `select title_id as "titleId", max(title_name) as "titleName",
-            sum(total_fg_time)::bigint as seconds,
+    `select e.title_id as "titleId",
+            max(t.name) as "titleName",
+            sum(e.total_fg_time)::bigint as seconds,
             count(*)::bigint as sessions,
-            max(created_date) as "lastPlayed"
-       from ps5_activity_events
-      where user_id = $1
-      group by title_id
-      order by sum(total_fg_time) desc, max(created_date) desc
+            max(e.created_date) as "lastPlayed",
+            max(t.platform) as platform,
+            max(lib.id) as "libraryGameId"
+       from ps5_activity_events e
+       join lateral (
+         select t.name, t.platform
+           from playstation_titles t
+          where t.platform = ${platform}
+            and t.title_id = e.title_id
+            and t.is_game = true
+          order by case t.region when 'IN' then 0 when 'AS' then 1 when 'EP' then 2 when 'UP' then 3 when 'JP' then 4 else 5 end
+          limit 1
+       ) t on true
+       ${libraryGameJoin("t")}
+      where e.user_id = $1
+      group by e.title_id
+      order by sum(e.total_fg_time) desc, max(e.created_date) desc
       limit $2`,
     [userId, safeLimit],
   );
+
   const daily = await sql.query(
-    `select substr(created_date, 1, 10) as date,
-            title_id as "titleId",
-            max(title_name) as "titleName",
-            sum(total_fg_time)::bigint as seconds,
-            count(*)::bigint as sessions
-       from ps5_activity_events
-      where user_id = $1
-      group by substr(created_date, 1, 10), title_id
+    `select substr(e.created_date, 1, 10) as date,
+            e.title_id as "titleId",
+            max(t.name) as "titleName",
+            sum(e.total_fg_time)::bigint as seconds,
+            count(*)::bigint as sessions,
+            max(t.platform) as platform
+       from ps5_activity_events e
+       join lateral (
+         select t.name, t.platform
+           from playstation_titles t
+          where t.platform = ${platform}
+            and t.title_id = e.title_id
+            and t.is_game = true
+          order by case t.region when 'IN' then 0 when 'AS' then 1 when 'EP' then 2 when 'UP' then 3 when 'JP' then 4 else 5 end
+          limit 1
+       ) t on true
+      where e.user_id = $1
+      group by substr(e.created_date, 1, 10), e.title_id
       order by date desc, seconds desc
       limit $2`,
     [userId, safeLimit * 30],
   );
+
   const t = totals[0] ?? { seconds: 0, sessions: 0, games: 0, days: 0 };
   return {
     totals: {
@@ -170,8 +215,8 @@ export async function getActivityDashboard(
       games: Number(t.games),
       days: Number(t.days),
     },
-    recent: recent.map((row) => ({ ...row, seconds: Number(row.seconds) })),
-    games: games.map((row) => ({ ...row, seconds: Number(row.seconds), sessions: Number(row.sessions) })),
-    daily: daily.map((row) => ({ ...row, seconds: Number(row.seconds), sessions: Number(row.sessions) })),
+    recent: recent.map((row) => ({ ...row, seconds: Number(row.seconds) })) as ActivityDashboard["recent"],
+    games: games.map((row) => ({ ...row, seconds: Number(row.seconds), sessions: Number(row.sessions) })) as ActivityDashboard["games"],
+    daily: daily.map((row) => ({ ...row, seconds: Number(row.seconds), sessions: Number(row.sessions) })) as ActivityDashboard["daily"],
   };
 }
