@@ -12,8 +12,8 @@ include $(PS5_PAYLOAD_SDK)/toolchain/prospero.mk
 
 CFLAGS += -O2 -Wall -Wextra -I. -I$(PS5_PAYLOAD_SDK)/include
 
-# sceHttp2 + its dependencies.
-LDLIBS += -lSceNet -lSceSsl -lSceHttp2
+# libSceHttp + SSL/network dependencies.
+LDLIBS += -lSceNet -lSceSsl -lSceHttp
 
 all: $(TARGET)
 
