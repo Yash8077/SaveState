@@ -32,14 +32,69 @@ export async function listPs5Devices(sql: Sql, userId: string) {
   );
 }
 
-export async function authenticatePs5Device(sql: Sql, deviceId: string, token: string) {
+export async function authenticatePs5Device(
+  sql: Sql,
+  deviceId: string,
+  token: string,
+) {
   const rows = await sql.query<{ id: string; user_id: string }>(
-    `select id, user_id from ps5_devices where id = $1 and token_hash = $2 limit 1`,
+    `select id, user_id
+       from ps5_devices
+      where id = $1 and token_hash = $2
+      limit 1`,
     [deviceId, hashToken(token)],
   );
   const row = rows[0];
-  if (!row) throw Object.assign(new Error("Invalid PS5 device credentials"), { status: 401 });
+  if (!row) {
+    throw Object.assign(new Error("Invalid PS5 device credentials"), {
+      status: 401,
+    });
+  }
   return { id: row.id, userId: row.user_id };
+}
+
+async function syncPs5PlaytimeToLibrary(sql: Sql, userId: string): Promise<void> {
+  await sql.query(
+    `with totals as (
+       select ge.id,
+              sum(e.total_fg_time)::bigint as seconds
+         from game_entries ge
+         join ps5_activity_events e
+           on e.user_id = ge.user_id
+         join lateral (
+           select t.name
+             from playstation_titles t
+            where t.platform = case
+              when e.title_id like 'PPSA%' then 'ps5'
+              when e.title_id like 'CUSA%' then 'ps4'
+              else ''
+            end
+              and t.title_id = e.title_id
+              and t.is_game = true
+            order by case t.region
+              when 'IN' then 0
+              when 'AS' then 1
+              when 'EP' then 2
+              when 'UP' then 3
+              when 'JP' then 4
+              when 'HP' then 5
+              else 6
+            end
+            limit 1
+         ) t on regexp_replace(lower(ge.title), '[^a-z0-9]+', '', 'g') =
+                regexp_replace(lower(t.name), '[^a-z0-9]+', '', 'g')
+        where ge.user_id = $1
+        group by ge.id
+     )
+     update game_entries ge
+        set playtime_seconds = totals.seconds,
+            hours = round(totals.seconds / 3600.0, 1),
+            playtime_source = 'ps5',
+            updated_at = now()
+       from totals
+      where ge.id = totals.id`,
+    [userId],
+  );
 }
 
 export async function ingestPs5Activity(
@@ -49,6 +104,7 @@ export async function ingestPs5Activity(
 ): Promise<{ accepted: number; duplicates: number }> {
   let accepted = 0;
   let duplicates = 0;
+
   for (const event of events) {
     const rows = await sql.query<{ inserted: boolean }>(
       `insert into ps5_activity_events
@@ -66,15 +122,29 @@ export async function ingestPs5Activity(
         event.totalFgTime,
       ],
     );
+
     if (rows.length) accepted += 1;
     else duplicates += 1;
   }
-  await sql.query(`update ps5_devices set last_seen_at = now() where id = $1`, [device.id]);
+
+  await sql.query(
+    `update ps5_devices set last_seen_at = now() where id = $1`,
+    [device.id],
+  );
+
+  // Make actual PS5 playtime visible on the user's library entries.
+  await syncPs5PlaytimeToLibrary(sql, device.userId);
+
   return { accepted, duplicates };
 }
 
 export type ActivityDashboard = {
-  totals: { seconds: number; sessions: number; games: number; days: number };
+  totals: {
+    seconds: number;
+    sessions: number;
+    games: number;
+    days: number;
+  };
   recent: Array<{
     titleId: string;
     titleName: string | null;
@@ -82,6 +152,9 @@ export type ActivityDashboard = {
     seconds: number;
     platform: "ps4" | "ps5";
     libraryGameId: number | null;
+    catalogId: string | null;
+    coverUrl: string | null;
+    headerUrl: string | null;
   }>;
   games: Array<{
     titleId: string;
@@ -91,6 +164,9 @@ export type ActivityDashboard = {
     lastPlayed: string;
     platform: "ps4" | "ps5";
     libraryGameId: number | null;
+    catalogId: string | null;
+    coverUrl: string | null;
+    headerUrl: string | null;
   }>;
   daily: Array<{
     date: string;
@@ -99,16 +175,26 @@ export type ActivityDashboard = {
     seconds: number;
     sessions: number;
     platform: "ps4" | "ps5";
+    catalogId: string | null;
+    coverUrl: string | null;
+    headerUrl: string | null;
   }>;
 };
 
 function platformExpression(): string {
-  return `case when e.title_id like 'PPSA%' then 'ps5' when e.title_id like 'CUSA%' then 'ps4' else '' end`;
+  return `case
+    when e.title_id like 'PPSA%' then 'ps5'
+    when e.title_id like 'CUSA%' then 'ps4'
+    else ''
+  end`;
 }
 
 function libraryGameJoin(alias: string): string {
   return `left join lateral (
-    select ge.id
+    select ge.id,
+           ge.catalog_id,
+           ge.cover_url,
+           ge.header_url
       from game_entries ge
      where ge.user_id = $1
        and regexp_replace(lower(ge.title), '[^a-z0-9]+', '', 'g') =
@@ -131,11 +217,13 @@ export async function getActivityDashboard(
     `select count(*)::bigint as count from playstation_titles`,
   );
 
-  // Bootstrap the catalog on first use. Normal maintenance is handled by the weekly Vercel cron.
   if (Number(titleCount[0]?.count ?? 0) === 0) {
     const { syncPlayStationTitles } = await import("./playstation-titles.server");
     await syncPlayStationTitles(sql);
   }
+
+  // Existing history may predate the current library-sync logic.
+  await syncPs5PlaytimeToLibrary(sql, userId);
 
   const totals = await sql.query<{
     seconds: number | string;
@@ -165,7 +253,10 @@ export async function getActivityDashboard(
             e.created_date as "createdDate",
             e.total_fg_time as seconds,
             t.platform,
-            lib.id as "libraryGameId"
+            lib.id as "libraryGameId",
+            lib.catalog_id as "catalogId",
+            lib.cover_url as "coverUrl",
+            lib.header_url as "headerUrl"
        from ps5_activity_events e
        join lateral (
          select t.name, t.platform
@@ -174,14 +265,8 @@ export async function getActivityDashboard(
             and t.title_id = e.title_id
             and t.is_game = true
           order by case t.region
-                    when 'IN' then 0
-                    when 'AS' then 1
-                    when 'EP' then 2
-                    when 'UP' then 3
-                    when 'JP' then 4
-                    when 'HP' then 5
-                    else 6
-                   end
+            when 'IN' then 0 when 'AS' then 1 when 'EP' then 2
+            when 'UP' then 3 when 'JP' then 4 when 'HP' then 5 else 6 end
           limit 1
        ) t on true
        ${libraryGameJoin("t")}
@@ -198,7 +283,10 @@ export async function getActivityDashboard(
             count(*)::bigint as sessions,
             max(e.created_date) as "lastPlayed",
             max(t.platform) as platform,
-            max(lib.id) as "libraryGameId"
+            max(lib.id) as "libraryGameId",
+            max(lib.catalog_id) as "catalogId",
+            max(lib.cover_url) as "coverUrl",
+            max(lib.header_url) as "headerUrl"
        from ps5_activity_events e
        join lateral (
          select t.name, t.platform
@@ -207,14 +295,8 @@ export async function getActivityDashboard(
             and t.title_id = e.title_id
             and t.is_game = true
           order by case t.region
-                    when 'IN' then 0
-                    when 'AS' then 1
-                    when 'EP' then 2
-                    when 'UP' then 3
-                    when 'JP' then 4
-                    when 'HP' then 5
-                    else 6
-                   end
+            when 'IN' then 0 when 'AS' then 1 when 'EP' then 2
+            when 'UP' then 3 when 'JP' then 4 when 'HP' then 5 else 6 end
           limit 1
        ) t on true
        ${libraryGameJoin("t")}
@@ -232,7 +314,10 @@ export async function getActivityDashboard(
             max(t.name) as "titleName",
             sum(e.total_fg_time)::bigint as seconds,
             count(*)::bigint as sessions,
-            max(t.platform) as platform
+            max(t.platform) as platform,
+            max(lib.catalog_id) as "catalogId",
+            max(lib.cover_url) as "coverUrl",
+            max(lib.header_url) as "headerUrl"
        from ps5_activity_events e
        join lateral (
          select t.name, t.platform
@@ -241,16 +326,11 @@ export async function getActivityDashboard(
             and t.title_id = e.title_id
             and t.is_game = true
           order by case t.region
-                    when 'IN' then 0
-                    when 'AS' then 1
-                    when 'EP' then 2
-                    when 'UP' then 3
-                    when 'JP' then 4
-                    when 'HP' then 5
-                    else 6
-                   end
+            when 'IN' then 0 when 'AS' then 1 when 'EP' then 2
+            when 'UP' then 3 when 'JP' then 4 when 'HP' then 5 else 6 end
           limit 1
        ) t on true
+       ${libraryGameJoin("t")}
       where e.user_id = $1
         ${monthFilter}
       group by substr(e.created_date, 1, 10), e.title_id
@@ -260,6 +340,7 @@ export async function getActivityDashboard(
   );
 
   const t = totals[0] ?? { seconds: 0, sessions: 0, games: 0, days: 0 };
+
   return {
     totals: {
       seconds: Number(t.seconds),
@@ -267,7 +348,10 @@ export async function getActivityDashboard(
       games: Number(t.games),
       days: Number(t.days),
     },
-    recent: recent.map((row) => ({ ...row, seconds: Number(row.seconds) })) as ActivityDashboard["recent"],
+    recent: recent.map((row) => ({
+      ...row,
+      seconds: Number(row.seconds),
+    })) as ActivityDashboard["recent"],
     games: games.map((row) => ({
       ...row,
       seconds: Number(row.seconds),

@@ -30,20 +30,27 @@ export function TrackerPanel({
   const [hours, setHours] = useState(entry.hours?.toString() ?? "");
   const [startedAt, setStartedAt] = useState(dateValue(entry.startedAt));
   const [finishedAt, setFinishedAt] = useState(dateValue(entry.finishedAt));
+  const playtimeSource = (
+    entry as GameEntry & { playtimeSource?: "manual" | "ps5" }
+  ).playtimeSource;
+  const ps5Tracked = playtimeSource === "ps5";
 
   return (
     <div className="rounded-xl bg-elevated p-4 sm:p-5">
       <p className="text-base font-medium">Your log</p>
 
       <label className="mt-4 block text-sm text-muted">
-        Hours played
+        {ps5Tracked ? "PlayStation playtime" : "Hours played"}
         <Input
           className="mt-1.5"
           inputMode="decimal"
           value={hours}
           placeholder="0"
+          readOnly={ps5Tracked}
+          disabled={ps5Tracked}
           onChange={(e) => setHours(e.target.value)}
           onBlur={() => {
+            if (ps5Tracked) return;
             const raw = hours.trim();
             if (!raw) {
               if (entry.hours != null) void onSave({ hours: null });
@@ -54,6 +61,11 @@ export function TrackerPanel({
             if (n !== entry.hours) void onSave({ hours: n });
           }}
         />
+        {ps5Tracked ? (
+          <p className="mt-1.5 text-xs text-faint">
+            Imported automatically from PS5 activity. Manual edits are disabled.
+          </p>
+        ) : null}
       </label>
 
       <div className="mt-4 space-y-4">
@@ -91,7 +103,7 @@ export function TrackerPanel({
 
       <div className="mt-5 flex items-center justify-between">
         <p className="text-xs text-faint">
-          {saving ? "Saving…" : "Synced to your account"}
+          {saving ? "Saving…" : ps5Tracked ? "PS5 synced" : "Synced to your account"}
         </p>
         <Button variant="danger" size="sm" onClick={() => void onRemove()}>
           <Trash2 className="size-3.5" />
