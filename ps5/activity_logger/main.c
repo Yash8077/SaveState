@@ -29,9 +29,11 @@
 #define TOKEN_MAX 256
 #define DEVICE_ID_MAX 64
 
-/* Confirmed against ps5-payload-sdk samples/http2_get. */
-#define HTTP2_VERSION 3
-#define HTTP2_HEADER_ADD 0
+/* libSceHttp (classic HTTP/1.1) API.
+ * Signatures match the libSceHttp family used by PS4/PS5 payloads. */
+#define HTTP_VERSION_1_1 2
+#define HTTP_HEADER_OVERWRITE 0
+#define HTTP_METHOD_POST 1
 
 extern int sceNetInit(void);
 extern int sceNetPoolCreate(const char *name, int size, int flags);
@@ -39,21 +41,20 @@ extern int sceNetPoolDestroy(int pool_id);
 
 extern int sceSslInit(size_t pool_size);
 extern int sceSslTerm(int ctx_id);
-/* Test-only global verification toggle exported by libSceSsl. */
-extern int sceSslDisableVerifyOption(void);
 
-extern int sceHttp2Init(int net_pool_id, int ssl_ctx_id, size_t pool_size, int is_default);
-extern int sceHttp2Term(int http_ctx_id);
-extern int sceHttp2CreateTemplate(int http_ctx_id, const char *agent, int http_ver, int auto_proxy);
-extern int sceHttp2DeleteTemplate(int tmpl_id);
-extern int sceHttp2CreateRequestWithURL(int tmpl_id, const char *method,
-                                         const char *url, uint64_t content_length);
-extern int sceHttp2DeleteRequest(int req_id);
-extern int sceHttp2AddRequestHeader(int req_id, const char *name,
-                                    const char *value, unsigned int mode);
-extern int sceHttp2SetRequestContentLength(int req_id, uint64_t content_length);
-extern int sceHttp2SendRequest(int req_id, const void *data, size_t data_size);
-extern int sceHttp2GetStatusCode(int req_id, int *status);
+extern int sceHttpInit(int net_pool_id, int ssl_ctx_id, size_t pool_size);
+extern int sceHttpTerm(int http_ctx_id);
+extern int sceHttpCreateTemplate(int http_ctx_id, const char *agent, int http_ver, int auto_proxy);
+extern int sceHttpDeleteTemplate(int tmpl_id);
+extern int sceHttpCreateConnectionWithURL(int tmpl_id, const char *url, int keep_alive);
+extern int sceHttpDeleteConnection(int conn_id);
+extern int sceHttpCreateRequestWithURL(int conn_id, int method, const char *url, uint64_t content_length);
+extern int sceHttpDeleteRequest(int req_id);
+extern int sceHttpAddRequestHeader(int req_id, const char *name,
+                                   const char *value, unsigned int mode);
+extern int sceHttpSetRequestContentLength(int req_id, uint64_t content_length);
+extern int sceHttpSendRequest(int req_id, const void *data, uint32_t data_size);
+extern int sceHttpGetStatusCode(int req_id, int *status);
 
 struct config {
     char endpoint[POST_URL_MAX];
@@ -283,6 +284,7 @@ static int post_json(const struct config *cfg, const char *body, size_t body_len
     int ssl_ctx = -1;
     int http_ctx = -1;
     int tmpl = -1;
+    int conn = -1;
     int req = -1;
     int status = -1;
     int rc = -1;
@@ -301,78 +303,84 @@ static int post_json(const struct config *cfg, const char *body, size_t body_len
         return -1;
     }
 
+    /* libSceHttp uses the system SSL service for HTTPS connections. */
     ssl_ctx = sceSslInit(256 * 1024);
     if (ssl_ctx < 0) {
         log_msg("[SaveState] sceSslInit failed: %d\n", ssl_ctx);
         goto fail;
     }
 
-    /* TEST BUILD ONLY: bypass certificate validation to isolate 0x8095F00C.
-     * Do not retain this in a production payload: the device token would be
-     * vulnerable to interception by an active network attacker. */
-    rc = sceSslDisableVerifyOption();
-    log_msg("[SaveState TLS-BYPASS TEST v1] certificate verification disabled: rc=%d\n", rc);
-    if (rc < 0)
-        goto fail;
-
-    http_ctx = sceHttp2Init(net_pool, ssl_ctx, 256 * 1024, 1);
+    /* libSceHttp (HTTP/1.1). No certificate bypass. */
+    http_ctx = sceHttpInit(net_pool, ssl_ctx, 256 * 1024);
     if (http_ctx < 0) {
-        log_msg("[SaveState] sceHttp2Init failed: %d\n", http_ctx);
+        log_msg("[SaveState] sceHttpInit failed: %d\n", http_ctx);
         goto fail;
     }
 
-    log_msg("[SaveState] HTTP2 initialized; template version=%d\n", HTTP2_VERSION);
+    log_msg("[SaveState] HTTP initialized; version=1.1\n");
 
-    tmpl = sceHttp2CreateTemplate(
-        http_ctx, "SaveState-PS5-Activity/1.0", HTTP2_VERSION, 1);
-
+    tmpl = sceHttpCreateTemplate(
+        http_ctx, "SaveState-PS5-Activity/1.0", HTTP_VERSION_1_1, 1);
     if (tmpl < 0) {
-        log_msg("[SaveState] sceHttp2CreateTemplate failed: %d\n", tmpl);
+        log_msg("[SaveState] sceHttpCreateTemplate failed: %d\n", tmpl);
         goto fail;
     }
 
-    req = sceHttp2CreateRequestWithURL(
-        tmpl, "POST", cfg->endpoint, (uint64_t)body_len);
+    conn = sceHttpCreateConnectionWithURL(tmpl, cfg->endpoint, 1);
+    if (conn < 0) {
+        log_msg("[SaveState] sceHttpCreateConnectionWithURL failed: %d endpoint=%s\n",
+                conn, cfg->endpoint);
+        goto fail;
+    }
 
+    /* 1 == SCE_HTTP_METHOD_POST in the classic libSceHttp API. */
+    req = sceHttpCreateRequestWithURL(
+        conn, HTTP_METHOD_POST, cfg->endpoint, (uint64_t)body_len);
     if (req < 0) {
-        log_msg("[SaveState] sceHttp2CreateRequestWithURL failed: %d endpoint=%s\n",
+        log_msg("[SaveState] sceHttpCreateRequestWithURL failed: %d endpoint=%s\n",
                 req, cfg->endpoint);
         goto fail;
     }
 
-    rc = sceHttp2AddRequestHeader(
-        req, "Content-Type", "application/json", HTTP2_HEADER_ADD);
-    if (rc < 0)
-        log_msg("[SaveState] Content-Type header failed: %d\n", rc);
-
-    rc = sceHttp2AddRequestHeader(
-        req, "Accept", "application/json", HTTP2_HEADER_ADD);
-    if (rc < 0)
-        log_msg("[SaveState] Accept header failed: %d\n", rc);
-
-    rc = sceHttp2AddRequestHeader(
-        req, "X-SaveState-Device-Token", cfg->token, HTTP2_HEADER_ADD);
-    if (rc < 0)
-        log_msg("[SaveState] auth header failed: %d\n", rc);
-
-    rc = sceHttp2SetRequestContentLength(req, (uint64_t)body_len);
+    rc = sceHttpAddRequestHeader(
+        req, "Content-Type", "application/json", HTTP_HEADER_OVERWRITE);
     if (rc < 0) {
-        log_msg("[SaveState] sceHttp2SetRequestContentLength failed: %d\n", rc);
+        log_msg("[SaveState] Content-Type header failed: %d\n", rc);
+        goto fail;
+    }
+
+    rc = sceHttpAddRequestHeader(
+        req, "Accept", "application/json", HTTP_HEADER_OVERWRITE);
+    if (rc < 0) {
+        log_msg("[SaveState] Accept header failed: %d\n", rc);
+        goto fail;
+    }
+
+    rc = sceHttpAddRequestHeader(
+        req, "X-SaveState-Device-Token", cfg->token, HTTP_HEADER_OVERWRITE);
+    if (rc < 0) {
+        log_msg("[SaveState] auth header failed: %d\n", rc);
+        goto fail;
+    }
+
+    rc = sceHttpSetRequestContentLength(req, (uint64_t)body_len);
+    if (rc < 0) {
+        log_msg("[SaveState] sceHttpSetRequestContentLength failed: %d\n", rc);
         goto fail;
     }
 
     log_msg("[SaveState] sending POST (%zu bytes)\n", body_len);
 
-    rc = sceHttp2SendRequest(req, body, body_len);
+    rc = sceHttpSendRequest(req, body, (uint32_t)body_len);
     if (rc < 0) {
-        log_msg("[SaveState TLS-BYPASS TEST v1] sceHttp2SendRequest failed: %d (0x%08X)\n",
+        log_msg("[SaveState] sceHttpSendRequest failed: %d (0x%08X)\n",
                 rc, (unsigned int)rc);
         goto fail;
     }
 
-    rc = sceHttp2GetStatusCode(req, &status);
+    rc = sceHttpGetStatusCode(req, &status);
     if (rc < 0) {
-        log_msg("[SaveState] sceHttp2GetStatusCode failed: %d\n", rc);
+        log_msg("[SaveState] sceHttpGetStatusCode failed: %d\n", rc);
         goto fail;
     }
 
@@ -388,11 +396,13 @@ static int post_json(const struct config *cfg, const char *body, size_t body_len
 
 fail:
     if (req >= 0)
-        sceHttp2DeleteRequest(req);
+        sceHttpDeleteRequest(req);
+    if (conn >= 0)
+        sceHttpDeleteConnection(conn);
     if (tmpl >= 0)
-        sceHttp2DeleteTemplate(tmpl);
+        sceHttpDeleteTemplate(tmpl);
     if (http_ctx >= 0)
-        sceHttp2Term(http_ctx);
+        sceHttpTerm(http_ctx);
     if (ssl_ctx >= 0)
         sceSslTerm(ssl_ctx);
     if (net_pool >= 0)
@@ -620,7 +630,7 @@ int main(void) {
     if (mkdir_state_dir() < 0)
         return EXIT_FAILURE;
 
-    log_msg("[SaveState TLS-BYPASS TEST v1] activity logger starting\n");
+    log_msg("[SaveState HTTP TEST v1] activity logger starting\n");
 
     if (load_config(&cfg) < 0) {
         log_msg("[SaveState] configuration invalid; exiting\n");
