@@ -1,10 +1,10 @@
 name: build-ps5-payload
 
 on:
-  push:
-    paths:
-      - "ps5/**"
-      - ".github/workflows/build-ps5-payload.yml"
+  # push:
+  #   paths:
+  #     - "ps5/**"
+  #     - ".github/workflows/build-ps5-payload.yml"
   workflow_dispatch:
 
 jobs:
