@@ -1,29 +1,17 @@
-# SaveState PS5 Activity Logger — POSIX HTTP test
+# SaveState PS5 Activity Logger — cURL HTTPS test
 
-This build removes `libSceSsl`, `libSceHttp`, and `libSceHttp2` from the upload path.
-It uses POSIX IPv4 TCP sockets and plain HTTP/1.1 for the SaveState ingest request.
+This build replaces the custom POSIX HTTP uploader with the PS5-payload-dev cURL stack.
 
-## Configuration
+The Makefile uses `prospero-curl-config`, matching `ps5-payload-dev/fetchpkg`'s PS5 build.
 
-`/data/savestate-sync/config` must use an `http://` endpoint, for example:
+The payload sends the existing SaveState activity JSON directly to the configured `ENDPOINT`.
+For this diagnostic build, cURL TLS peer/host verification is disabled so that Sony's CA-store
+problem is isolated from the cURL transport itself.
 
-```text
-ENDPOINT=http://<plain-http-host>/api/activity/ingest
-DEVICE_ID=<device-id>
-TOKEN=<device-token>
-```
+Set `/data/savestate-sync/config` to the real HTTPS endpoint:
 
-An `https://` endpoint is intentionally rejected by the payload because this build does not implement TLS.
+    ENDPOINT=https://save-state-jade.vercel.app/api/activity/ingest
+    DEVICE_ID=...
+    TOKEN=...
 
-## Request
-
-The payload sends:
-
-- `POST /api/activity/ingest HTTP/1.1`
-- `Content-Type: application/json`
-- `Accept: application/json`
-- `X-SaveState-Device-Token: <token>`
-- `Content-Length: <body length>`
-- `Connection: close`
-
-The existing SQLite event extraction, cursor handling, and server-side dedupe model are unchanged.
+This test does not use the local HTTP relay.

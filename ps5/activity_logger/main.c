@@ -13,10 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/socket.h>
-#include <netdb.h>
 #include <sys/stat.h>
 #include "sqlite3.h"
+#include <curl/curl.h>
 
 #define SL2_DB "/system_data/priv/system_logger2/nobackup/database/sl2_log.db"
 #define APP_DB "/system_data/priv/mms/app.db"
@@ -31,10 +30,7 @@
 #define TOKEN_MAX 256
 #define DEVICE_ID_MAX 64
 
-/* POSIX sockets + plain HTTP. HTTPS/TLS is intentionally not used here. */
-extern int sceNetInit(void);
-extern int sceNetPoolCreate(const char *name, int size, int flags);
-extern int sceNetPoolDestroy(int pool_id);
+/* Transport is provided by ps5-payload-dev cURL and its configured TLS backend. */
 
 struct config {
     char endpoint[POST_URL_MAX];
@@ -259,208 +255,89 @@ done:
         sqlite3_close(db);
 }
 
-static int parse_http_url(const char *url, char *host, size_t host_cap,
-                          int *port, char *path, size_t path_cap) {
-    const char *prefix = "http://";
-    size_t prefix_len = strlen(prefix);
-
-    if (strncmp(url, prefix, prefix_len) != 0) {
-        log_msg("[SaveState] POSIX HTTP requires an http:// endpoint: %s\n", url);
-        return -1;
-    }
-
-    const char *p = url + prefix_len;
-    const char *slash = strchr(p, '/');
-    const char *host_end = slash ? slash : p + strlen(p);
-
-    if (host_end == p || (size_t)(host_end - p) >= host_cap)
-        return -1;
-
-    const char *colon = memchr(p, ':', (size_t)(host_end - p));
-    *port = 80;
-
-    if (colon) {
-        size_t host_len = (size_t)(colon - p);
-        if (host_len == 0 || host_len >= host_cap)
-            return -1;
-        memcpy(host, p, host_len);
-        host[host_len] = 0;
-
-        char port_buf[16];
-        size_t port_len = (size_t)(host_end - colon - 1);
-        if (port_len == 0 || port_len >= sizeof(port_buf))
-            return -1;
-        memcpy(port_buf, colon + 1, port_len);
-        port_buf[port_len] = 0;
-        *port = atoi(port_buf);
-        if (*port <= 0 || *port > 65535)
-            return -1;
-    } else {
-        size_t host_len = (size_t)(host_end - p);
-        memcpy(host, p, host_len);
-        host[host_len] = 0;
-    }
-
-    if (slash)
-        snprintf(path, path_cap, "%s", slash);
-    else
-        snprintf(path, path_cap, "/");
-
-    return 0;
-}
-
-static int send_all(int sock, const void *data, size_t len) {
-    const char *p = (const char *)data;
-
-    while (len > 0) {
-        ssize_t n = send(sock, p, len, 0);
-        if (n <= 0)
-            return -1;
-        p += n;
-        len -= (size_t)n;
-    }
-
-    return 0;
+static size_t curl_discard_body(void *ptr, size_t size, size_t nmemb, void *userdata) {
+    (void)ptr;
+    (void)userdata;
+    return size * nmemb;
 }
 
 static int post_json(const struct config *cfg, const char *body, size_t body_len) {
-    int net_pool = -1;
-    int sock = -1;
-    int rc = -1;
-    char host[256];
-    char path[1024];
-    int port = 80;
+    CURL *curl = NULL;
+    CURLcode code;
+    long status = 0;
+    char error_buf[CURL_ERROR_SIZE] = {0};
+    struct curl_slist *headers = NULL;
 
-    log_msg("[SaveState] initializing POSIX network\n");
+    log_msg("[SaveState] initializing cURL\n");
 
-    rc = sceNetInit();
-    if (rc < 0) {
-        log_msg("[SaveState] sceNetInit failed: %d\n", rc);
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+    if (!curl) {
+        log_msg("[SaveState] curl_easy_init failed\n");
+        curl_global_cleanup();
         return -1;
     }
 
-    net_pool = sceNetPoolCreate("savestate-activity", 32 * 1024, 0);
-    if (net_pool < 0) {
-        log_msg("[SaveState] sceNetPoolCreate failed: %d\n", net_pool);
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    headers = curl_slist_append(headers, "Accept: application/json");
+
+    char auth_header[TOKEN_MAX + 64];
+    snprintf(auth_header, sizeof(auth_header),
+             "X-SaveState-Device-Token: %s", cfg->token);
+    headers = curl_slist_append(headers, auth_header);
+
+    curl_easy_setopt(curl, CURLOPT_URL, cfg->endpoint);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POST, 1L);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)body_len);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_discard_body);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "SaveState-PS5-Activity/1.0");
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
+
+    /* Diagnostic TLS test: use cURL's TLS stack, but do not require its CA store.
+     * This mirrors ps5-payload-dev/fetchpkg's current PS5 HTTPS approach.
+     * Re-enable peer/host verification once a working CA bundle is established. */
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+
+    log_msg("[SaveState] cURL POST %s (%zu bytes body)\n", cfg->endpoint, body_len);
+
+    code = curl_easy_perform(curl);
+    if (code != CURLE_OK) {
+        log_msg("[SaveState] curl_easy_perform failed: %d (%s)\n",
+                (int)code,
+                error_buf[0] ? error_buf : curl_easy_strerror(code));
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+        curl_global_cleanup();
         return -1;
     }
 
-    if (parse_http_url(cfg->endpoint, host, sizeof(host), &port,
-                       path, sizeof(path)) < 0) {
-        log_msg("[SaveState] invalid POSIX HTTP endpoint=%s\n", cfg->endpoint);
-        goto fail;
+    code = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
+    if (code != CURLE_OK) {
+        log_msg("[SaveState] curl_easy_getinfo failed: %d\n", (int)code);
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+        curl_global_cleanup();
+        return -1;
     }
 
-    log_msg("[SaveState] POSIX HTTP target=%s:%d%s\n", host, port, path);
-
-    struct addrinfo hints;
-    struct addrinfo *res = NULL;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-
-    char port_str[16];
-    snprintf(port_str, sizeof(port_str), "%d", port);
-
-    rc = getaddrinfo(host, port_str, &hints, &res);
-    if (rc != 0 || !res) {
-        log_msg("[SaveState] getaddrinfo failed for %s:%d rc=%d\n",
-                host, port, rc);
-        goto fail;
-    }
-
-    sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (sock < 0) {
-        log_msg("[SaveState] socket failed: %d\n", errno);
-        freeaddrinfo(res);
-        goto fail;
-    }
-
-    rc = connect(sock, res->ai_addr, res->ai_addrlen);
-    freeaddrinfo(res);
-    res = NULL;
-    if (rc < 0) {
-        log_msg("[SaveState] connect failed: errno=%d\n", errno);
-        goto fail;
-    }
-
-    char request[2048];
-    int request_len = snprintf(
-        request, sizeof(request),
-        "POST %s HTTP/1.1\r\n"
-        "Host: %s\r\n"
-        "Content-Type: application/json\r\n"
-        "Accept: application/json\r\n"
-        "X-SaveState-Device-Token: %s\r\n"
-        "Content-Length: %zu\r\n"
-        "Connection: close\r\n"
-        "\r\n",
-        path, host, cfg->token, body_len);
-
-    if (request_len < 0 || (size_t)request_len >= sizeof(request)) {
-        log_msg("[SaveState] HTTP request headers too large\n");
-        goto fail;
-    }
-
-    log_msg("[SaveState] sending POSIX HTTP POST (%zu bytes body)\n", body_len);
-
-    if (send_all(sock, request, (size_t)request_len) < 0 ||
-        send_all(sock, body, body_len) < 0) {
-        log_msg("[SaveState] send failed: errno=%d\n", errno);
-        goto fail;
-    }
-
-    char response[4096];
-    size_t used = 0;
-    int status = -1;
-
-    for (;;) {
-        if (used + 1 >= sizeof(response)) {
-            log_msg("[SaveState] HTTP response headers too large\n");
-            goto fail;
-        }
-
-        ssize_t n = recv(sock, response + used, sizeof(response) - used - 1, 0);
-        if (n <= 0)
-            break;
-
-        used += (size_t)n;
-        response[used] = 0;
-
-        char *line_end = strstr(response, "\r\n");
-        if (line_end) {
-            *line_end = 0;
-            if (sscanf(response, "HTTP/%*s %d", &status) != 1)
-                status = -1;
-            *line_end = '\r';
-
-            if (strstr(response, "\r\n\r\n"))
-                break;
-        }
-    }
-
-    if (status < 0) {
-        log_msg("[SaveState] couldn't parse HTTP response; bytes=%zu\n", used);
-        goto fail;
-    }
-
-    log_msg("[SaveState] POSIX HTTP status=%d\n", status);
+    log_msg("[SaveState] cURL HTTP status=%ld\n", status);
 
     if (status < 200 || status >= 300) {
-        log_msg("[SaveState] upload rejected, HTTP status=%d\n", status);
-        rc = -status;
-        goto fail;
+        log_msg("[SaveState] upload rejected, HTTP status=%ld\n", status);
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+        curl_global_cleanup();
+        return -(int)status;
     }
 
-    rc = 0;
-
-fail:
-    if (sock >= 0)
-        close(sock);
-    if (net_pool >= 0)
-        sceNetPoolDestroy(net_pool);
-
-    return rc;
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+    return 0;
 }
 
 static int sync_once(const struct config *cfg) {

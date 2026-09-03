@@ -11,9 +11,10 @@ SRCS := main.c sqlite3.c
 include $(PS5_PAYLOAD_SDK)/toolchain/prospero.mk
 
 CFLAGS += -O2 -Wall -Wextra -I. -I$(PS5_PAYLOAD_SDK)/include
+CFLAGS += `$(PS5_PAYLOAD_SDK)/bin/prospero-curl-config --cflags`
 
-# POSIX sockets use the PS5 network library. No SceSsl/SceHttp dependencies.
-LDLIBS += -lSceNet
+# Use the PS5-payload-dev cURL stack. No libSceHttp/libSceHttp2/libSceSsl.
+LDLIBS += `$(PS5_PAYLOAD_SDK)/bin/prospero-curl-config --libs`
 
 all: $(TARGET)
 
