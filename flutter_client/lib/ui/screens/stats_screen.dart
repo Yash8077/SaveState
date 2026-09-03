@@ -17,6 +17,7 @@ class StatsScreen extends StatefulWidget {
 
 class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
   List<GameEntry> _entries = [];
+  Map<String, dynamic> _activity = const {};
   bool _isLoading = true;
   bool _isAuthError = false;
   String _errorMessage = '';
@@ -34,10 +35,14 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
     });
 
     try {
-      final entries = await context.read<ApiClient>().getLibrary();
+      final client = context.read<ApiClient>();
+      final results = await Future.wait([client.getLibrary(), client.getActivity()]);
+      final entries = results[0] as List<GameEntry>;
+      final activity = results[1] as Map<String, dynamic>;
       if (mounted) {
         setState(() {
           _entries = entries;
+          _activity = activity;
           _isLoading = false;
         });
       }
@@ -393,6 +398,13 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
           const SizedBox(height: 20),
 
           // Additional Insights Card
+          const SizedBox(height: 20),
+          _buildPs5ActivityCard(
+            colorScheme: colorScheme,
+            theme: theme,
+          ),
+          const SizedBox(height: 20),
+
           _buildInsightsCard(
             avgScore: avgScore,
             favoriteCount: favoriteCount,
@@ -404,6 +416,177 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
         ],
       ),
     );
+  }
+
+  Widget _buildPs5ActivityCard({
+    required ColorScheme colorScheme,
+    required ThemeData theme,
+  }) {
+    final totals = _activity['totals'] is Map
+        ? Map<String, dynamic>.from(_activity['totals'] as Map)
+        : const <String, dynamic>{};
+    final games = (_activity['games'] as List<dynamic>?) ?? const [];
+    final sessions = (_activity['recent'] as List<dynamic>?) ?? const [];
+    final seconds = (totals['seconds'] as num?)?.toInt() ?? 0;
+    final hours = (seconds / 3600).toStringAsFixed(seconds >= 3600 ? 1 : 0);
+    String duration(Object? raw) {
+      final n = raw is num ? raw.toInt() : 0;
+      if (n < 3600) return '${n ~/ 60}m';
+      return '${(n / 3600).toStringAsFixed(1)}h';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.history_rounded, color: colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'PS5 Game Activity',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+              Text(
+                '${hours}h total',
+                style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (sessions.isEmpty)
+            Text(
+              'Run the PS5 activity payload to import completed play sessions.',
+              style: TextStyle(color: colorScheme.onSurfaceVariant, height: 1.4),
+            )
+          else
+            ...sessions.take(5).map((raw) {
+              final row = Map<String, dynamic>.from(raw as Map);
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                child: Row(
+                  children: [
+                    Icon(Icons.sports_esports_rounded, size: 18, color: colorScheme.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        (row['titleName'] as String?)?.isNotEmpty == true
+                            ? row['titleName'] as String
+                            : row['titleId'] as String? ?? 'Unknown game',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(duration(row['seconds']), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              );
+            }),
+          if (games.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              '${games.length} games tracked · ${totals['sessions'] ?? 0} sessions · ${totals['days'] ?? 0} days played',
+              style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+            ),
+          ],
+          ..._buildDailyActivity(colorScheme, theme),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildDailyActivity(
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
+    final daily = (_activity['daily'] as List<dynamic>?) ?? const [];
+    if (daily.isEmpty) return const [];
+
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final raw in daily.take(120)) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final date = row['date'] as String? ?? '';
+      (grouped[date] ??= []).add(row);
+    }
+
+    String duration(Object? raw) {
+      final n = raw is num ? raw.toInt() : 0;
+      if (n < 3600) return '${n ~/ 60}m';
+      final hours = n ~/ 3600;
+      final mins = (n % 3600) ~/ 60;
+      return mins == 0 ? '${hours}h' : '${hours}h ${mins}m';
+    }
+
+    return [
+      const SizedBox(height: 16),
+      Text(
+        'Daily activity',
+        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 10),
+      ...grouped.entries.take(10).map((entry) {
+        final total = entry.value.fold<int>(
+          0,
+          (sum, row) => sum + ((row['seconds'] as num?)?.toInt() ?? 0),
+        );
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withOpacity(.45),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        entry.key,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    Text(duration(total), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ...entry.value.take(4).map((row) {
+                  final name = (row['titleName'] as String?)?.isNotEmpty == true
+                      ? row['titleName'] as String
+                      : row['titleId'] as String? ?? 'Unknown game';
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: colorScheme.onSurfaceVariant),
+                          ),
+                        ),
+                        Text(duration(row['seconds'])),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      }),
+    ];
   }
 
   Widget _buildMetricCard({

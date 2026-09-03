@@ -53,6 +53,13 @@ class SettingsScreen extends StatelessWidget {
           ),
           _tile(
             context,
+            icon: Icons.gamepad_outlined,
+            title: 'PS5 Activity',
+            hint: 'Log completed PS5 play sessions and daily hours',
+            page: const _Ps5ActivityPage(),
+          ),
+          _tile(
+            context,
             icon: Icons.person_outline,
             title: 'Account',
             hint: 'Name, avatar, and password',
@@ -360,6 +367,225 @@ class _AccountPage extends StatelessWidget {
                 onPressed: () => context.push('/login'),
                 child: const Text('Sign in'),
               ),
+            ),
+    );
+  }
+}
+
+class _Ps5ActivityPage extends StatefulWidget {
+  const _Ps5ActivityPage();
+
+  @override
+  State<_Ps5ActivityPage> createState() => _Ps5ActivityPageState();
+}
+
+class _Ps5ActivityPageState extends State<_Ps5ActivityPage> {
+  bool _loading = true;
+  bool _busy = false;
+  Map<String, dynamic>? _device; // existing device metadata (no token — see below)
+  Map<String, dynamic>? _freshResult; // just-created device, includes the one-time token
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final devices = await context.read<ApiClient>().getPs5Devices();
+      if (mounted) {
+        setState(() => _device = devices.isNotEmpty ? devices.first : null);
+      }
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _create() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final result = await context.read<ApiClient>().createPs5Device();
+      if (mounted) setState(() => _freshResult = result);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  // Personal-use setup only ever needs one device. Losing the token means
+  // the original secret can't be shown again (it's stored hashed) — the
+  // only way back is to drop the old row and mint a fresh one, then update
+  // /data/savestate-sync/config on the PS5 to match.
+  Future<void> _reissue() async {
+    final existing = _device;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      if (existing != null) {
+        await context.read<ApiClient>().deletePs5Device(existing['id'] as String);
+      }
+      final result = await context.read<ApiClient>().createPs5Device();
+      if (mounted) {
+        setState(() {
+          _device = null;
+          _freshResult = result;
+        });
+      }
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final token = _freshResult?['token'] as String?;
+    final id = _freshResult?['id'] as String?;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('PS5 Activity')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.sync_rounded, color: cs.onPrimaryContainer, size: 28),
+                      const SizedBox(height: 14),
+                      Text(
+                        'SaveState can keep a history of what you actually played.',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: cs.onPrimaryContainer,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No PC, Raspberry Pi, FTP polling, or LAN bridge is needed. A one-shot payload reads completed PS5 sessions and uploads only new history.',
+                        style: TextStyle(color: cs.onPrimaryContainer.withOpacity(.82), height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                if (_error != null) ...[
+                  Text(_error!, style: TextStyle(color: cs.error)),
+                  const SizedBox(height: 12),
+                ],
+
+                // Already set up: show status, no secret to display (never
+                // stored in plaintext), just a way to start over if needed.
+                if (_device != null && token == null) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.check_circle_rounded, color: cs.primary, size: 20),
+                              const SizedBox(width: 8),
+                              Text('PS5 connection set up',
+                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text('Device: ${_device!['name'] ?? 'PS5'}',
+                              style: TextStyle(color: cs.onSurfaceVariant)),
+                          if (_device!['lastSeenAt'] != null)
+                            Text('Last synced: ${_device!['lastSeenAt']}',
+                                style: TextStyle(color: cs.onSurfaceVariant))
+                          else
+                            Text('Not synced yet — run the payload on your PS5',
+                                style: TextStyle(color: cs.onSurfaceVariant)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _reissue,
+                    icon: _busy
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.refresh_rounded),
+                    label: Text(_busy ? 'Working…' : 'Lost the token? Reissue it'),
+                  ),
+                ],
+
+                // Nothing set up yet.
+                if (_device == null && token == null)
+                  FilledButton.icon(
+                    onPressed: _busy ? null : _create,
+                    icon: _busy
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.add_rounded),
+                    label: Text(_busy ? 'Creating…' : 'Create PS5 connection'),
+                  ),
+
+                // Just (re)created: this is the only time the token is
+                // ever shown, since the server only stores it hashed.
+                if (token != null && id != null) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('One-time setup values', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          Text('This token will not be shown again — copy it now.',
+                              style: TextStyle(color: cs.error, fontSize: 12)),
+                          const SizedBox(height: 12),
+                          const SelectableText(
+                            'ENDPOINT=https://save-state-jade.vercel.app/api/activity/ingest',
+                          ),
+                          const SizedBox(height: 8),
+                          SelectableText('DEVICE_ID=$id'),
+                          const SizedBox(height: 8),
+                          SelectableText('TOKEN=$token'),
+                          const SizedBox(height: 14),
+                          Text(
+                            'Put these three lines in /data/savestate-sync/config on the PS5. The payload harvests completed sessions and exits when it is caught up.',
+                            style: TextStyle(color: cs.onSurfaceVariant, height: 1.4),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
     );
   }

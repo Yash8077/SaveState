@@ -403,6 +403,35 @@ class ApiClient {
     unawaited(_prefs?.remove(_libraryDiskKey));
   }
 
+  Future<Map<String, dynamic>> getActivity({bool force = false}) async {
+    final decoded = await _send('GET', _u('/api/activity?limit=100'));
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    throw ApiException(500, 'Invalid activity response');
+  }
+
+  Future<Map<String, dynamic>> createPs5Device({String name = 'PS5'}) async {
+    final decoded = await _send(
+      'POST',
+      _u('/api/activity/device'),
+      body: {'name': name},
+      jsonBody: true,
+    );
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    throw ApiException(500, 'Invalid device response');
+  }
+
+  Future<List<Map<String, dynamic>>> getPs5Devices() async {
+    final decoded = await _send('GET', _u('/api/activity/device'));
+    if (decoded is List) {
+      return decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    throw ApiException(500, 'Invalid device list response');
+  }
+
+  Future<void> deletePs5Device(String id) async {
+    await _send('DELETE', _u('/api/activity/device?id=$id'));
+  }
+
   Future<void> clearUserCaches() async {
     _libraryCache = null;
     _libraryAt = null;
