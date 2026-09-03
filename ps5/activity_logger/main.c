@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include <sys/stat.h>
 #include "sqlite3.h"
 
@@ -29,34 +31,10 @@
 #define TOKEN_MAX 256
 #define DEVICE_ID_MAX 64
 
-/* libSceHttp (classic HTTP/1.1) API.
- * Signatures match the libSceHttp family used by PS4/PS5 payloads. */
-#define HTTP_VERSION_1_1 2
-#define HTTP_HEADER_OVERWRITE 0
-#define HTTP_METHOD_POST 1
-
+/* POSIX sockets + plain HTTP. HTTPS/TLS is intentionally not used here. */
 extern int sceNetInit(void);
 extern int sceNetPoolCreate(const char *name, int size, int flags);
 extern int sceNetPoolDestroy(int pool_id);
-
-extern int sceSslInit(size_t pool_size);
-/* Test-only global verification toggle exported by libSceSsl. */
-extern int sceSslDisableVerifyOption(void);
-extern int sceSslTerm(int ctx_id);
-
-extern int sceHttpInit(int net_pool_id, int ssl_ctx_id, size_t pool_size);
-extern int sceHttpTerm(int http_ctx_id);
-extern int sceHttpCreateTemplate(int http_ctx_id, const char *agent, int http_ver, int auto_proxy);
-extern int sceHttpDeleteTemplate(int tmpl_id);
-extern int sceHttpCreateConnectionWithURL(int tmpl_id, const char *url, int keep_alive);
-extern int sceHttpDeleteConnection(int conn_id);
-extern int sceHttpCreateRequestWithURL(int conn_id, int method, const char *url, uint64_t content_length);
-extern int sceHttpDeleteRequest(int req_id);
-extern int sceHttpAddRequestHeader(int req_id, const char *name,
-                                   const char *value, unsigned int mode);
-extern int sceHttpSetRequestContentLength(int req_id, uint64_t content_length);
-extern int sceHttpSendRequest(int req_id, const void *data, uint32_t data_size);
-extern int sceHttpGetStatusCode(int req_id, int *status);
 
 struct config {
     char endpoint[POST_URL_MAX];
@@ -281,17 +259,79 @@ done:
         sqlite3_close(db);
 }
 
+static int parse_http_url(const char *url, char *host, size_t host_cap,
+                          int *port, char *path, size_t path_cap) {
+    const char *prefix = "http://";
+    size_t prefix_len = strlen(prefix);
+
+    if (strncmp(url, prefix, prefix_len) != 0) {
+        log_msg("[SaveState] POSIX HTTP requires an http:// endpoint: %s\n", url);
+        return -1;
+    }
+
+    const char *p = url + prefix_len;
+    const char *slash = strchr(p, '/');
+    const char *host_end = slash ? slash : p + strlen(p);
+
+    if (host_end == p || (size_t)(host_end - p) >= host_cap)
+        return -1;
+
+    const char *colon = memchr(p, ':', (size_t)(host_end - p));
+    *port = 80;
+
+    if (colon) {
+        size_t host_len = (size_t)(colon - p);
+        if (host_len == 0 || host_len >= host_cap)
+            return -1;
+        memcpy(host, p, host_len);
+        host[host_len] = 0;
+
+        char port_buf[16];
+        size_t port_len = (size_t)(host_end - colon - 1);
+        if (port_len == 0 || port_len >= sizeof(port_buf))
+            return -1;
+        memcpy(port_buf, colon + 1, port_len);
+        port_buf[port_len] = 0;
+        *port = atoi(port_buf);
+        if (*port <= 0 || *port > 65535)
+            return -1;
+    } else {
+        size_t host_len = (size_t)(host_end - p);
+        memcpy(host, p, host_len);
+        host[host_len] = 0;
+    }
+
+    if (slash)
+        snprintf(path, path_cap, "%s", slash);
+    else
+        snprintf(path, path_cap, "/");
+
+    return 0;
+}
+
+static int send_all(int sock, const void *data, size_t len) {
+    const char *p = (const char *)data;
+
+    while (len > 0) {
+        ssize_t n = send(sock, p, len, 0);
+        if (n <= 0)
+            return -1;
+        p += n;
+        len -= (size_t)n;
+    }
+
+    return 0;
+}
+
 static int post_json(const struct config *cfg, const char *body, size_t body_len) {
     int net_pool = -1;
-    int ssl_ctx = -1;
-    int http_ctx = -1;
-    int tmpl = -1;
-    int conn = -1;
-    int req = -1;
-    int status = -1;
+    int sock = -1;
     int rc = -1;
+    char host[256];
+    char path[1024];
+    int port = 80;
 
-    log_msg("[SaveState] initializing network\n");
+    log_msg("[SaveState] initializing POSIX network\n");
 
     rc = sceNetInit();
     if (rc < 0) {
@@ -305,98 +345,106 @@ static int post_json(const struct config *cfg, const char *body, size_t body_len
         return -1;
     }
 
-    /* libSceHttp uses the system SSL service for HTTPS connections. */
-    ssl_ctx = sceSslInit(256 * 1024);
-    if (ssl_ctx < 0) {
-        log_msg("[SaveState] sceSslInit failed: %d\n", ssl_ctx);
+    if (parse_http_url(cfg->endpoint, host, sizeof(host), &port,
+                       path, sizeof(path)) < 0) {
+        log_msg("[SaveState] invalid POSIX HTTP endpoint=%s\n", cfg->endpoint);
         goto fail;
     }
 
-    /* TEMPORARY DIAGNOSTIC: disable TLS certificate verification.
-     * This is only to prove whether 0x8095F00C is certificate validation.
-     * Do not use this configuration for production. */
-    log_msg("[SaveState] disabling SSL certificate verification (TEST ONLY)\n");
-    rc = sceSslDisableVerifyOption();
-    log_msg("[SaveState] sceSslDisableVerifyOption rc=%d (0x%08X)\n",
-            rc, (unsigned int)rc);
+    log_msg("[SaveState] POSIX HTTP target=%s:%d%s\n", host, port, path);
+
+    struct addrinfo hints;
+    struct addrinfo *res = NULL;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+    char port_str[16];
+    snprintf(port_str, sizeof(port_str), "%d", port);
+
+    rc = getaddrinfo(host, port_str, &hints, &res);
+    if (rc != 0 || !res) {
+        log_msg("[SaveState] getaddrinfo failed for %s:%d rc=%d\n",
+                host, port, rc);
+        goto fail;
+    }
+
+    sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (sock < 0) {
+        log_msg("[SaveState] socket failed: %d\n", errno);
+        freeaddrinfo(res);
+        goto fail;
+    }
+
+    rc = connect(sock, res->ai_addr, res->ai_addrlen);
+    freeaddrinfo(res);
+    res = NULL;
     if (rc < 0) {
-        log_msg("[SaveState] SSL verification disable failed; continuing anyway\n");
-    }
-
-    http_ctx = sceHttpInit(net_pool, ssl_ctx, 256 * 1024);
-    if (http_ctx < 0) {
-        log_msg("[SaveState] sceHttpInit failed: %d\n", http_ctx);
+        log_msg("[SaveState] connect failed: errno=%d\n", errno);
         goto fail;
     }
 
-    log_msg("[SaveState] HTTP initialized; version=1.1\n");
+    char request[2048];
+    int request_len = snprintf(
+        request, sizeof(request),
+        "POST %s HTTP/1.1\r\n"
+        "Host: %s\r\n"
+        "Content-Type: application/json\r\n"
+        "Accept: application/json\r\n"
+        "X-SaveState-Device-Token: %s\r\n"
+        "Content-Length: %zu\r\n"
+        "Connection: close\r\n"
+        "\r\n",
+        path, host, cfg->token, body_len);
 
-    tmpl = sceHttpCreateTemplate(
-        http_ctx, "SaveState-PS5-Activity/1.0", HTTP_VERSION_1_1, 1);
-    if (tmpl < 0) {
-        log_msg("[SaveState] sceHttpCreateTemplate failed: %d\n", tmpl);
+    if (request_len < 0 || (size_t)request_len >= sizeof(request)) {
+        log_msg("[SaveState] HTTP request headers too large\n");
         goto fail;
     }
 
-    conn = sceHttpCreateConnectionWithURL(tmpl, cfg->endpoint, 1);
-    if (conn < 0) {
-        log_msg("[SaveState] sceHttpCreateConnectionWithURL failed: %d endpoint=%s\n",
-                conn, cfg->endpoint);
+    log_msg("[SaveState] sending POSIX HTTP POST (%zu bytes body)\n", body_len);
+
+    if (send_all(sock, request, (size_t)request_len) < 0 ||
+        send_all(sock, body, body_len) < 0) {
+        log_msg("[SaveState] send failed: errno=%d\n", errno);
         goto fail;
     }
 
-    /* 1 == SCE_HTTP_METHOD_POST in the classic libSceHttp API. */
-    req = sceHttpCreateRequestWithURL(
-        conn, HTTP_METHOD_POST, cfg->endpoint, (uint64_t)body_len);
-    if (req < 0) {
-        log_msg("[SaveState] sceHttpCreateRequestWithURL failed: %d endpoint=%s\n",
-                req, cfg->endpoint);
+    char response[4096];
+    size_t used = 0;
+    int status = -1;
+
+    for (;;) {
+        if (used + 1 >= sizeof(response)) {
+            log_msg("[SaveState] HTTP response headers too large\n");
+            goto fail;
+        }
+
+        ssize_t n = recv(sock, response + used, sizeof(response) - used - 1, 0);
+        if (n <= 0)
+            break;
+
+        used += (size_t)n;
+        response[used] = 0;
+
+        char *line_end = strstr(response, "\r\n");
+        if (line_end) {
+            *line_end = 0;
+            if (sscanf(response, "HTTP/%*s %d", &status) != 1)
+                status = -1;
+            *line_end = '\r';
+
+            if (strstr(response, "\r\n\r\n"))
+                break;
+        }
+    }
+
+    if (status < 0) {
+        log_msg("[SaveState] couldn't parse HTTP response; bytes=%zu\n", used);
         goto fail;
     }
 
-    rc = sceHttpAddRequestHeader(
-        req, "Content-Type", "application/json", HTTP_HEADER_OVERWRITE);
-    if (rc < 0) {
-        log_msg("[SaveState] Content-Type header failed: %d\n", rc);
-        goto fail;
-    }
-
-    rc = sceHttpAddRequestHeader(
-        req, "Accept", "application/json", HTTP_HEADER_OVERWRITE);
-    if (rc < 0) {
-        log_msg("[SaveState] Accept header failed: %d\n", rc);
-        goto fail;
-    }
-
-    rc = sceHttpAddRequestHeader(
-        req, "X-SaveState-Device-Token", cfg->token, HTTP_HEADER_OVERWRITE);
-    if (rc < 0) {
-        log_msg("[SaveState] auth header failed: %d\n", rc);
-        goto fail;
-    }
-
-    rc = sceHttpSetRequestContentLength(req, (uint64_t)body_len);
-    if (rc < 0) {
-        log_msg("[SaveState] sceHttpSetRequestContentLength failed: %d\n", rc);
-        goto fail;
-    }
-
-    log_msg("[SaveState] sending POST (%zu bytes)\n", body_len);
-
-    rc = sceHttpSendRequest(req, body, (uint32_t)body_len);
-    if (rc < 0) {
-        log_msg("[SaveState] sceHttpSendRequest failed: %d (0x%08X)\n",
-                rc, (unsigned int)rc);
-        goto fail;
-    }
-
-    rc = sceHttpGetStatusCode(req, &status);
-    if (rc < 0) {
-        log_msg("[SaveState] sceHttpGetStatusCode failed: %d\n", rc);
-        goto fail;
-    }
-
-    log_msg("[SaveState] HTTP status=%d\n", status);
+    log_msg("[SaveState] POSIX HTTP status=%d\n", status);
 
     if (status < 200 || status >= 300) {
         log_msg("[SaveState] upload rejected, HTTP status=%d\n", status);
@@ -407,16 +455,8 @@ static int post_json(const struct config *cfg, const char *body, size_t body_len
     rc = 0;
 
 fail:
-    if (req >= 0)
-        sceHttpDeleteRequest(req);
-    if (conn >= 0)
-        sceHttpDeleteConnection(conn);
-    if (tmpl >= 0)
-        sceHttpDeleteTemplate(tmpl);
-    if (http_ctx >= 0)
-        sceHttpTerm(http_ctx);
-    if (ssl_ctx >= 0)
-        sceSslTerm(ssl_ctx);
+    if (sock >= 0)
+        close(sock);
     if (net_pool >= 0)
         sceNetPoolDestroy(net_pool);
 
@@ -642,7 +682,7 @@ int main(void) {
     if (mkdir_state_dir() < 0)
         return EXIT_FAILURE;
 
-    log_msg("[SaveState HTTP TEST v1] activity logger starting\n");
+    log_msg("[SaveState POSIX-HTTP TEST v1] activity logger starting\n");
 
     if (load_config(&cfg) < 0) {
         log_msg("[SaveState] configuration invalid; exiting\n");
