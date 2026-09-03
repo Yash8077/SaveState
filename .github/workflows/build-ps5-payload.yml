@@ -17,41 +17,47 @@ jobs:
       - name: Install SDK build prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 lld-18
+          sudo apt-get install -y clang-18 lld-18 wget unzip
 
-      - name: Checkout ps5-payload-sdk
-        uses: actions/checkout@v4
-        with:
-          repository: ps5-payload-dev/sdk
-          path: ps5-payload-sdk-src
+      # Install the packaged PS5 payload SDK from ps5-payload-dev/pacbrew-repo.
+      # This is the same toolchain used by ps5-payload-dev/fetchpkg and, unlike
+      # building only ps5-payload-dev/sdk from source, it includes the PS5 cURL
+      # headers, libraries, CA bundle and prospero-curl-config helper.
+      - name: Install PS5 payload SDK + cURL stack
+        run: |
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
 
-      - name: Build + install ps5-payload-sdk
-        working-directory: ps5-payload-sdk-src
-        env:
-          DESTDIR: ${{ runner.tool_cache }}/ps5-payload-sdk
-        run: make install
+          test -x /opt/ps5-payload-sdk/bin/prospero-curl-config
+          /opt/ps5-payload-sdk/bin/prospero-curl-config --cflags
+          /opt/ps5-payload-sdk/bin/prospero-curl-config --libs
 
       - name: Fetch SQLite amalgamation
         working-directory: ps5/activity_logger
         run: |
-          curl -sSL -o sqlite.zip https://sqlite.org/2024/sqlite-amalgamation-3450000.zip
-          
-          # Verify the file is a valid zip
+          curl -fsSL -o sqlite.zip https://sqlite.org/2024/sqlite-amalgamation-3450000.zip
+
           if ! unzip -t sqlite.zip > /dev/null 2>&1; then
             echo "Downloaded file is not a valid zip archive"
             exit 1
           fi
-          
+
           unzip -o sqlite.zip
           cp sqlite-amalgamation-*/sqlite3.c sqlite-amalgamation-*/sqlite3.h .
 
       - name: Build payload
         working-directory: ps5/activity_logger
         env:
-          PS5_PAYLOAD_SDK: ${{ runner.tool_cache }}/ps5-payload-sdk
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
         run: |
           source "$PS5_PAYLOAD_SDK/toolchain/prospero.sh"
           make clean all
+
+      - name: Verify payload artifact
+        working-directory: ps5/activity_logger
+        run: |
+          test -s savestate-activity.elf
+          file savestate-activity.elf || true
 
       - name: Upload ELF artifact
         uses: actions/upload-artifact@v4
