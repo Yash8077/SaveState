@@ -40,6 +40,8 @@ extern int sceNetPoolCreate(const char *name, int size, int flags);
 extern int sceNetPoolDestroy(int pool_id);
 
 extern int sceSslInit(size_t pool_size);
+/* Test-only global verification toggle exported by libSceSsl. */
+extern int sceSslDisableVerifyOption(void);
 extern int sceSslTerm(int ctx_id);
 
 extern int sceHttpInit(int net_pool_id, int ssl_ctx_id, size_t pool_size);
@@ -310,7 +312,17 @@ static int post_json(const struct config *cfg, const char *body, size_t body_len
         goto fail;
     }
 
-    /* libSceHttp (HTTP/1.1). No certificate bypass. */
+    /* TEMPORARY DIAGNOSTIC: disable TLS certificate verification.
+     * This is only to prove whether 0x8095F00C is certificate validation.
+     * Do not use this configuration for production. */
+    log_msg("[SaveState] disabling SSL certificate verification (TEST ONLY)\n");
+    rc = sceSslDisableVerifyOption();
+    log_msg("[SaveState] sceSslDisableVerifyOption rc=%d (0x%08X)\n",
+            rc, (unsigned int)rc);
+    if (rc < 0) {
+        log_msg("[SaveState] SSL verification disable failed; continuing anyway\n");
+    }
+
     http_ctx = sceHttpInit(net_pool, ssl_ctx, 256 * 1024);
     if (http_ctx < 0) {
         log_msg("[SaveState] sceHttpInit failed: %d\n", http_ctx);
