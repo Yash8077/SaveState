@@ -32,6 +32,16 @@ DEVICE_ID=<device UUID from SaveState>
 TOKEN=<device token from SaveState>
 ```
 
+### TLS-bypass test build
+
+The current test build disables TLS certificate verification unconditionally
+to determine whether certificate trust is the cause of the failed upload. Its
+log begins with `[SaveState TLS-BYPASS TEST v1]`.
+
+Use it only on a trusted network and replace it after this one diagnostic run:
+without certificate verification, an active network attacker could intercept
+the device token. This must not be the production transport.
+
 The cursor is stored in:
 
 ```text

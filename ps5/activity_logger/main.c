@@ -39,6 +39,8 @@ extern int sceNetPoolDestroy(int pool_id);
 
 extern int sceSslInit(size_t pool_size);
 extern int sceSslTerm(int ctx_id);
+/* Test-only global verification toggle exported by libSceSsl. */
+extern int sceSslDisableVerifyOption(void);
 
 extern int sceHttp2Init(int net_pool_id, int ssl_ctx_id, size_t pool_size, int is_default);
 extern int sceHttp2Term(int http_ctx_id);
@@ -305,6 +307,14 @@ static int post_json(const struct config *cfg, const char *body, size_t body_len
         goto fail;
     }
 
+    /* TEST BUILD ONLY: bypass certificate validation to isolate 0x8095F00C.
+     * Do not retain this in a production payload: the device token would be
+     * vulnerable to interception by an active network attacker. */
+    rc = sceSslDisableVerifyOption();
+    log_msg("[SaveState TLS-BYPASS TEST v1] certificate verification disabled: rc=%d\n", rc);
+    if (rc < 0)
+        goto fail;
+
     http_ctx = sceHttp2Init(net_pool, ssl_ctx, 256 * 1024, 1);
     if (http_ctx < 0) {
         log_msg("[SaveState] sceHttp2Init failed: %d\n", http_ctx);
@@ -355,7 +365,8 @@ static int post_json(const struct config *cfg, const char *body, size_t body_len
 
     rc = sceHttp2SendRequest(req, body, body_len);
     if (rc < 0) {
-        log_msg("[SaveState] sceHttp2SendRequest failed: %d\n", rc);
+        log_msg("[SaveState TLS-BYPASS TEST v1] sceHttp2SendRequest failed: %d (0x%08X)\n",
+                rc, (unsigned int)rc);
         goto fail;
     }
 
@@ -459,17 +470,13 @@ static int sync_once(const struct config *cfg) {
     char body[128 * 1024];
     int prefix_len = snprintf(
         body, sizeof(body),
-        "{\"schemaVersion\":1,\"deviceId\":\"%s\",\"events\":[]}",
+        "{\"schemaVersion\":1,\"deviceId\":\"%s\",\"events\":[",
         cfg->device_id);
 
     if (prefix_len < 0 || (size_t)prefix_len >= sizeof(body)) {
         log_msg("[SaveState] request buffer too small\n");
         goto fail;
     }
-
-    /* Replace the final [] with an open array. */
-    body[prefix_len - 2] = 0;
-    strcat(body, "[");
 
     int count = 0;
     long long last_scanned_rowid = cursor;
@@ -613,7 +620,7 @@ int main(void) {
     if (mkdir_state_dir() < 0)
         return EXIT_FAILURE;
 
-    log_msg("[SaveState] activity logger starting\n");
+    log_msg("[SaveState TLS-BYPASS TEST v1] activity logger starting\n");
 
     if (load_config(&cfg) < 0) {
         log_msg("[SaveState] configuration invalid; exiting\n");
