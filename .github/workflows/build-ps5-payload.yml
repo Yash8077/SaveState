@@ -34,7 +34,7 @@ jobs:
       - name: Fetch SQLite amalgamation
         working-directory: ps5/activity_logger
         run: |
-          curl -sSL -o sqlite.zip https://sqlite.org/2025/sqlite-amalgamation-3450000.zip
+          curl -sSL -o sqlite.zip https://sqlite.org/2024/sqlite-amalgamation-3450000.zip
           
           # Verify the file is a valid zip
           if ! unzip -t sqlite.zip > /dev/null 2>&1; then
