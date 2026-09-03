@@ -4,8 +4,8 @@
 with matches as (
   select
     ge.id,
-    min(substr(e.created_date, 1, 10)) as first_session,
-    max(substr(e.created_date, 1, 10)) as last_session
+    min(substr(e.created_date, 1, 10)::date) as first_session,
+    max(substr(e.created_date, 1, 10)::date) as last_session
   from game_entries ge
   join ps5_activity_events e
     on e.user_id = ge.user_id
@@ -29,8 +29,8 @@ with matches as (
   group by ge.id
 )
 update game_entries ge
-   set started_at = matches.first_session,
-       finished_at = matches.last_session,
+   set started_at = matches.first_session::date,
+       finished_at = matches.last_session::date,
        updated_at = now()
   from matches
  where ge.id = matches.id;
@@ -64,15 +64,15 @@ begin
      limit 1
   ), session_bounds as (
     select
-      min(substr(e.created_date, 1, 10)) as first_session,
-      max(substr(e.created_date, 1, 10)) as last_session
+      min(substr(e.created_date, 1, 10)::date) as first_session,
+      max(substr(e.created_date, 1, 10)::date) as last_session
     from ps5_activity_events e
    where e.user_id = new.user_id
      and e.title_id = new.title_id
   )
   update game_entries ge
-     set started_at = session_bounds.first_session,
-         finished_at = session_bounds.last_session,
+     set started_at = session_bounds.first_session::date,
+         finished_at = session_bounds.last_session::date,
          updated_at = now()
     from matched_library, session_bounds
    where ge.id = matched_library.id;
@@ -102,8 +102,8 @@ begin
 
   with matched_activity as (
     select
-      min(substr(e.created_date, 1, 10)) as first_session,
-      max(substr(e.created_date, 1, 10)) as last_session
+      min(substr(e.created_date, 1, 10)::date) as first_session,
+      max(substr(e.created_date, 1, 10)::date) as last_session
     from ps5_activity_events e
     join lateral (
       select t.name
@@ -125,8 +125,8 @@ begin
    where e.user_id = new.user_id
   )
   update game_entries ge
-     set started_at = matched_activity.first_session,
-         finished_at = matched_activity.last_session,
+     set started_at = matched_activity.first_session::date,
+         finished_at = matched_activity.last_session::date,
          updated_at = now()
     from matched_activity
    where ge.id = new.id
