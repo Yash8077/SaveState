@@ -355,7 +355,8 @@ static int post_json(const struct config *cfg, const char *body, size_t body_len
 
     rc = sceHttp2SendRequest(req, body, body_len);
     if (rc < 0) {
-        log_msg("[SaveState] sceHttp2SendRequest failed: %d\n", rc);
+        log_msg("[SaveState] sceHttp2SendRequest failed: %d (0x%08X)\n",
+                rc, (unsigned int)rc);
         goto fail;
     }
 
@@ -459,17 +460,13 @@ static int sync_once(const struct config *cfg) {
     char body[128 * 1024];
     int prefix_len = snprintf(
         body, sizeof(body),
-        "{\"schemaVersion\":1,\"deviceId\":\"%s\",\"events\":[]}",
+        "{\"schemaVersion\":1,\"deviceId\":\"%s\",\"events\":[",
         cfg->device_id);
 
     if (prefix_len < 0 || (size_t)prefix_len >= sizeof(body)) {
         log_msg("[SaveState] request buffer too small\n");
         goto fail;
     }
-
-    /* Replace the final [] with an open array. */
-    body[prefix_len - 2] = 0;
-    strcat(body, "[");
 
     int count = 0;
     long long last_scanned_rowid = cursor;
