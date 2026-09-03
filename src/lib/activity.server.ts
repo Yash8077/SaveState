@@ -25,7 +25,9 @@ export async function createPs5Device(sql: Sql, userId: string, name = "PS5") {
 export async function listPs5Devices(sql: Sql, userId: string) {
   return sql.query(
     `select id, name, created_at::text as "createdAt", last_seen_at::text as "lastSeenAt"
-       from ps5_devices where user_id = $1 order by created_at desc`,
+       from ps5_devices
+      where user_id = $1
+      order by created_at desc`,
     [userId],
   );
 }
@@ -54,7 +56,15 @@ export async function ingestPs5Activity(
        values ($1, $2, $3, $4, $5, $6, $7)
        on conflict (device_id, source_rowid) do nothing
        returning true as inserted`,
-      [device.userId, device.id, event.sourceRowid, event.titleId, event.titleName ?? null, event.createdDate, event.totalFgTime],
+      [
+        device.userId,
+        device.id,
+        event.sourceRowid,
+        event.titleId,
+        event.titleName ?? null,
+        event.createdDate,
+        event.totalFgTime,
+      ],
     );
     if (rows.length) accepted += 1;
     else duplicates += 1;
@@ -108,9 +118,24 @@ function libraryGameJoin(alias: string): string {
   ) lib on true`;
 }
 
-export async function getActivityDashboard(sql: Sql, userId: string, limit = 100): Promise<ActivityDashboard> {
+export async function getActivityDashboard(
+  sql: Sql,
+  userId: string,
+  limit = 100,
+  month?: string,
+): Promise<ActivityDashboard> {
   const safeLimit = Math.min(200, Math.max(1, limit));
   const platform = platformExpression();
+
+  const titleCount = await sql.query<{ count: number | string }>(
+    `select count(*)::bigint as count from playstation_titles`,
+  );
+
+  // Bootstrap the catalog on first use. Normal maintenance is handled by the weekly Vercel cron.
+  if (Number(titleCount[0]?.count ?? 0) === 0) {
+    const { syncPlayStationTitles } = await import("./playstation-titles.server");
+    await syncPlayStationTitles(sql);
+  }
 
   const totals = await sql.query<{
     seconds: number | string;
@@ -125,7 +150,8 @@ export async function getActivityDashboard(sql: Sql, userId: string, limit = 100
        from ps5_activity_events e
       where e.user_id = $1
         and exists (
-          select 1 from playstation_titles t
+          select 1
+            from playstation_titles t
            where t.platform = ${platform}
              and t.title_id = e.title_id
              and t.is_game = true
@@ -147,7 +173,15 @@ export async function getActivityDashboard(sql: Sql, userId: string, limit = 100
           where t.platform = ${platform}
             and t.title_id = e.title_id
             and t.is_game = true
-          order by case t.region when 'IN' then 0 when 'AS' then 1 when 'EP' then 2 when 'UP' then 3 when 'JP' then 4 else 5 end
+          order by case t.region
+                    when 'IN' then 0
+                    when 'AS' then 1
+                    when 'EP' then 2
+                    when 'UP' then 3
+                    when 'JP' then 4
+                    when 'HP' then 5
+                    else 6
+                   end
           limit 1
        ) t on true
        ${libraryGameJoin("t")}
@@ -172,7 +206,15 @@ export async function getActivityDashboard(sql: Sql, userId: string, limit = 100
           where t.platform = ${platform}
             and t.title_id = e.title_id
             and t.is_game = true
-          order by case t.region when 'IN' then 0 when 'AS' then 1 when 'EP' then 2 when 'UP' then 3 when 'JP' then 4 else 5 end
+          order by case t.region
+                    when 'IN' then 0
+                    when 'AS' then 1
+                    when 'EP' then 2
+                    when 'UP' then 3
+                    when 'JP' then 4
+                    when 'HP' then 5
+                    else 6
+                   end
           limit 1
        ) t on true
        ${libraryGameJoin("t")}
@@ -183,6 +225,7 @@ export async function getActivityDashboard(sql: Sql, userId: string, limit = 100
     [userId, safeLimit],
   );
 
+  const monthFilter = month ? `and substr(e.created_date, 1, 7) = $2` : "";
   const daily = await sql.query(
     `select substr(e.created_date, 1, 10) as date,
             e.title_id as "titleId",
@@ -197,14 +240,23 @@ export async function getActivityDashboard(sql: Sql, userId: string, limit = 100
           where t.platform = ${platform}
             and t.title_id = e.title_id
             and t.is_game = true
-          order by case t.region when 'IN' then 0 when 'AS' then 1 when 'EP' then 2 when 'UP' then 3 when 'JP' then 4 else 5 end
+          order by case t.region
+                    when 'IN' then 0
+                    when 'AS' then 1
+                    when 'EP' then 2
+                    when 'UP' then 3
+                    when 'JP' then 4
+                    when 'HP' then 5
+                    else 6
+                   end
           limit 1
        ) t on true
       where e.user_id = $1
+        ${monthFilter}
       group by substr(e.created_date, 1, 10), e.title_id
       order by date desc, seconds desc
-      limit $2`,
-    [userId, safeLimit * 30],
+      limit 5000`,
+    month ? [userId, month] : [userId],
   );
 
   const t = totals[0] ?? { seconds: 0, sessions: 0, games: 0, days: 0 };
@@ -216,7 +268,15 @@ export async function getActivityDashboard(sql: Sql, userId: string, limit = 100
       days: Number(t.days),
     },
     recent: recent.map((row) => ({ ...row, seconds: Number(row.seconds) })) as ActivityDashboard["recent"],
-    games: games.map((row) => ({ ...row, seconds: Number(row.seconds), sessions: Number(row.sessions) })) as ActivityDashboard["games"],
-    daily: daily.map((row) => ({ ...row, seconds: Number(row.seconds), sessions: Number(row.sessions) })) as ActivityDashboard["daily"],
+    games: games.map((row) => ({
+      ...row,
+      seconds: Number(row.seconds),
+      sessions: Number(row.sessions),
+    })) as ActivityDashboard["games"],
+    daily: daily.map((row) => ({
+      ...row,
+      seconds: Number(row.seconds),
+      sessions: Number(row.sessions),
+    })) as ActivityDashboard["daily"],
   };
 }

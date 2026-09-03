@@ -27,8 +27,13 @@ export type WebActivity = {
   }>;
 };
 
-export async function getActivity(signal?: AbortSignal): Promise<WebActivity> {
-  const response = await fetch("/api/activity?limit=100", {
+export async function getActivity(
+  signal?: AbortSignal,
+  month?: string,
+): Promise<WebActivity> {
+  const params = new URLSearchParams({ limit: "200" });
+  if (month) params.set("month", month);
+  const response = await fetch(`/api/activity?${params.toString()}`, {
     signal,
     headers: { Accept: "application/json" },
   });
