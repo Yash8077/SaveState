@@ -23,7 +23,6 @@ def main() -> None:
     encoded = required("SAVESTATE_KEYSTORE_BASE64")
     store_password = required("SAVESTATE_KEYSTORE_PASSWORD")
     key_alias = required("SAVESTATE_KEY_ALIAS")
-    key_password = required("SAVESTATE_KEY_PASSWORD")
 
     try:
         keystore = base64.b64decode(encoded, validate=True)
@@ -42,7 +41,7 @@ def main() -> None:
         "\n".join(
             [
                 f"storePassword={store_password}",
-                f"keyPassword={key_password}",
+                f"keyPassword={store_password}",
                 f"keyAlias={key_alias}",
                 "storeFile=savestate-release.jks",
                 "",
