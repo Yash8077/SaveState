@@ -915,14 +915,24 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                 child: Ink(
                   decoration: BoxDecoration(
                     color: selected
-                        ? scheme.primaryContainer
+                        ? scheme.primaryContainer.withOpacity(0.78)
                         : scheme.surfaceContainer,
                     borderRadius: BorderRadius.circular(11),
                     border: Border.all(
                       color: selected
                           ? scheme.primary
                           : scheme.outlineVariant.withOpacity(0.15),
+                      width: selected ? 2.5 : 1,
                     ),
+                    boxShadow: selected
+                        ? [
+                            BoxShadow(
+                              color: scheme.primary.withOpacity(0.22),
+                              blurRadius: 0,
+                              spreadRadius: 1,
+                            ),
+                          ]
+                        : const [],
                   ),
                   child: Stack(
                     children: [
