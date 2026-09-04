@@ -313,23 +313,32 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
 
   Widget _chip(ColorScheme cs, String label, int value) {
     return Container(
+      height: 42,
       margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
+        color: cs.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: cs.outlineVariant.withOpacity(0.28),
+        ),
       ),
       child: Text.rich(
         TextSpan(
           text: label,
-          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+          style: TextStyle(
+            color: cs.onSurfaceVariant,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
           children: [
             TextSpan(
-              text: ' $value',
+              text: '  $value',
               style: TextStyle(
                 color: cs.onSurface,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
               ),
             ),
           ],

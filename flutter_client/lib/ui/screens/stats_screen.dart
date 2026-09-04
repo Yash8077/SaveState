@@ -575,7 +575,6 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
     ColorScheme scheme,
   ) {
     final games = _games.take(8).toList();
-    final totalSeconds = (_totals['seconds'] as num?)?.toInt() ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -614,10 +613,6 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                 final game = games[index];
                 final cover = _cover(game);
                 final seconds = (game['seconds'] as num?)?.toInt() ?? 0;
-                final share = totalSeconds == 0
-                    ? 0.0
-                    : (seconds / totalSeconds).clamp(0.08, 1.0);
-
                 return SizedBox(
                   width: 138,
                   child: InkWell(
@@ -698,18 +693,9 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                                   Text(
                                     _duration(seconds),
                                     style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(99),
-                                    child: LinearProgressIndicator(
-                                      minHeight: 3,
-                                      value: share,
-                                      backgroundColor: Colors.white24,
                                       color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ],
@@ -967,7 +953,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                             ),
                             if (seconds > 0)
                               Text(
-                                _compactDuration(seconds),
+                                _calendarDuration(seconds),
                                 maxLines: 1,
                                 overflow: TextOverflow.clip,
                                 style: TextStyle(
@@ -981,22 +967,6 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                           ],
                         ),
                       ),
-                      if (seconds > 0)
-                        Positioned(
-                          left: 7,
-                          right: 7,
-                          bottom: mobile ? 4 : 3,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(99),
-                            child: LinearProgressIndicator(
-                              minHeight: 2.5,
-                              value: ratio,
-                              backgroundColor:
-                                  scheme.surfaceContainerHighest,
-                              color: scheme.primary,
-                            ),
-                          ),
-                        ),
                       // Draw the selection outside the cell's content so the
                       // selected date never becomes smaller when the outline
                       // appears. The color follows the app's Material scheme.
@@ -1026,10 +996,21 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
   }
 
   String _compactDuration(int seconds) {
+    if (seconds < 60) return '${seconds}s';
     final minutes = seconds ~/ 60;
     if (minutes < 60) return '${minutes}m';
     final hours = minutes ~/ 60;
-    return '${hours}h';
+    final remainder = minutes % 60;
+    return remainder == 0 ? '${hours}h' : '${hours}h ${remainder}m';
+  }
+
+  // Calendar cells use a compact representation. The selected-day section
+  // keeps the exact duration, so hour-plus values do not get cramped.
+  String _calendarDuration(int seconds) {
+    if (seconds < 60) return '${seconds}s';
+    final minutes = seconds ~/ 60;
+    if (minutes < 60) return '${minutes}m';
+    return '${minutes ~/ 60}h+';
   }
 
   Widget _selectedDay(
