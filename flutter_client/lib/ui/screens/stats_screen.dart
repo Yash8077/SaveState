@@ -37,7 +37,18 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
   void onAuthReady(bool signedIn) {
     if (signedIn) {
       _fetchInitial();
+      return;
     }
+
+    // AuthReadyLoad waits until AuthController has restored the session.
+    // If the restored state is signed out, do not leave the screen in the
+    // initial loading state indefinitely.
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+      _isAuthError = true;
+      _errorMessage = '';
+    });
   }
 
   Future<void> _fetchInitial() async {
@@ -919,20 +930,9 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                         : scheme.surfaceContainer,
                     borderRadius: BorderRadius.circular(11),
                     border: Border.all(
-                      color: selected
-                          ? scheme.primary
-                          : scheme.outlineVariant.withOpacity(0.15),
-                      width: selected ? 2.5 : 1,
+                      color: scheme.outlineVariant.withOpacity(0.15),
+                      width: 1,
                     ),
-                    boxShadow: selected
-                        ? [
-                            BoxShadow(
-                              color: scheme.primary.withOpacity(0.22),
-                              blurRadius: 0,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                        : const [],
                   ),
                   child: Stack(
                     children: [
@@ -994,6 +994,23 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                               backgroundColor:
                                   scheme.surfaceContainerHighest,
                               color: scheme.primary,
+                            ),
+                          ),
+                        ),
+                      // Draw the selection outside the cell's content so the
+                      // selected date never becomes smaller when the outline
+                      // appears. The color follows the app's Material scheme.
+                      if (selected)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: scheme.primary,
+                                  width: 2.5,
+                                ),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
                             ),
                           ),
                         ),
