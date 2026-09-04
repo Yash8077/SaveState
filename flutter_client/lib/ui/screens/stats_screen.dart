@@ -952,17 +952,11 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                               ),
                             ),
                             if (seconds > 0)
-                              Text(
-                                _calendarDuration(seconds),
-                                maxLines: 1,
-                                overflow: TextOverflow.clip,
-                                style: TextStyle(
-                                  fontSize: mobile ? 10 : 8,
-                                  fontWeight: FontWeight.w800,
-                                  color: selected
-                                      ? scheme.onPrimaryContainer
-                                      : scheme.onSurfaceVariant,
-                                ),
+                              _calendarDurationText(
+                                seconds,
+                                selected,
+                                scheme,
+                                mobile,
                               ),
                           ],
                         ),
@@ -1011,6 +1005,56 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
     final minutes = seconds ~/ 60;
     if (minutes < 60) return '${minutes}m';
     return '${minutes ~/ 60}h+';
+  }
+
+  Widget _calendarDurationText(
+    int seconds,
+    bool selected,
+    ColorScheme scheme,
+    bool mobile,
+  ) {
+    final text = _calendarDuration(seconds);
+    final baseSize = mobile ? 10.0 : 8.0;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        var fontSize = baseSize;
+        final minFontSize = 7.0;
+        final style = TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w800,
+          color: selected
+              ? scheme.onPrimaryContainer
+              : scheme.onSurfaceVariant,
+        );
+
+        var painter = TextPainter(
+          text: TextSpan(text: text, style: style),
+          maxLines: 1,
+          textDirection: TextDirection.ltr,
+        )..layout();
+
+        while (painter.width > constraints.maxWidth &&
+            fontSize > minFontSize) {
+          fontSize = (fontSize - 0.5).clamp(minFontSize, baseSize);
+          painter = TextPainter(
+            text: TextSpan(
+              text: text,
+              style: style.copyWith(fontSize: fontSize),
+            ),
+            maxLines: 1,
+            textDirection: TextDirection.ltr,
+          )..layout();
+        }
+
+        return Text(
+          text,
+          maxLines: 1,
+          softWrap: false,
+          style: style.copyWith(fontSize: fontSize),
+        );
+      },
+    );
   }
 
   Widget _selectedDay(

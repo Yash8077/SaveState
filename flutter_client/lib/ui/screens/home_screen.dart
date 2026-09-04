@@ -176,8 +176,6 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
         .where((e) => e.status == GameStatus.backlog)
         .map(_asCard)
         .toList();
-    final beaten = _library.where((e) => e.status == GameStatus.beaten).length;
-    final favorites = _library.where((e) => e.favorite).length;
     final wishlist = sortWishlist(
       _library.where((e) => e.status == GameStatus.wishlist),
     ).map(_asCard).toList();
@@ -214,22 +212,7 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
       if (!section.enabled) continue;
       switch (section.id) {
         case 'stats':
-          if (!signedIn) break;
-          out.add(
-            SizedBox(
-              height: 44,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: [
-                  _chip(cs, 'Playing', playing.length),
-                  _chip(cs, 'Beaten', beaten),
-                  _chip(cs, 'Backlog', backlog.length),
-                  _chip(cs, 'Favorites', favorites),
-                ],
-              ),
-            ),
-          );
+          // Home stats were removed; the rails below are the useful content.
           break;
         case 'playing':
           if (playing.isNotEmpty) {
@@ -309,42 +292,6 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
       );
     }
     return out;
-  }
-
-  Widget _chip(ColorScheme cs, String label, int value) {
-    return Container(
-      height: 42,
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: cs.outlineVariant.withOpacity(0.28),
-        ),
-      ),
-      child: Text.rich(
-        TextSpan(
-          text: label,
-          style: TextStyle(
-            color: cs.onSurfaceVariant,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-          children: [
-            TextSpan(
-              text: '  $value',
-              style: TextStyle(
-                color: cs.onSurface,
-                fontWeight: FontWeight.w800,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildErrorView(ColorScheme colorScheme) {
