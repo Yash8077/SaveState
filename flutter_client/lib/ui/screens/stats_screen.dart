@@ -735,25 +735,68 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
   }
 
   Widget _activityWide(ThemeData theme, ColorScheme scheme) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            flex: 6,
-            child: _calendar(theme, scheme),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The calendar occupies 6/11 of the wide activity surface. Its
+        // height is derived from the actual cell width and number of weeks,
+        // so every week remains inside the surface at any landscape width.
+        const dividerWidth = 1.0;
+        const calendarFlex = 6.0;
+        const detailsFlex = 5.0;
+        const calendarPadding = 20.0;
+        const gridSpacing = 5.0;
+        const cellAspectRatio = 1.16;
+
+        final contentWidth = constraints.maxWidth - dividerWidth;
+        final calendarWidth =
+            contentWidth * calendarFlex / (calendarFlex + detailsFlex);
+
+        final gridWidth =
+            (calendarWidth - calendarPadding * 2).clamp(0.0, double.infinity);
+
+        final first = DateTime(_month.year, _month.month, 1);
+        final leading = first.weekday - 1;
+        final days = DateTime(_month.year, _month.month + 1, 0).day;
+        final weekCount = ((leading + days) / 7).ceil();
+
+        final cellWidth =
+            ((gridWidth - gridSpacing * 6) / 7).clamp(0.0, double.infinity);
+        final cellHeight =
+            cellWidth == 0 ? 0.0 : cellWidth / cellAspectRatio;
+        final gridHeight =
+            weekCount * cellHeight + (weekCount - 1) * gridSpacing;
+
+        // _calendar uses 18px top/bottom padding, a ~40px navigation header,
+        // 12px spacing, weekday labels, and a 6px grid gap.
+        const calendarChromeHeight = 106.0;
+        final activityHeight =
+            (calendarChromeHeight + gridHeight).clamp(320.0, 720.0);
+
+        return SizedBox(
+          height: activityHeight,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 6,
+                child: _calendar(theme, scheme),
+              ),
+              Container(
+                width: dividerWidth,
+                margin: const EdgeInsets.symmetric(vertical: 18),
+                color: scheme.outlineVariant.withOpacity(0.2),
+              ),
+              Expanded(
+                flex: 5,
+                child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: _selectedDay(theme, scheme),
+                ),
+              ),
+            ],
           ),
-          Container(
-            width: 1,
-            margin: const EdgeInsets.symmetric(vertical: 18),
-            color: scheme.outlineVariant.withOpacity(0.2),
-          ),
-          Expanded(
-            flex: 5,
-            child: _selectedDay(theme, scheme),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
