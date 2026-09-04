@@ -1031,7 +1031,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
         var painter = TextPainter(
           text: TextSpan(text: text, style: style),
           maxLines: 1,
-          textDirection: TextDirection.ltr,
+          textDirection: Directionality.of(context),
         )..layout();
 
         while (painter.width > constraints.maxWidth &&
@@ -1043,7 +1043,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
               style: style.copyWith(fontSize: fontSize),
             ),
             maxLines: 1,
-            textDirection: TextDirection.ltr,
+            textDirection: Directionality.of(context),
           )..layout();
         }
 
