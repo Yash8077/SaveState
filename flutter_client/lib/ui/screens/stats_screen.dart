@@ -722,22 +722,18 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
     ColorScheme scheme,
     bool wide,
   ) {
-    if (wide) {
-      return _surface(
-        scheme,
-        Padding(
-          padding: EdgeInsets.zero,
-          child: _activityWide(theme, scheme),
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: scheme.outlineVariant.withOpacity(0.14),
         ),
-      );
-    }
-
-    return _surface(
-      scheme,
-      Padding(
-        padding: EdgeInsets.zero,
-        child: _activityCompact(theme, scheme),
       ),
+      clipBehavior: Clip.antiAlias,
+      child: wide
+          ? _activityWide(theme, scheme)
+          : _activityCompact(theme, scheme),
     );
   }
 
@@ -805,9 +801,17 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
     ).day;
 
     final monthBusy = _isMonthLoading;
+    final mobile = MediaQuery.sizeOf(context).width < 600;
+    final horizontalPadding = mobile ? 12.0 : 20.0;
+    final calendarSpacing = mobile ? 5.0 : 5.0;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
+      padding: EdgeInsets.fromLTRB(
+        horizontalPadding,
+        mobile ? 16 : 18,
+        horizontalPadding,
+        mobile ? 18 : 18,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -856,7 +860,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: mobile ? 12 : 12),
           Row(
             children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
                 .map(
@@ -865,7 +869,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                       child: Text(
                         day,
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: mobile ? 10 : 9,
                           fontWeight: FontWeight.w800,
                           color: scheme.onSurfaceVariant,
                         ),
@@ -875,17 +879,16 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                 )
                 .toList(),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: mobile ? 6 : 6),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: leading + days,
-            gridDelegate:
-                const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              crossAxisSpacing: 4,
-              mainAxisSpacing: 4,
-              childAspectRatio: 1.25,
+              crossAxisSpacing: calendarSpacing,
+              mainAxisSpacing: calendarSpacing,
+              childAspectRatio: mobile ? 0.88 : 1.16,
             ),
             itemBuilder: (context, index) {
               if (index < leading) {
@@ -937,7 +940,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                           ),
                         ),
                       Padding(
-                        padding: const EdgeInsets.all(6),
+                        padding: EdgeInsets.all(mobile ? 8 : 6),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -945,7 +948,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                             Text(
                               '$day',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: mobile ? 12 : 10,
                                 fontWeight: FontWeight.w800,
                                 color: selected
                                     ? scheme.onPrimaryContainer
@@ -958,7 +961,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                                 maxLines: 1,
                                 overflow: TextOverflow.clip,
                                 style: TextStyle(
-                                  fontSize: 8,
+                                  fontSize: mobile ? 10 : 8,
                                   fontWeight: FontWeight.w800,
                                   color: selected
                                       ? scheme.onPrimaryContainer
@@ -970,9 +973,9 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                       ),
                       if (seconds > 0)
                         Positioned(
-                          left: 6,
-                          right: 6,
-                          bottom: 3,
+                          left: 7,
+                          right: 7,
+                          bottom: mobile ? 4 : 3,
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(99),
                             child: LinearProgressIndicator(
@@ -1016,8 +1019,15 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
       (sum, row) => sum + ((row['seconds'] as num?)?.toInt() ?? 0),
     );
 
+    final mobile = MediaQuery.sizeOf(context).width < 600;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
+      padding: EdgeInsets.fromLTRB(
+        mobile ? 12 : 20,
+        mobile ? 20 : 18,
+        mobile ? 12 : 20,
+        mobile ? 20 : 18,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1025,6 +1035,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
             'Played that day',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
+              fontSize: mobile ? 19 : null,
             ),
           ),
           const SizedBox(height: 2),
@@ -1067,12 +1078,12 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
             const SizedBox(height: 9),
             ...rows.map(
               (row) => Padding(
-                padding: const EdgeInsets.only(bottom: 7),
+                padding: EdgeInsets.only(bottom: mobile ? 9 : 7),
                 child: InkWell(
                   onTap: () => _openGame(row),
                   borderRadius: BorderRadius.circular(15),
                   child: Ink(
-                    padding: const EdgeInsets.all(7),
+                    padding: EdgeInsets.all(mobile ? 9 : 7),
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainer,
                       borderRadius: BorderRadius.circular(15),
@@ -1080,7 +1091,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                     child: Row(
                       children: [
                         _thumb(row, scheme),
-                        const SizedBox(width: 9),
+                        const SizedBox(width: 11),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1090,8 +1101,8 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                                     'Unknown game',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 12,
+                                style: TextStyle(
+                                  fontSize: mobile ? 13 : 12,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -1136,12 +1147,14 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
 
   Widget _thumb(Map<String, dynamic> row, ColorScheme scheme) {
     final cover = _cover(row);
+    final mobile = MediaQuery.sizeOf(context).width < 600;
+    final size = mobile ? 52.0 : 44.0;
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(11),
+      borderRadius: BorderRadius.circular(mobile ? 13 : 11),
       child: SizedBox(
-        width: 44,
-        height: 44,
+        width: size,
+        height: size,
         child: cover != null
             ? CachedNetworkImage(
                 imageUrl: cover,
