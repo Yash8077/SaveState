@@ -63,6 +63,14 @@ jobs:
       - name: Install themed launcher icons
         run: python3 tool/apply_brand_icons.py
 
+      - name: Configure persistent release signing
+        env:
+          SAVESTATE_KEYSTORE_BASE64: ${{ secrets.SAVESTATE_KEYSTORE_BASE64 }}
+          SAVESTATE_KEYSTORE_PASSWORD: ${{ secrets.SAVESTATE_KEYSTORE_PASSWORD }}
+          SAVESTATE_KEY_ALIAS: ${{ secrets.SAVESTATE_KEY_ALIAS }}
+          SAVESTATE_KEY_PASSWORD: ${{ secrets.SAVESTATE_KEY_PASSWORD }}
+        run: python3 tool/configure_release_signing.py
+
       - name: Build APK
         run: >
           flutter build apk --release
@@ -72,8 +80,7 @@ jobs:
       - name: Package APK
         run: |
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk \
-            "dist/SaveState-1.0.${{ github.run_number }}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk             "dist/SaveState-1.0.${{ github.run_number }}.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
