@@ -93,7 +93,7 @@ function Discover() {
     <div className="space-y-5">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Discover</h1>
-        <p className="mt-1 text-sm text-muted">Find your next game.</p>
+        <p className="mt-1 text-sm text-muted">Explore something worth playing.</p>
       </header>
       <div className="relative">
         <Search className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-faint" />

@@ -295,31 +295,43 @@ function LibraryCard({ entry: e }: { entry: GameEntry }) {
   );
 }
 
+function homeGreeting(date: Date): { hello: string; subtitle: string } {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 12) {
+    return { hello: "Good morning", subtitle: "Another day, another adventure." };
+  }
+  if (hour >= 12 && hour < 17) {
+    return { hello: "Good afternoon", subtitle: "Pick up where you left off." };
+  }
+  if (hour >= 17 && hour < 21) {
+    return { hello: "Good evening", subtitle: "Time to settle in and play." };
+  }
+  if (hour >= 21 && hour < 24) {
+    return { hello: "Good night", subtitle: "End the day with a good game." };
+  }
+  return { hello: "Night owl", subtitle: "Keep the adventure going." };
+}
+
 function HomeHello({
   name,
 }: {
   name?: string;
 }) {
-  const hour = new Date().getHours();
-  const hello =
-    hour >= 5 && hour < 12
-      ? "Rise and shine"
-      : hour >= 12 && hour < 17
-        ? "Happy snacking"
-        : hour >= 17 && hour < 21
-          ? "Keep it chill"
-          : "You're up late";
+  const { hello, subtitle } = homeGreeting(new Date());
   return (
     <div className="flex items-center gap-2">
-      <p className="min-w-0 flex-1 truncate text-2xl font-medium tracking-tight">
-        {hello}
-        {name ? (
-          <>
-            {" "}
-            <span className="text-accent">{name}</span>
-          </>
-        ) : null}
-      </p>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-2xl font-medium tracking-tight">
+          {hello}
+          {name ? (
+            <>
+              {", "}
+              <span className="text-accent">{name}</span>
+            </>
+          ) : null}
+        </p>
+        <p className="mt-0.5 truncate text-sm text-muted">{subtitle}</p>
+      </div>
       <Link
         to="/discover"
         search={{ q: "", focus: true }}

@@ -199,64 +199,91 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        title: Row(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
           children: [
-            const Text(
-              'Library',
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5),
-            ),
-            if (!_isLoading && _errorMessage.isEmpty && _entries.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${_entries.length}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onSurfaceVariant,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 8, 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Library',
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            if (!_isLoading && _errorMessage.isEmpty && _entries.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${_entries.length}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Every game you own, one shelf.',
+                          style: TextStyle(
+                            color: colorScheme.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        actions: [
-          PopupMenuButton<_LibrarySort>(
-            tooltip: 'Sort',
-            initialValue: _sort,
-            icon: const Icon(Icons.sort_rounded),
-            onSelected: (value) => setState(() => _sort = value),
-            itemBuilder: (context) => [
-              for (final option in _LibrarySort.values)
-                PopupMenuItem(
-                  value: option,
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 24,
-                        child: _sort == option
-                            ? Icon(Icons.check_rounded,
-                                size: 18, color: colorScheme.primary)
-                            : null,
-                      ),
-                      Text(option.label),
+                  PopupMenuButton<_LibrarySort>(
+                    tooltip: 'Sort',
+                    initialValue: _sort,
+                    icon: const Icon(Icons.sort_rounded),
+                    onSelected: (value) => setState(() => _sort = value),
+                    itemBuilder: (context) => [
+                      for (final option in _LibrarySort.values)
+                        PopupMenuItem(
+                          value: option,
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                child: _sort == option
+                                    ? Icon(Icons.check_rounded,
+                                        size: 18, color: colorScheme.primary)
+                                    : null,
+                              ),
+                              Text(option.label),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
-                ),
-            ],
-          ),
-        ],
+                ],
+              ),
+            ),
+            Expanded(child: _buildBody(theme, colorScheme)),
+          ],
+        ),
       ),
-      body: _buildBody(theme, colorScheme),
     );
   }
 

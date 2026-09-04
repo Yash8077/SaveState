@@ -221,15 +221,41 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
 
     return Scaffold(
       backgroundColor: scheme.surface,
-      appBar: AppBar(
-        title: const Text(
-          'Stats',
-          style: TextStyle(fontWeight: FontWeight.bold),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Stats',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Every hour, tracked and told.',
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(child: _buildBody(theme, scheme)),
+          ],
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
       ),
-      body: _buildBody(theme, scheme),
     );
   }
 

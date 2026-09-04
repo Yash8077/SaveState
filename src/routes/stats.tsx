@@ -230,7 +230,11 @@ function StatsPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-7 pb-12">
-      <header><p className="text-xs font-medium uppercase tracking-[0.2em] text-faint">Play history</p><h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Your gaming life, recorded.</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Actual PlayStation sessions power your playtime, dates, and activity timeline.</p></header>
+      <header>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Stats</h1>
+        <p className="mt-1 text-sm text-muted">Every hour, tracked and told.</p>
+      </header>
+      <div><p className="text-xs font-medium uppercase tracking-[0.2em] text-faint">Play history</p><h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Your gaming life, recorded.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Actual PlayStation sessions power your playtime, dates, and activity timeline.</p></div>
       <section className="relative overflow-hidden rounded-[2rem] bg-elevated p-5 sm:p-7">
         {games[0]?.headerUrl ? <img src={games[0].headerUrl} alt="" referrerPolicy="no-referrer" className="absolute inset-0 size-full object-cover opacity-20 blur-[1px]" /> : null}
         <div className="absolute inset-0 bg-gradient-to-r from-elevated via-elevated/90 to-elevated/55" />
