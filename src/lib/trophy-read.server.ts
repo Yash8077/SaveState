@@ -254,7 +254,7 @@ async function findPlaystationIdentities(
   }
 
   const rows = await sql.query<PlaystationIdentity>(
-    `select distinct t.platform, t.title_id as "titleId"
+    `select t.platform, t.title_id as "titleId"
        from playstation_titles t
       where t.is_game = true
         and (${clauses.join(" or ")})
@@ -308,7 +308,7 @@ async function findPlaystationCandidates(
   }
 
   return sql.query<PlaystationIdentity & { name: string }>(
-    `select distinct t.platform, t.title_id as "titleId", t.name
+    `select t.platform, t.title_id as "titleId", t.name
        from playstation_titles t
       where t.is_game = true
         and t.platform = $1
