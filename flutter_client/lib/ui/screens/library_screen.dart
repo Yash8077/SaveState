@@ -222,10 +222,15 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
                                 letterSpacing: -0.5,
                               ),
                             ),
-                            if (!_isLoading && _errorMessage.isEmpty && _entries.isNotEmpty) ...[
+                            if (!_isLoading &&
+                                _errorMessage.isEmpty &&
+                                _entries.isNotEmpty) ...[
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(12),
@@ -253,48 +258,61 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
                       ],
                     ),
                   ),
-                  PopupMenuButton<_LibrarySort>(
-                    tooltip: 'Sort',
-                    initialValue: _sort,
-                    icon: const Icon(Icons.sort_rounded),
-                    color: colorScheme.surfaceContainerHigh,
-                    surfaceTintColor: Colors.transparent,
-                    elevation: 6,
-                    shadowColor: Colors.black.withOpacity(0.4),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      side: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.3)),
-                    ),
-                    padding: EdgeInsets.zero,
-                    onSelected: (value) => setState(() => _sort = value),
-                    itemBuilder: (context) => [
-                      for (final option in _LibrarySort.values)
-                        PopupMenuItem(
-                          value: option,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 22,
-                                child: _sort == option
-                                    ? Icon(Icons.check_rounded,
-                                        size: 18, color: colorScheme.primary)
-                                    : null,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                option.label,
-                                style: TextStyle(
-                                  fontWeight: _sort == option ? FontWeight.w600 : FontWeight.w400,
-                                  color: _sort == option
-                                      ? colorScheme.primary
-                                      : colorScheme.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 46),
+                    child: PopupMenuButton<_LibrarySort>(
+                      tooltip: 'Sort',
+                      initialValue: _sort,
+                      icon: const Icon(Icons.sort_rounded),
+                      color: colorScheme.surfaceContainerHigh,
+                      surfaceTintColor: Colors.transparent,
+                      elevation: 6,
+                      shadowColor: Colors.black.withOpacity(0.4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        side: BorderSide(
+                          color: colorScheme.outlineVariant.withOpacity(0.3),
                         ),
-                    ],
+                      ),
+                      padding: EdgeInsets.zero,
+                      onSelected: (value) => setState(() => _sort = value),
+                      itemBuilder: (context) => [
+                        for (final option in _LibrarySort.values)
+                          PopupMenuItem(
+                            value: option,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 22,
+                                  child: _sort == option
+                                      ? Icon(
+                                          Icons.check_rounded,
+                                          size: 18,
+                                          color: colorScheme.primary,
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  option.label,
+                                  style: TextStyle(
+                                    fontWeight: _sort == option
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                    color: _sort == option
+                                        ? colorScheme.primary
+                                        : colorScheme.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -369,7 +387,10 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
                 icon: const Icon(Icons.login_rounded, size: 18),
                 label: const Text('Sign In'),
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -575,7 +596,8 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
                     : colorScheme.onSurfaceVariant,
               ),
             ),
-            backgroundColor: colorScheme.surfaceContainerHigh.withOpacity(0.6),
+            backgroundColor:
+                colorScheme.surfaceContainerHigh.withOpacity(0.6),
             selectedColor: colorScheme.secondaryContainer,
             side: BorderSide(
               color: isSelected
@@ -598,7 +620,10 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
     );
   }
 
-  Widget _buildEmptyFilteredState(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildEmptyFilteredState(
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
     final statusName = _selectedStatus != null
         ? _getStatusLabel(_selectedStatus!)
         : 'selected';
@@ -617,7 +642,9 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                searching ? Icons.search_off_rounded : Icons.filter_list_off_rounded,
+                searching
+                    ? Icons.search_off_rounded
+                    : Icons.filter_list_off_rounded,
                 size: 40,
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -648,7 +675,8 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
   Widget _buildGameGrid(List<GameEntry> entries, ColorScheme colorScheme) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = math.max(2, (constraints.maxWidth / 148).floor()).clamp(2, 8);
+        final columns =
+            math.max(2, (constraints.maxWidth / 148).floor()).clamp(2, 8);
         return GridView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
@@ -659,249 +687,255 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
             mainAxisSpacing: 12,
           ),
           itemCount: entries.length,
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        final statusColor = _getStatusColor(entry.status);
-        final statusLabel = _getStatusLabel(entry.status);
-        final formattedCoverUrl = entry.coverUrl != null
-            ? (normalizeArtUrl(entry.coverUrl) ?? '')
-            : (normalizeArtUrl(entry.headerUrl) ?? '');
+          itemBuilder: (context, index) {
+            final entry = entries[index];
+            final statusColor = _getStatusColor(entry.status);
+            final statusLabel = _getStatusLabel(entry.status);
+            final formattedCoverUrl = entry.coverUrl != null
+                ? (normalizeArtUrl(entry.coverUrl) ?? '')
+                : (normalizeArtUrl(entry.headerUrl) ?? '');
 
-        return Card(
-          margin: EdgeInsets.zero,
-          elevation: 0,
-          color: colorScheme.surfaceContainer,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: colorScheme.outlineVariant.withOpacity(0.2),
-              width: 1,
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () => openGameId(
-              context,
-              entry.catalogId,
-              title: entry.title,
-              coverUrl: entry.coverUrl,
-              headerUrl: entry.headerUrl,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      formattedCoverUrl.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: formattedCoverUrl,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
-                                color: colorScheme.surfaceContainerHighest,
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: M3Loading(
-                                      size: 24,
-                                      color: colorScheme.primary.withOpacity(0.6),
+            return Card(
+              margin: EdgeInsets.zero,
+              elevation: 0,
+              color: colorScheme.surfaceContainer,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: colorScheme.outlineVariant.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => openGameId(
+                  context,
+                  entry.catalogId,
+                  title: entry.title,
+                  coverUrl: entry.coverUrl,
+                  headerUrl: entry.headerUrl,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          formattedCoverUrl.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: formattedCoverUrl,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => Container(
+                                    color:
+                                        colorScheme.surfaceContainerHighest,
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: M3Loading(
+                                          size: 24,
+                                          color: colorScheme.primary
+                                              .withOpacity(0.6),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) =>
+                                      Container(
+                                    color:
+                                        colorScheme.surfaceContainerHighest,
+                                    child: Center(
+                                      child: Icon(
+                                        Icons.videogame_asset_outlined,
+                                        size: 36,
+                                        color: colorScheme.onSurfaceVariant
+                                            .withOpacity(0.4),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Container(
+                                  color: colorScheme.surfaceContainerHighest,
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.videogame_asset_outlined,
+                                      size: 36,
+                                      color: colorScheme.onSurfaceVariant
+                                          .withOpacity(0.4),
                                     ),
                                   ),
                                 ),
+                          // Top gradient for badge contrast
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: 48,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.black.withOpacity(0.5),
+                                    Colors.transparent,
+                                  ],
+                                ),
                               ),
-                              errorWidget: (context, url, error) => Container(
-                                color: colorScheme.surfaceContainerHighest,
-                                child: Center(
-                                  child: Icon(
-                                    Icons.videogame_asset_outlined,
-                                    size: 36,
-                                    color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+                            ),
+                          ),
+                          // Status badge
+                          Positioned(
+                            top: 8,
+                            left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xE60F172A),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: statusColor.withOpacity(0.6),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: statusColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    statusLabel,
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          // Favorite indicator if favorited
+                          if (entry.favorite)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xE60F172A),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.pinkAccent.withOpacity(0.6),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.favorite_rounded,
+                                  size: 12,
+                                  color: Colors.pinkAccent,
+                                ),
+                              ),
+                            ),
+                          if (entry.metacritic != null)
+                            RatingBadge(score: entry.metacritic!),
+                          // Score pill if present
+                          if (entry.score != null && entry.score! > 0)
+                            Positioned(
+                              bottom: 8,
+                              left: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xE60F172A),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: Colors.amber.withOpacity(0.5),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  '★ ${entry.score}',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber,
                                   ),
                                 ),
                               ),
-                            )
-                          : Container(
-                              color: colorScheme.surfaceContainerHighest,
-                              child: Center(
-                                child: Icon(
-                                  Icons.videogame_asset_outlined,
-                                  size: 36,
-                                  color: colorScheme.onSurfaceVariant.withOpacity(0.4),
-                                ),
-                              ),
                             ),
-                      // Top gradient for badge contrast
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: 48,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.black.withOpacity(0.5),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Status badge
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xE60F172A), // Dark translucent
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: statusColor.withOpacity(0.6),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: statusColor,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                statusLabel,
-                                style: const TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // Favorite indicator if favorited
-                      if (entry.favorite)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xE60F172A),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.pinkAccent.withOpacity(0.6),
-                                width: 1,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.favorite_rounded,
-                              size: 12,
-                              color: Colors.pinkAccent,
-                            ),
-                          ),
-                        ),
-                      if (entry.metacritic != null)
-                        RatingBadge(score: entry.metacritic!),
-                      // Score pill if present
-                      if (entry.score != null && entry.score! > 0)
-                        Positioned(
-                          bottom: 8,
-                          left: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xE60F172A),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: Colors.amber.withOpacity(0.5),
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              '★ ${entry.score}',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.amber,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        entry.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          height: 1.25,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          if (entry.hours != null && entry.hours! > 0) ...[
-                            Icon(
-                              Icons.schedule_rounded,
-                              size: 12,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              '${entry.hours}h',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ] else ...[
-                            Text(
-                              statusLabel,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            entry.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              height: 1.25,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              if (entry.hours != null && entry.hours! > 0) ...[
+                                Icon(
+                                  Icons.schedule_rounded,
+                                  size: 12,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '${entry.hours}h',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ] else ...[
+                                Text(
+                                  statusLabel,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
-      },
-    );
       },
     );
   }

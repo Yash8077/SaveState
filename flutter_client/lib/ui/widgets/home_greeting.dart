@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
 import '../../state/auth_controller.dart';
 
 class HomeGreeting extends StatelessWidget {
@@ -10,18 +11,33 @@ class HomeGreeting extends StatelessWidget {
   static ({String hello, String subtitle}) greeting([DateTime? now]) {
     final hour = (now ?? DateTime.now()).hour;
     if (hour >= 5 && hour < 12) {
-      return (hello: 'Good morning', subtitle: 'Another day, another adventure.');
+      return (
+        hello: 'Good morning',
+        subtitle: 'Another day, another adventure.',
+      );
     }
     if (hour >= 12 && hour < 17) {
-      return (hello: 'Good afternoon', subtitle: 'Pick up where you left off.');
+      return (
+        hello: 'Good afternoon',
+        subtitle: 'Pick up where you left off.',
+      );
     }
     if (hour >= 17 && hour < 21) {
-      return (hello: 'Good evening', subtitle: 'Time to settle in and play.');
+      return (
+        hello: 'Good evening',
+        subtitle: 'Time to settle in and play.',
+      );
     }
     if (hour >= 21 && hour < 24) {
-      return (hello: 'Good night', subtitle: 'End the day with a good game.');
+      return (
+        hello: 'Good night',
+        subtitle: 'End the day with a good game.',
+      );
     }
-    return (hello: 'Night owl', subtitle: 'Keep the adventure going.');
+    return (
+      hello: 'Night owl',
+      subtitle: 'Keep the adventure going.',
+    );
   }
 
   @override
@@ -74,10 +90,16 @@ class HomeGreeting extends StatelessWidget {
               ],
             ),
           ),
-          IconButton.filledTonal(
-            tooltip: 'Search',
-            onPressed: () => context.go('/discover?focus=1'),
-            icon: const Icon(Icons.search_rounded),
+
+          // AppShell owns the avatar at the far right. Leave its slot here
+          // so Search sits on the exact same header line without overlapping.
+          Padding(
+            padding: const EdgeInsets.only(right: 46),
+            child: IconButton.filledTonal(
+              tooltip: 'Search',
+              onPressed: () => context.go('/discover?focus=1'),
+              icon: const Icon(Icons.search_rounded),
+            ),
           ),
         ],
       ),

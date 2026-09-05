@@ -70,6 +70,7 @@ class AppShell extends StatelessWidget {
     final index = _calculateSelectedIndex(context);
     final wide = MediaQuery.sizeOf(context).width >= 720;
     final pad = MediaQuery.paddingOf(context);
+
     final pill = PillNav(
       axis: wide ? Axis.vertical : Axis.horizontal,
       index: index,
@@ -95,49 +96,42 @@ class AppShell extends StatelessWidget {
                 child: SafeArea(
                   top: true,
                   bottom: false,
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: const [
-                            AccountAvatarButton(size: 38),
-                          ],
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.035),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
                         ),
+                      );
+                    },
+                    child: KeyedSubtree(
+                      key: ValueKey(
+                        GoRouterState.of(context).uri.path,
                       ),
-                      const SizedBox(height: 4),
-                      Expanded(
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 280),
-                          switchInCurve: Curves.easeOutCubic,
-                          switchOutCurve: Curves.easeInCubic,
-                          transitionBuilder: (child, animation) {
-                            return FadeTransition(
-                              opacity: animation,
-                              child: SlideTransition(
-                                position: Tween<Offset>(
-                                  begin: const Offset(0, 0.035),
-                                  end: Offset.zero,
-                                ).animate(animation),
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: KeyedSubtree(
-                            key: ValueKey(
-                              GoRouterState.of(context).uri.path,
-                            ),
-                            child: child,
-                          ),
-                        ),
-                      ),
-                    ],
+                      child: child,
+                    ),
                   ),
                 ),
               ),
             ),
+
+            // The avatar belongs to the page header line rather than taking
+            // its own vertical row. Individual pages keep their title/action
+            // layout, while this stays fixed at the top-right.
+            Positioned(
+              top: pad.top + 8,
+              right: 16,
+              child: const AccountAvatarButton(size: 38),
+            ),
+
             Positioned(
               left: wide ? 12 : 0,
               right: wide ? null : 0,
