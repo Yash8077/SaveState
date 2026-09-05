@@ -1,0 +1,45 @@
+--- a/src/lib/api.ts
++++ b/src/lib/api.ts
+@@
+ export function getFeaturedRails(
+   signal?: AbortSignal,
+ ): Promise<FeaturedRail[]> {
+@@
+ }
++
++export type TrophyCounts = { earned: number; total: number };
++
++export type TrophyGameProgress = {
++  gameId: number;
++  catalogId: string;
++  title: string;
++  coverUrl: string | null;
++  headerUrl: string | null;
++  platform: "ps4" | "ps5";
++  titleId: string;
++  total: number;
++  earned: number;
++  percentage: number;
++  platinum: TrophyCounts;
++  gold: TrophyCounts;
++  silver: TrophyCounts;
++  bronze: TrophyCounts;
++  lastEarnedAt: string | null;
++};
++
++export type TrophySummary = {
++  total: number;
++  earned: number;
++  platinum: number;
++  gold: number;
++  silver: number;
++  bronze: number;
++  percentage: number;
++  games: number;
++};
++
++export function getTrophyProgress(
++  signal?: AbortSignal,
++): Promise<{ summary: TrophySummary; games: TrophyGameProgress[] }> {
++  return catalogGet(`/api/trophies/list`, signal);
++}

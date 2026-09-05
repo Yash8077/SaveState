@@ -7,6 +7,7 @@ import {
   House,
   Library,
   Search,
+  Trophy,
 } from "lucide-react";
 import { AccountMenu } from "@/components/account-menu";
 import { BrandMark } from "@/components/brand-mark";
@@ -17,6 +18,7 @@ const NAV = [
   { to: "/discover", label: "Discover", icon: Compass },
   { to: "/library", label: "Library", icon: Library },
   { to: "/stats", label: "Stats", icon: BarChart3 },
+  { to: "/trophies", label: "Trophies", icon: Trophy },
 ] as const;
 
 const TITLES: Record<string, string> = {
@@ -24,6 +26,7 @@ const TITLES: Record<string, string> = {
   "/discover": "Discover",
   "/library": "Library",
   "/stats": "Stats",
+  "/trophies": "Trophies",
   "/settings": "Settings",
   "/profile": "Profile",
 };
@@ -77,12 +80,9 @@ function NavItem({
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const pathname = useRouterState({
-    select: (s) => s.location.pathname,
-  });
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const router = useRouter();
   const isDetails = pathname.startsWith("/game/");
-  const isHome = pathname === "/";
 
   return (
     <div className="flex min-h-dvh bg-bg text-fg pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
@@ -95,17 +95,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           <BrandMark className="size-9" title="SaveState" />
         </Link>
         {NAV.map((item) => (
-          <NavItem
-            key={item.to}
-            {...item}
-            active={isActive(pathname, item.to)}
-            rail
-          />
+          <NavItem key={item.to} {...item} active={isActive(pathname, item.to)} rail />
         ))}
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {!isHome ? (
         <header className="sticky top-0 z-30 flex min-h-14 shrink-0 items-center gap-1 bg-bg/92 px-1 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:min-h-16 sm:px-3">
           {isDetails ? (
             <button
@@ -134,9 +128,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             <AccountMenu />
           </div>
         </header>
-        ) : (
-          <div className="h-[env(safe-area-inset-top)] shrink-0" />
-        )}
 
         <main className="mx-auto w-full max-w-[1400px] flex-1 px-3 pt-2 pb-[5.5rem] sm:px-5 sm:pt-3 min-[600px]:pb-6">
           {children}
@@ -146,11 +137,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <nav className="fixed inset-x-0 bottom-0 z-30 bg-elevated/95 backdrop-blur-md min-[600px]:hidden">
         <div className="flex w-full px-1 pt-1 pb-[max(0.35rem,env(safe-area-inset-bottom))]">
           {NAV.map((item) => (
-            <NavItem
-              key={item.to}
-              {...item}
-              active={isActive(pathname, item.to)}
-            />
+            <NavItem key={item.to} {...item} active={isActive(pathname, item.to)} />
           ))}
         </div>
       </nav>

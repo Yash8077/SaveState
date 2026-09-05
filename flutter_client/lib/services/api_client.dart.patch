@@ -1,0 +1,20 @@
+--- a/flutter_client/lib/services/api_client.dart
++++ b/flutter_client/lib/services/api_client.dart
+@@
+   Future<Map<String, dynamic>> getActivity({
+     bool force = false,
+     String? month,
+   }) async {
+@@
+     throw ApiException(500, 'Invalid activity response');
+   }
++
++  Future<Map<String, dynamic>> getTrophyProgress({bool force = false}) async {
+    // Trophy reads are intentionally fetched fresh when requested by the screen.
+    // Keep the named flag for parity with the other client read methods.
++    final decoded = await _send('GET', _u('/api/trophies/list'));
++    if (decoded is Map) return Map<String, dynamic>.from(decoded);
++    throw ApiException(500, 'Invalid trophy response');
++  }
+ 
+   Future<Map<String, dynamic>> createPs5Device({String name = 'PS5'}) async {

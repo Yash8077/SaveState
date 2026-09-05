@@ -5,6 +5,7 @@ import 'ui/screens/home_screen.dart';
 import 'ui/screens/discover_screen.dart';
 import 'ui/screens/library_screen.dart';
 import 'ui/screens/stats_screen.dart';
+import 'ui/screens/trophies_screen.dart';
 import 'ui/screens/login_screen.dart';
 import 'ui/screens/game_details_screen.dart';
 import 'ui/screens/settings_screen.dart';
@@ -14,13 +15,8 @@ import 'models/types.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 
-/// Tab pages stay in the shell; no extra stack entry, so Android back
-/// is handled by [AppShell] (inner tab → Home, Home → launcher).
 CustomTransitionPage<void> _tabPage(GoRouterState state, Widget child) {
-  return NoTransitionPage<void>(
-    key: state.pageKey,
-    child: child,
-  );
+  return NoTransitionPage<void>(key: state.pageKey, child: child);
 }
 
 final router = GoRouter(
@@ -28,24 +24,15 @@ final router = GoRouter(
   initialLocation: '/',
   routes: [
     ShellRoute(
-      builder: (context, state, child) {
-        return AppShell(child: child);
-      },
+      builder: (context, state, child) => AppShell(child: child),
       routes: [
-        GoRoute(
-          path: '/',
-          pageBuilder: (context, state) =>
-              _tabPage(state, const HomeScreen()),
-        ),
+        GoRoute(path: '/', pageBuilder: (context, state) => _tabPage(state, const HomeScreen())),
         GoRoute(
           path: '/discover',
-          pageBuilder: (context, state) => _tabPage(
-            state,
-            DiscoverScreen(
-              q: state.uri.queryParameters['q'],
-              focus: state.uri.queryParameters['focus'] == '1',
-            ),
-          ),
+          pageBuilder: (context, state) => _tabPage(state, DiscoverScreen(
+            q: state.uri.queryParameters['q'],
+            focus: state.uri.queryParameters['focus'] == '1',
+          )),
         ),
         GoRoute(
           path: '/search',
@@ -55,33 +42,14 @@ final router = GoRouter(
             return '/discover';
           },
         ),
-        GoRoute(
-          path: '/library',
-          pageBuilder: (context, state) =>
-              _tabPage(state, const LibraryScreen()),
-        ),
-        GoRoute(
-          path: '/stats',
-          pageBuilder: (context, state) =>
-              _tabPage(state, const StatsScreen()),
-        ),
+        GoRoute(path: '/library', pageBuilder: (context, state) => _tabPage(state, const LibraryScreen())),
+        GoRoute(path: '/stats', pageBuilder: (context, state) => _tabPage(state, const StatsScreen())),
+        GoRoute(path: '/trophies', pageBuilder: (context, state) => _tabPage(state, const TrophiesScreen())),
       ],
     ),
-    GoRoute(
-      path: '/login',
-      parentNavigatorKey: _rootKey,
-      builder: (context, state) => const LoginScreen(),
-    ),
-    GoRoute(
-      path: '/settings',
-      parentNavigatorKey: _rootKey,
-      builder: (context, state) => const SettingsScreen(),
-    ),
-    GoRoute(
-      path: '/profile',
-      parentNavigatorKey: _rootKey,
-      builder: (context, state) => const ProfileScreen(),
-    ),
+    GoRoute(path: '/login', parentNavigatorKey: _rootKey, builder: (context, state) => const LoginScreen()),
+    GoRoute(path: '/settings', parentNavigatorKey: _rootKey, builder: (context, state) => const SettingsScreen()),
+    GoRoute(path: '/profile', parentNavigatorKey: _rootKey, builder: (context, state) => const ProfileScreen()),
     GoRoute(
       path: '/game/:id',
       parentNavigatorKey: _rootKey,

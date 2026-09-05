@@ -149,15 +149,15 @@ export async function listUncachedTrophyCatalogTargets(sql: Sql) {
   }>`
     select
       gt.trophy_title_id,
-      min(gt.platform) as platform
+      gt.platform
     from game_trophies gt
     left join trophy_catalogs tc
       on tc.platform = gt.platform
      and tc.trophy_title_id = gt.trophy_title_id
     where gt.trophy_title_id is not null
       and tc.trophy_title_id is null
-    group by gt.trophy_title_id
-    order by gt.trophy_title_id
+    group by gt.platform, gt.trophy_title_id
+    order by gt.platform, gt.trophy_title_id
   `;
 }
 
@@ -165,9 +165,7 @@ export async function applyTrophyCatalog(
   sql: Sql,
   input: TrophyCatalogInput,
 ) {
-  const titleRows = await sql<{
-    title_id: string;
-  }>`
+  const titleRows = await sql<{ title_id: string }>`
     select distinct title_id
     from game_trophies
     where platform = ${input.platform}
@@ -180,9 +178,7 @@ export async function applyTrophyCatalog(
     for (const trophy of input.trophies) {
       const target = trophy.trophyProgressTargetValue;
 
-      const existing = await sql<{
-        id: number;
-      }>`
+      const existing = await sql<{ id: number }>`
         select id
         from game_trophies
         where platform = ${input.platform}
@@ -195,7 +191,6 @@ export async function applyTrophyCatalog(
         await sql`
           update game_trophies
           set trophy_title_id = ${input.trophyTitleId},
-              trophy_set_version = ${input.trophySetVersion ?? null},
               trophy_group_id = ${trophy.trophyGroupId ?? null},
               trophy_type = ${trophy.trophyType ?? null},
               trophy_name = ${trophy.trophyName ?? null},
@@ -214,7 +209,6 @@ export async function applyTrophyCatalog(
             title_id,
             trophy_title_id,
             trophy_id,
-            trophy_set_version,
             trophy_group_id,
             trophy_type,
             trophy_name,
@@ -231,7 +225,6 @@ export async function applyTrophyCatalog(
             ${title.title_id},
             ${input.trophyTitleId},
             ${trophy.trophyId},
-            ${input.trophySetVersion ?? null},
             ${trophy.trophyGroupId ?? null},
             ${trophy.trophyType ?? null},
             ${trophy.trophyName ?? null},
@@ -312,13 +305,9 @@ export async function getGameTrophyProgress(
 
   const total = rows.length;
   const earned = rows.filter((row) => row.earned).length;
-
   const byType = (type: string) => {
     const all = rows.filter((row) => row.trophy_type === type);
-    return {
-      earned: all.filter((row) => row.earned).length,
-      total: all.length,
-    };
+    return { earned: all.filter((row) => row.earned).length, total: all.length };
   };
 
   return {
@@ -332,3 +321,144 @@ export async function getGameTrophyProgress(
     trophies: rows,
   };
 }
+
+export type LibraryTrophyGame = {
+  gameId: number;
+  catalogId: string;
+  title: string;
+  coverUrl: string | null;
+  headerUrl: string | null;
+  platform: "ps4" | "ps5";
+  titleId: string;
+  total: number;
+  earned: number;
+  percentage: number;
+  platinum: { earned: number; total: number };
+  gold: { earned: number; total: number };
+  silver: { earned: number; total: number };
+  bronze: { earned: number; total: number };
+  lastEarnedAt: string | null;
+};
+
+export async function listLibraryTrophyProgress(
+  sql: Sql,
+  userId: string,
+): Promise<LibraryTrophyGame[]> {
+  const rows = await sql<any>`
+    with trophy_games as (
+      select
+        gt.platform,
+        gt.title_id,
+        count(*)::int as total,
+        count(*) filter (where gt.earned)::int as earned,
+        round(
+          100.0 * count(*) filter (where gt.earned) / nullif(count(*), 0),
+          1
+        )::float as percentage,
+        count(*) filter (where gt.trophy_type = 'platinum' and gt.earned)::int as platinum_earned,
+        count(*) filter (where gt.trophy_type = 'platinum')::int as platinum_total,
+        count(*) filter (where gt.trophy_type = 'gold' and gt.earned)::int as gold_earned,
+        count(*) filter (where gt.trophy_type = 'gold')::int as gold_total,
+        count(*) filter (where gt.trophy_type = 'silver' and gt.earned)::int as silver_earned,
+        count(*) filter (where gt.trophy_type = 'silver')::int as silver_total,
+        count(*) filter (where gt.trophy_type = 'bronze' and gt.earned)::int as bronze_earned,
+        count(*) filter (where gt.trophy_type = 'bronze')::int as bronze_total,
+        max(gt.earned_at)::text as last_earned_at
+      from game_trophies gt
+      group by gt.platform, gt.title_id
+    )
+    select
+      ge.id as game_id,
+      ge.catalog_id,
+      ge.title,
+      ge.cover_url,
+      ge.header_url,
+      tg.platform,
+      tg.title_id,
+      tg.total,
+      tg.earned,
+      tg.percentage,
+      tg.platinum_earned,
+      tg.platinum_total,
+      tg.gold_earned,
+      tg.gold_total,
+      tg.silver_earned,
+      tg.silver_total,
+      tg.bronze_earned,
+      tg.bronze_total,
+      tg.last_earned_at
+    from trophy_games tg
+    join lateral (
+      select t.platform, t.title_id, t.name
+      from playstation_titles t
+      where t.platform = tg.platform
+        and t.title_id = tg.title_id
+        and t.is_game = true
+      order by case t.region
+        when 'IN' then 0
+        when 'AS' then 1
+        when 'EP' then 2
+        when 'UP' then 3
+        when 'JP' then 4
+        when 'HP' then 5
+        else 6
+      end, t.region
+      limit 1
+    ) t on true
+    join lateral (
+      select ge.id, ge.catalog_id, ge.title, ge.cover_url, ge.header_url
+      from game_entries ge
+      where ge.user_id = ${userId}
+        and regexp_replace(lower(ge.title), '[^a-z0-9]+', '', 'g') =
+            regexp_replace(lower(t.name), '[^a-z0-9]+', '', 'g')
+      order by ge.updated_at desc
+      limit 1
+    ) ge on true
+    order by tg.percentage desc, tg.last_earned_at desc nulls last, ge.title asc
+  `;
+
+  return rows.map((row: any) => ({
+    gameId: row.game_id,
+    catalogId: row.catalog_id,
+    title: row.title,
+    coverUrl: row.cover_url,
+    headerUrl: row.header_url,
+    platform: row.platform,
+    titleId: row.title_id,
+    total: Number(row.total),
+    earned: Number(row.earned),
+    percentage: Number(row.percentage ?? 0),
+    platinum: { earned: Number(row.platinum_earned), total: Number(row.platinum_total) },
+    gold: { earned: Number(row.gold_earned), total: Number(row.gold_total) },
+    silver: { earned: Number(row.silver_earned), total: Number(row.silver_total) },
+    bronze: { earned: Number(row.bronze_earned), total: Number(row.bronze_total) },
+    lastEarnedAt: row.last_earned_at,
+  }));
+}
+
+function summarizeTrophyGames(games: LibraryTrophyGame[]) {
+  const summary = games.reduce(
+    (acc, game) => {
+      acc.total += game.total;
+      acc.earned += game.earned;
+      acc.platinum += game.platinum.earned;
+      acc.gold += game.gold.earned;
+      acc.silver += game.silver.earned;
+      acc.bronze += game.bronze.earned;
+      return acc;
+    },
+    { total: 0, earned: 0, platinum: 0, gold: 0, silver: 0, bronze: 0 },
+  );
+
+  return {
+    ...summary,
+    percentage: summary.total === 0 ? 0 : Number(((summary.earned / summary.total) * 100).toFixed(1)),
+    games: games.length,
+  };
+}
+
+export async function getTrophySummary(sql: Sql, userId: string) {
+  return summarizeTrophyGames(await listLibraryTrophyProgress(sql, userId));
+}
+
+export { summarizeTrophyGames };
