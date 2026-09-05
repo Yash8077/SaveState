@@ -11,11 +11,15 @@ export const Route = createFileRoute("/api/trophies/list")({
         try {
           const userId = await requireApiUser(request);
           const { getSql } = await import("@/lib/db");
-          const { listLibraryTrophyProgressDeduped } = await import(
-            "@/lib/trophy-read.server"
+          const { listLibraryTrophyProgressFast } = await import(
+            "@/lib/trophy-list.server"
           );
           const { summarizeTrophyGames } = await import("@/lib/trophies.server");
-          const games = await listLibraryTrophyProgressDeduped(await getSql(), userId);
+
+          // The overview uses one DB-only aggregate path. It is still scoped
+          // to this user's library, so trophy rows for non-library games are
+          // never returned by this endpoint.
+          const games = await listLibraryTrophyProgressFast(await getSql(), userId);
           const summary = summarizeTrophyGames(games);
           return apiJson({ summary, games });
         } catch (err) {
