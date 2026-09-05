@@ -81,6 +81,54 @@ export function getBecauseRail(
   );
 }
 
+export type TrophyCounts = {
+  earned: number;
+  total: number;
+};
+
+export type TrophyGameProgress = {
+  gameId: number;
+  catalogId: string | null;
+  title: string;
+  coverUrl: string | null;
+  headerUrl: string | null;
+  platform: "ps4" | "ps5";
+  titleId: string;
+  total: number;
+  earned: number;
+  percentage: number;
+  platinum: TrophyCounts;
+  gold: TrophyCounts;
+  silver: TrophyCounts;
+  bronze: TrophyCounts;
+  lastEarnedAt: string | null;
+};
+
+export type TrophySummary = {
+  total: number;
+  earned: number;
+  platinum: number;
+  gold: number;
+  silver: number;
+  bronze: number;
+  percentage: number;
+  games: number;
+};
+
+export type TrophyProgressResponse = {
+  summary: TrophySummary;
+  games: TrophyGameProgress[];
+};
+
+export function getTrophyProgress(
+  signal?: AbortSignal,
+): Promise<TrophyProgressResponse> {
+  return catalogGet<TrophyProgressResponse>(
+    `/api/trophies/list`,
+    signal,
+  );
+}
+
 export const listLibrary = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(listLibraryInput)
