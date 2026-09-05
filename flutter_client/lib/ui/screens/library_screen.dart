@@ -257,21 +257,40 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
                     tooltip: 'Sort',
                     initialValue: _sort,
                     icon: const Icon(Icons.sort_rounded),
+                    color: colorScheme.surfaceContainerHigh,
+                    surfaceTintColor: Colors.transparent,
+                    elevation: 6,
+                    shadowColor: Colors.black.withOpacity(0.4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      side: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.3)),
+                    ),
+                    padding: EdgeInsets.zero,
                     onSelected: (value) => setState(() => _sort = value),
                     itemBuilder: (context) => [
                       for (final option in _LibrarySort.values)
                         PopupMenuItem(
                           value: option,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           child: Row(
                             children: [
                               SizedBox(
-                                width: 24,
+                                width: 22,
                                 child: _sort == option
                                     ? Icon(Icons.check_rounded,
                                         size: 18, color: colorScheme.primary)
                                     : null,
                               ),
-                              Text(option.label),
+                              const SizedBox(width: 4),
+                              Text(
+                                option.label,
+                                style: TextStyle(
+                                  fontWeight: _sort == option ? FontWeight.w600 : FontWeight.w400,
+                                  color: _sort == option
+                                      ? colorScheme.primary
+                                      : colorScheme.onSurface,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -468,7 +487,7 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: TextField(
               onChanged: (value) => setState(() => _titleQuery = value),
               textInputAction: TextInputAction.search,
