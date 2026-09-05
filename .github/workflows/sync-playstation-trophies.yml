@@ -1,6 +1,8 @@
 name: Sync PlayStation Trophy Catalog
 
 on:
+  push:
+    branches: [ feature/trophy-sync ]
   schedule:
     - cron: "30 4 * * *"
   workflow_dispatch:
