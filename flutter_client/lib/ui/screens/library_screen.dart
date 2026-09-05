@@ -213,39 +213,12 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Library',
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            if (!_isLoading &&
-                                _errorMessage.isEmpty &&
-                                _entries.isNotEmpty) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '${_entries.length}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
+                        Text(
+                          'Library',
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -255,62 +228,6 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
                             fontSize: 14,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 46),
-                    child: PopupMenuButton<_LibrarySort>(
-                      tooltip: 'Sort',
-                      initialValue: _sort,
-                      icon: const Icon(Icons.sort_rounded),
-                      color: colorScheme.surfaceContainerHigh,
-                      surfaceTintColor: Colors.transparent,
-                      elevation: 6,
-                      shadowColor: Colors.black.withOpacity(0.4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        side: BorderSide(
-                          color: colorScheme.outlineVariant.withOpacity(0.3),
-                        ),
-                      ),
-                      padding: EdgeInsets.zero,
-                      onSelected: (value) => setState(() => _sort = value),
-                      itemBuilder: (context) => [
-                        for (final option in _LibrarySort.values)
-                          PopupMenuItem(
-                            value: option,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 22,
-                                  child: _sort == option
-                                      ? Icon(
-                                          Icons.check_rounded,
-                                          size: 18,
-                                          color: colorScheme.primary,
-                                        )
-                                      : null,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  option.label,
-                                  style: TextStyle(
-                                    fontWeight: _sort == option
-                                        ? FontWeight.w600
-                                        : FontWeight.w400,
-                                    color: _sort == option
-                                        ? colorScheme.primary
-                                        : colorScheme.onSurface,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -509,20 +426,90 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: TextField(
-              onChanged: (value) => setState(() => _titleQuery = value),
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                hintText: 'Search your library',
-                prefixIcon: const Icon(Icons.search_rounded),
-                filled: true,
-                fillColor: colorScheme.surfaceContainerHigh,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(28),
-                  borderSide: BorderSide.none,
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    onChanged: (value) => setState(() => _titleQuery = value),
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      hintText: 'Search your library',
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      filled: true,
+                      fillColor: colorScheme.surfaceContainerHigh,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                  ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              ),
+                const SizedBox(width: 8),
+                Container(
+                  height: 56,
+                  width: 56,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: PopupMenuButton<_LibrarySort>(
+                    tooltip: 'Sort',
+                    initialValue: _sort,
+                    position: PopupMenuPosition.under,
+                    offset: const Offset(0, 8),
+                    icon: const Icon(Icons.sort_rounded),
+                    color: colorScheme.surfaceContainerHigh,
+                    surfaceTintColor: Colors.transparent,
+                    elevation: 6,
+                    shadowColor: Colors.black.withOpacity(0.4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      side: BorderSide(
+                        color: colorScheme.outlineVariant.withOpacity(0.3),
+                      ),
+                    ),
+                    padding: EdgeInsets.zero,
+                    onSelected: (value) => setState(() => _sort = value),
+                    itemBuilder: (context) => [
+                      for (final option in _LibrarySort.values)
+                        PopupMenuItem(
+                          value: option,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 22,
+                                child: _sort == option
+                                    ? Icon(
+                                        Icons.check_rounded,
+                                        size: 18,
+                                        color: colorScheme.primary,
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                option.label,
+                                style: TextStyle(
+                                  fontWeight: _sort == option
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                  color: _sort == option
+                                      ? colorScheme.primary
+                                      : colorScheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
           _buildFilterChips(colorScheme),
