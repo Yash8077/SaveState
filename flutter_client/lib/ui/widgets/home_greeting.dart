@@ -50,7 +50,7 @@ class HomeGreeting extends StatelessWidget {
     final g = greeting();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 12, 2),
+      padding: const EdgeInsets.fromLTRB(16, 16, 12, 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -91,10 +91,9 @@ class HomeGreeting extends StatelessWidget {
             ),
           ),
 
-          // AppShell owns the avatar at the far right. Leave its slot here
-          // so Search sits on the exact same header line without overlapping.
+          // The shell owns the avatar in the matching header slot.
           Padding(
-            padding: const EdgeInsets.only(right: 46),
+            padding: const EdgeInsets.only(right: 52),
             child: IconButton.filledTonal(
               tooltip: 'Search',
               onPressed: () => context.go('/discover?focus=1'),

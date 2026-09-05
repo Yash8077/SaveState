@@ -69,7 +69,7 @@ class AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final index = _calculateSelectedIndex(context);
     final wide = MediaQuery.sizeOf(context).width >= 720;
-    final pad = MediaQuery.paddingOf(context);
+    final systemPadding = MediaQuery.paddingOf(context);
 
     final pill = PillNav(
       axis: wide ? Axis.vertical : Axis.horizontal,
@@ -87,56 +87,59 @@ class AppShell extends StatelessWidget {
       child: Scaffold(
         body: Stack(
           children: [
+            // Each shell page owns its own top SafeArea. Do not add another
+            // top SafeArea here, otherwise every page header is shifted down.
             Positioned.fill(
               child: Padding(
                 padding: EdgeInsets.only(
                   left: wide ? 84 : 0,
-                  bottom: wide ? 0 : 84 + pad.bottom,
+                  bottom: wide ? 0 : 84 + systemPadding.bottom,
                 ),
-                child: SafeArea(
-                  top: true,
-                  bottom: false,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 280),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (child, animation) {
-                      return FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.035),
-                            end: Offset.zero,
-                          ).animate(animation),
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: KeyedSubtree(
-                      key: ValueKey(
-                        GoRouterState.of(context).uri.path,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 280),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.035),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
                       ),
-                      child: child,
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey(
+                      GoRouterState.of(context).uri.path,
                     ),
+                    child: child,
                   ),
                 ),
               ),
             ),
 
-            // The avatar belongs to the page header line rather than taking
-            // its own vertical row. Individual pages keep their title/action
-            // layout, while this stays fixed at the top-right.
+            // Keep the profile avatar in the same 48dp header slot used by
+            // page-level IconButtons, while leaving it at the top-right.
             Positioned(
-              top: pad.top + 8,
+              top: systemPadding.top + 16,
               right: 16,
-              child: const AccountAvatarButton(size: 38),
+              child: const SizedBox(
+                width: 48,
+                height: 48,
+                child: Center(
+                  child: AccountAvatarButton(size: 38),
+                ),
+              ),
             ),
 
             Positioned(
               left: wide ? 12 : 0,
               right: wide ? null : 0,
               top: wide ? 0 : null,
-              bottom: wide ? 0 : 10 + pad.bottom,
+              bottom: wide ? 0 : 10 + systemPadding.bottom,
               child: wide
                   ? Center(child: pill)
                   : Align(
