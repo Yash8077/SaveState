@@ -59,19 +59,22 @@ class AppShell extends StatelessWidget {
             Positioned.fill(
               child: Padding(
                 padding: EdgeInsets.only(left: wide ? 84 : 0, bottom: wide ? 0 : 84 + pad.bottom),
-                child: Column(
-                  children: [
-                    SizedBox(height: pad.top + 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: const [AccountAvatarButton(size: 38)],
+                child: SafeArea(
+                  top: true,
+                  bottom: false,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: const [AccountAvatarButton(size: 38)],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Expanded(
-                      child: AnimatedSwitcher(
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 280),
                         switchInCurve: Curves.easeOutCubic,
                         switchOutCurve: Curves.easeInCubic,

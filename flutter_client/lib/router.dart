@@ -6,6 +6,7 @@ import 'ui/screens/discover_screen.dart';
 import 'ui/screens/library_screen.dart';
 import 'ui/screens/stats_screen.dart';
 import 'ui/screens/trophies_screen.dart';
+import 'ui/screens/trophy_game_details_screen.dart';
 import 'ui/screens/login_screen.dart';
 import 'ui/screens/game_details_screen.dart';
 import 'ui/screens/settings_screen.dart';
@@ -50,6 +51,13 @@ final router = GoRouter(
     GoRoute(path: '/login', parentNavigatorKey: _rootKey, builder: (context, state) => const LoginScreen()),
     GoRoute(path: '/settings', parentNavigatorKey: _rootKey, builder: (context, state) => const SettingsScreen()),
     GoRoute(path: '/profile', parentNavigatorKey: _rootKey, builder: (context, state) => const ProfileScreen()),
+    GoRoute(
+      path: '/trophies/:catalogId',
+      parentNavigatorKey: _rootKey,
+      builder: (context, state) => TrophyGameDetailsScreen(
+        catalogId: state.pathParameters['catalogId']!,
+      ),
+    ),
     GoRoute(
       path: '/game/:id',
       parentNavigatorKey: _rootKey,

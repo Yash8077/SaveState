@@ -36,10 +36,7 @@ async function catalogGet<T>(url: string, signal?: AbortSignal): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function searchGames(
-  q: string,
-  signal?: AbortSignal,
-): Promise<CatalogGame[]> {
+export function searchGames(q: string, signal?: AbortSignal): Promise<CatalogGame[]> {
   const query = q.trim();
   if (query.length < 2) return Promise.resolve([]);
   return catalogGet<CatalogGame[]>(
@@ -48,29 +45,18 @@ export function searchGames(
   );
 }
 
-export function getCatalogGame(
-  id: string,
-  signal?: AbortSignal,
-): Promise<CatalogDetails | null> {
+export function getCatalogGame(id: string, signal?: AbortSignal): Promise<CatalogDetails | null> {
   return catalogGet<CatalogDetails | null>(
     `/api/catalog/game?id=${encodeURIComponent(id)}&rel=14`,
     signal,
   );
 }
 
-export function getFeaturedRails(
-  signal?: AbortSignal,
-): Promise<FeaturedRail[]> {
-  return catalogGet<FeaturedRail[]>(
-    `/api/catalog/featured?rel=19`,
-    signal,
-  );
+export function getFeaturedRails(signal?: AbortSignal): Promise<FeaturedRail[]> {
+  return catalogGet<FeaturedRail[]>(`/api/catalog/featured?rel=19`, signal);
 }
 
-export function getBecauseRail(
-  seeds: string[],
-  signal?: AbortSignal,
-): Promise<FeaturedRail> {
+export function getBecauseRail(seeds: string[], signal?: AbortSignal): Promise<FeaturedRail> {
   const ids = seeds.filter(Boolean).slice(0, 8);
   if (ids.length < 2) {
     return Promise.resolve({ id: "recommended", title: "Recommended", games: [] });
@@ -81,10 +67,7 @@ export function getBecauseRail(
   );
 }
 
-export type TrophyCounts = {
-  earned: number;
-  total: number;
-};
+export type TrophyCounts = { earned: number; total: number };
 
 export type TrophyGameProgress = {
   gameId: number;
@@ -120,11 +103,47 @@ export type TrophyProgressResponse = {
   games: TrophyGameProgress[];
 };
 
-export function getTrophyProgress(
+export type TrophyRow = {
+  trophy_id: number;
+  trophy_type: string | null;
+  trophy_name: string | null;
+  trophy_detail: string | null;
+  trophy_icon_url: string | null;
+  trophy_hidden: boolean | null;
+  earned: boolean;
+  earned_at: string | null;
+};
+
+export type GameTrophyProgressResult =
+  | { found: false }
+  | {
+      found: true;
+      catalogId: string;
+      titleId: string;
+      titleName: string;
+      coverUrl: string | null;
+      headerUrl: string | null;
+      platform: "ps4" | "ps5";
+      total: number;
+      earned: number;
+      percentage: number;
+      platinum: TrophyCounts;
+      gold: TrophyCounts;
+      silver: TrophyCounts;
+      bronze: TrophyCounts;
+      trophies: TrophyRow[];
+    };
+
+export function getTrophyProgress(signal?: AbortSignal): Promise<TrophyProgressResponse> {
+  return catalogGet<TrophyProgressResponse>(`/api/trophies/list`, signal);
+}
+
+export function getGameTrophyProgress(
+  catalogId: string,
   signal?: AbortSignal,
-): Promise<TrophyProgressResponse> {
-  return catalogGet<TrophyProgressResponse>(
-    `/api/trophies/list`,
+): Promise<GameTrophyProgressResult> {
+  return catalogGet<GameTrophyProgressResult>(
+    `/api/trophies/game?catalogId=${encodeURIComponent(catalogId)}`,
     signal,
   );
 }

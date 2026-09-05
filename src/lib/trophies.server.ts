@@ -300,7 +300,17 @@ export async function getGameTrophyProgress(
     from game_trophies
     where platform = ${platform}
       and title_id = ${normalizedTitleId}
-    order by trophy_id
+    order by
+      case when earned then 0 else 1 end,
+      case trophy_type
+        when 'platinum' then 0
+        when 'gold' then 1
+        when 'silver' then 2
+        when 'bronze' then 3
+        else 4
+      end,
+      earned_at desc nulls last,
+      trophy_id
   `;
 
   const total = rows.length;
@@ -319,6 +329,72 @@ export async function getGameTrophyProgress(
     silver: byType("silver"),
     bronze: byType("bronze"),
     trophies: rows,
+  };
+}
+
+export async function getTrophyProgressForCatalogGame(
+  sql: Sql,
+  userId: string,
+  catalogId: string,
+) {
+  const gameRows = await sql<{
+    title: string;
+    cover_url: string | null;
+    header_url: string | null;
+    title_id: string;
+    platform: "ps4" | "ps5";
+  }>`
+    select
+      ge.title,
+      ge.cover_url,
+      ge.header_url,
+      t.title_id,
+      t.platform
+    from game_entries ge
+    join lateral (
+      select t.platform, t.title_id, t.name
+      from playstation_titles t
+      where t.is_game = true
+        and regexp_replace(lower(ge.title), '[^a-z0-9]+', '', 'g') =
+            regexp_replace(lower(t.name), '[^a-z0-9]+', '', 'g')
+        and exists (
+          select 1
+          from game_trophies gt
+          where gt.platform = t.platform
+            and gt.title_id = t.title_id
+        )
+      order by case t.region
+        when 'IN' then 0
+        when 'AS' then 1
+        when 'EP' then 2
+        when 'UP' then 3
+        when 'JP' then 4
+        when 'HP' then 5
+        else 6
+      end, t.region
+      limit 1
+    ) t on true
+    where ge.user_id = ${userId}
+      and ge.catalog_id = ${catalogId}
+    order by ge.updated_at desc
+    limit 1
+  `;
+
+  if (!gameRows.length) return { found: false as const };
+
+  const game = gameRows[0];
+  const progress = await getGameTrophyProgress(sql, game.platform, game.title_id);
+  if (progress.total === 0) return { found: false as const };
+
+  return {
+    found: true as const,
+    catalogId,
+    titleId: game.title_id,
+    titleName: game.title,
+    coverUrl: game.cover_url,
+    headerUrl: game.header_url,
+    platform: game.platform,
+    ...progress,
   };
 }
 

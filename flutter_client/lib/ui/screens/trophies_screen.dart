@@ -42,7 +42,7 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
       _errorMessage = '';
     });
     try {
-      final response = await context.read<ApiClient>().getTrophyProgress(force: true);
+      final response = await context.read<ApiClient>().getTrophyProgress();
       if (!mounted) return;
       setState(() {
         _response = response;
@@ -201,7 +201,7 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: catalogId == null || catalogId.isEmpty ? null : () => context.push('/game/$catalogId'),
+        onTap: catalogId == null || catalogId.isEmpty ? null : () => context.push('/trophies/$catalogId'),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(

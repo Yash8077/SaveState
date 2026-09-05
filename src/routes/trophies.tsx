@@ -3,42 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Award, Crown, Gem, Medal, Trophy } from "lucide-react";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { getTrophyProgress } from "@/lib/api";
+import {
+  getTrophyProgress,
+  type TrophyCounts,
+  type TrophyGameProgress,
+  type TrophySummary,
+} from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/trophies")({ component: TrophiesPage });
 
-type Counts = { earned: number; total: number };
-type TrophyGameProgress = {
-  gameId: number;
-  catalogId: string;
-  title: string;
-  coverUrl: string | null;
-  headerUrl: string | null;
-  platform: "ps4" | "ps5";
-  titleId: string;
-  total: number;
-  earned: number;
-  percentage: number;
-  platinum: Counts;
-  gold: Counts;
-  silver: Counts;
-  bronze: Counts;
-  lastEarnedAt: string | null;
-};
-type TrophySummary = {
-  total: number;
-  earned: number;
-  platinum: number;
-  gold: number;
-  silver: number;
-  bronze: number;
-  percentage: number;
-  games: number;
-};
-type TrophyResponse = { summary: TrophySummary; games: TrophyGameProgress[] };
-
-function TypeStat({ icon: Icon, label, count }: { icon: typeof Trophy; label: string; count: Counts }) {
+function TypeStat({ icon: Icon, label, count }: { icon: typeof Trophy; label: string; count: TrophyCounts }) {
   return (
     <div className="flex items-center gap-2 text-xs text-muted">
       <Icon className="size-4 text-accent" strokeWidth={2} />
@@ -83,7 +58,7 @@ function TrophyGameCard({ game }: { game: TrophyGameProgress }) {
   );
 
   return game.catalogId ? (
-    <Link to="/game/$catalogId" params={{ catalogId: game.catalogId }} className="block">
+    <Link to="/trophies/$catalogId" params={{ catalogId: game.catalogId }} className="block">
       {card}
     </Link>
   ) : (
