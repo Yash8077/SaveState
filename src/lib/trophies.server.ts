@@ -127,18 +127,24 @@ export async function listTrophyCatalogTargets(sql: Sql) {
   return sql<{
     trophy_title_id: string;
     platform: "ps4" | "ps5";
+    catalog_synced: boolean;
+    trophy_set_version: string | null;
   }>`
-    select trophy_title_id, min(platform) as platform
+    select
+      trophy_title_id,
+      platform,
+      bool_and(catalog_synced_at is not null) as catalog_synced,
+      min(trophy_set_version) as trophy_set_version
     from game_trophies
     where trophy_title_id is not null
-    group by trophy_title_id
-    order by trophy_title_id
+    group by trophy_title_id, platform
+    order by trophy_title_id, platform
   `;
 }
 
 export async function applyTrophyCatalog(
   sql: Sql,
-  input: TrophyCatalogInput,
+  input: TrophyCatalogInput & { trophySetVersion?: string | null },
 ) {
   const titleRows = await sql<{
     title_id: string;
@@ -158,9 +164,8 @@ export async function applyTrophyCatalog(
       const existing = await sql<{
         id: number;
         earned: boolean;
-        earned_at: string | null;
       }>`
-        select id, earned, earned_at
+        select id, earned
         from game_trophies
         where platform = ${input.platform}
           and title_id = ${title.title_id}
@@ -172,6 +177,7 @@ export async function applyTrophyCatalog(
         await sql`
           update game_trophies
           set trophy_title_id = ${input.trophyTitleId},
+              trophy_set_version = ${input.trophySetVersion ?? null},
               trophy_group_id = ${trophy.trophyGroupId ?? null},
               trophy_type = ${trophy.trophyType ?? null},
               trophy_name = ${trophy.trophyName ?? null},
@@ -179,6 +185,7 @@ export async function applyTrophyCatalog(
               trophy_icon_url = ${trophy.trophyIconUrl ?? null},
               trophy_hidden = ${trophy.trophyHidden ?? null},
               trophy_progress_target_value = ${target == null ? null : String(target)},
+              catalog_synced_at = now(),
               metadata_synced_at = now(),
               updated_at = now()
           where id = ${existing[0].id}
@@ -190,6 +197,7 @@ export async function applyTrophyCatalog(
             title_id,
             trophy_title_id,
             trophy_id,
+            trophy_set_version,
             trophy_group_id,
             trophy_type,
             trophy_name,
@@ -199,6 +207,7 @@ export async function applyTrophyCatalog(
             trophy_progress_target_value,
             earned,
             metadata_synced_at,
+            catalog_synced_at,
             created_at,
             updated_at
           ) values (
@@ -206,6 +215,7 @@ export async function applyTrophyCatalog(
             ${title.title_id},
             ${input.trophyTitleId},
             ${trophy.trophyId},
+            ${input.trophySetVersion ?? null},
             ${trophy.trophyGroupId ?? null},
             ${trophy.trophyType ?? null},
             ${trophy.trophyName ?? null},
@@ -214,6 +224,7 @@ export async function applyTrophyCatalog(
             ${trophy.trophyHidden ?? null},
             ${target == null ? null : String(target)},
             false,
+            now(),
             now(),
             now(),
             now()

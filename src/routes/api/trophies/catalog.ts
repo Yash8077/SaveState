@@ -22,6 +22,8 @@ export const Route = createFileRoute("/api/trophies/catalog")({
           npCommunicationIds: targets.map((row) => ({
             npCommunicationId: row.trophy_title_id,
             platform: row.platform,
+            catalogSynced: row.catalog_synced,
+            trophySetVersion: row.trophy_set_version,
           })),
         });
       },

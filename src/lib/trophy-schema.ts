@@ -21,6 +21,7 @@ export const trophySyncInput = z.object({
 export const trophyCatalogInput = z.object({
   platform: z.enum(["ps4", "ps5"]),
   trophyTitleId: z.string().trim().regex(/^NPWR\d+_00$/i),
+  trophySetVersion: z.string().trim().min(1).max(64).nullable().optional(),
   trophies: z.array(
     z.object({
       trophyId: z.number().int().min(0).max(10000),
