@@ -67,7 +67,10 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
   List<Map<String, dynamic>> get _games {
     final raw = _response['games'];
     if (raw is! List) return const [];
-    return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    return raw
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
   }
 
   Map<String, dynamic> get _summary {
@@ -78,7 +81,8 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
 
   int _int(dynamic value) => (value as num?)?.toInt() ?? 0;
   double _double(dynamic value) => (value as num?)?.toDouble() ?? 0;
-  Map<String, dynamic> _map(dynamic value) => value is Map ? Map<String, dynamic>.from(value) : const {};
+  Map<String, dynamic> _map(dynamic value) =>
+      value is Map ? Map<String, dynamic>.from(value) : const {};
 
   @override
   Widget build(BuildContext context) {
@@ -99,14 +103,14 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                  Text(
-                    'Trophies',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
+                    Text(
+                      'Trophies',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       'Your trophy journey, game by game',
                       style: TextStyle(
@@ -127,15 +131,40 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
 
   Widget _buildBody(ThemeData theme, ColorScheme scheme) {
     if (_isLoading) {
-      return const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [M3Loading(), SizedBox(height: 14), Text('Loading your trophies…')]));
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            M3Loading(),
+            SizedBox(height: 14),
+            Text('Loading your trophies…'),
+          ],
+        ),
+      );
     }
 
     if (_isAuthError) {
-      return _messageState(theme, scheme, Icons.lock_outline_rounded, 'Sign in to view your trophies', 'Recovered PlayStation trophies are shown here.', 'Sign In', () => context.push('/login'));
+      return _messageState(
+        theme,
+        scheme,
+        Icons.lock_outline_rounded,
+        'Sign in to view your trophies',
+        'Recovered PlayStation trophies are shown here.',
+        'Sign In',
+        () => context.push('/login'),
+      );
     }
 
     if (_errorMessage.isNotEmpty && _response.isEmpty) {
-      return _messageState(theme, scheme, Icons.cloud_off_rounded, 'Couldn’t load trophies', _errorMessage, 'Try Again', _fetch);
+      return _messageState(
+        theme,
+        scheme,
+        Icons.cloud_off_rounded,
+        'Couldn’t load trophies',
+        _errorMessage,
+        'Try Again',
+        _fetch,
+      );
     }
 
     final games = _games;
@@ -150,7 +179,12 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
           if (games.isEmpty)
             _emptyState(theme, scheme)
           else
-            ...games.map((game) => Padding(padding: const EdgeInsets.only(bottom: 12), child: _gameCard(theme, scheme, game))),
+            ...games.map(
+              (game) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _gameCard(theme, scheme, game),
+              ),
+            ),
         ],
       ),
     );
@@ -171,14 +205,34 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('OVERALL PROGRESS', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: 1.4, color: scheme.onSurfaceVariant)),
+            Text(
+              'OVERALL PROGRESS',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.4,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text('$earned/$total', style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w800, color: scheme.primary)),
-            Text('${percentage.toStringAsFixed(1)}% across $games ${games == 1 ? 'game' : 'games'}', style: TextStyle(color: scheme.onSurfaceVariant)),
+            Text(
+              '$earned/$total',
+              style: theme.textTheme.displaySmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: scheme.primary,
+              ),
+            ),
+            Text(
+              '${percentage.toStringAsFixed(1)}% across $games ${games == 1 ? 'game' : 'games'}',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
             const SizedBox(height: 16),
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: LinearProgressIndicator(value: total == 0 ? 0 : percentage / 100, minHeight: 9, backgroundColor: scheme.surfaceContainerHighest),
+              child: LinearProgressIndicator(
+                value: total == 0 ? 0 : percentage / 100,
+                minHeight: 9,
+                backgroundColor: scheme.surfaceContainerHighest,
+              ),
             ),
             const SizedBox(height: 18),
             Row(
@@ -196,10 +250,25 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
   }
 
   Widget _typeSummary(String label, int value, ColorScheme scheme) {
-    return Expanded(child: Column(children: [Text('$value', style: const TextStyle(fontWeight: FontWeight.w800)), const SizedBox(height: 2), Text(label, style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant))]));
+    return Expanded(
+      child: Column(
+        children: [
+          Text('$value', style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _gameCard(ThemeData theme, ColorScheme scheme, Map<String, dynamic> game) {
+  Widget _gameCard(
+    ThemeData theme,
+    ColorScheme scheme,
+    Map<String, dynamic> game,
+  ) {
     final title = game['title']?.toString() ?? 'Unknown game';
     final cover = game['coverUrl']?.toString();
     final catalogId = game['catalogId']?.toString();
@@ -218,7 +287,9 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: catalogId == null || catalogId.isEmpty ? null : () => context.push('/trophies/$catalogId'),
+        onTap: catalogId == null || catalogId.isEmpty
+            ? null
+            : () => context.push('/trophies/$catalogId'),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -229,7 +300,9 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
                 child: SizedBox(
                   width: 76,
                   height: 104,
-                  child: cover == null || cover.isEmpty ? ColoredBox(color: scheme.surfaceContainerHighest) : CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover),
+                  child: cover == null || cover.isEmpty
+                      ? ColoredBox(color: scheme.surfaceContainerHighest)
+                      : CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover),
                 ),
               ),
               const SizedBox(width: 14),
@@ -237,11 +310,43 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [Expanded(child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800))), const SizedBox(width: 8), Text('${percentage.toStringAsFixed(1)}%', style: TextStyle(fontWeight: FontWeight.w800, color: scheme.primary))]),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${percentage.toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: scheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 5),
-                    Text('$earned/$total trophies', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                    Text(
+                      '$earned/$total trophies',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
                     const SizedBox(height: 10),
-                    ClipRRect(borderRadius: BorderRadius.circular(20), child: LinearProgressIndicator(value: total == 0 ? 0 : percentage / 100, minHeight: 7, backgroundColor: scheme.surfaceContainerHighest)),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: LinearProgressIndicator(
+                        value: total == 0 ? 0 : percentage / 100,
+                        minHeight: 7,
+                        backgroundColor: scheme.surfaceContainerHighest,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 10,
@@ -263,13 +368,22 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     );
   }
 
-  Widget _typeChip(String short, Map<String, dynamic> count, ColorScheme scheme) {
+  Widget _typeChip(
+    String short,
+    Map<String, dynamic> count,
+    ColorScheme scheme,
+  ) {
     final earned = _int(count['earned']);
-    final total = _int(count['total']);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(color: scheme.surfaceContainer, borderRadius: BorderRadius.circular(999)),
-      child: Text('$short $earned/$total', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$short $earned',
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+      ),
     );
   }
 
@@ -281,30 +395,74 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       child: Padding(
         padding: const EdgeInsets.all(28),
-        child: Column(children: [
-          Icon(Icons.emoji_events_outlined, size: 42, color: scheme.onSurfaceVariant),
-          const SizedBox(height: 14),
-          Text('No trophies synced yet', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 6),
-          Text('Run the SaveState PS5 payload once to import locally earned trophies.', textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant)),
-        ]),
+        child: Column(
+          children: [
+            Icon(
+              Icons.emoji_events_outlined,
+              size: 42,
+              color: scheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'No trophies synced yet',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Run the SaveState PS5 payload once to import locally earned trophies.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _messageState(ThemeData theme, ColorScheme scheme, IconData icon, String title, String message, String action, VoidCallback onPressed) {
+  Widget _messageState(
+    ThemeData theme,
+    ColorScheme scheme,
+    IconData icon,
+    String title,
+    String message,
+    String action,
+    VoidCallback onPressed,
+  ) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 44, color: scheme.primary),
-          const SizedBox(height: 18),
-          Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-          const SizedBox(height: 8),
-          Text(message, textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant)),
-          const SizedBox(height: 22),
-          FilledButton.tonalIcon(onPressed: onPressed, icon: Icon(action == 'Sign In' ? Icons.login_rounded : Icons.refresh_rounded), label: Text(action)),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 44, color: scheme.primary),
+            const SizedBox(height: 18),
+            Text(
+              title,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 22),
+            FilledButton.tonalIcon(
+              onPressed: onPressed,
+              icon: Icon(
+                action == 'Sign In'
+                    ? Icons.login_rounded
+                    : Icons.refresh_rounded,
+              ),
+              label: Text(action),
+            ),
+          ],
+        ),
       ),
     );
   }

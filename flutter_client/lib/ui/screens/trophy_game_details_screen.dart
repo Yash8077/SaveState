@@ -340,7 +340,7 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
                 ),
                 const SizedBox(height: 18),
                 FilledButton.tonal(
-                  onPressed: () => context.go('/game/${widget.catalogId}'),
+                  onPressed: () => context.push('/game/${widget.catalogId}'),
                   child: const Text('Open game'),
                 ),
               ],
@@ -361,13 +361,6 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_response['titleName']?.toString() ?? 'Trophies'),
-        actions: [
-          IconButton(
-            tooltip: 'Open game',
-            onPressed: () => context.go('/game/${widget.catalogId}'),
-            icon: const Icon(Icons.open_in_new_rounded),
-          ),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -469,6 +462,15 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
                             const SizedBox(width: 6),
                             _tierSummary('B', _int(_mapValue('bronze', 'earned'))),
                           ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: () => context.push('/game/${widget.catalogId}'),
+                            icon: const Icon(Icons.sports_esports_rounded, size: 18),
+                            label: const Text('Open game'),
+                          ),
                         ),
                       ],
                     ),
