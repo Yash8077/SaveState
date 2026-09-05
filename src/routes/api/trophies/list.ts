@@ -11,11 +11,11 @@ export const Route = createFileRoute("/api/trophies/list")({
         try {
           const userId = await requireApiUser(request);
           const { getSql } = await import("@/lib/db");
-          const { listLibraryTrophyProgress, summarizeTrophyGames } = await import(
-            "@/lib/trophies.server"
+          const { listLibraryTrophyProgressDeduped } = await import(
+            "@/lib/trophy-read.server"
           );
-          const sql = await getSql();
-          const games = await listLibraryTrophyProgress(sql, userId);
+          const { summarizeTrophyGames } = await import("@/lib/trophies.server");
+          const games = await listLibraryTrophyProgressDeduped(await getSql(), userId);
           const summary = summarizeTrophyGames(games);
           return apiJson({ summary, games });
         } catch (err) {

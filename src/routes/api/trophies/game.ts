@@ -10,15 +10,16 @@ export const Route = createFileRoute("/api/trophies/game")({
 
         try {
           const userId = await requireApiUser(request);
-          const url = new URL(request.url);
-          const catalogId = url.searchParams.get("catalogId");
-          if (!catalogId) return apiJson({ error: "Missing catalogId" }, 400);
+          const catalogId = new URL(request.url).searchParams.get("catalogId")?.trim() ?? "";
+          if (!catalogId || catalogId.length > 300) {
+            return apiJson({ error: "Invalid catalogId" }, 400);
+          }
 
           const { getSql } = await import("@/lib/db");
-          const { getTrophyProgressForCatalogGame } = await import(
-            "@/lib/trophies.server"
+          const { getGameTrophyProgressForCatalog } = await import(
+            "@/lib/trophy-read.server"
           );
-          const result = await getTrophyProgressForCatalogGame(
+          const result = await getGameTrophyProgressForCatalog(
             await getSql(),
             userId,
             catalogId,

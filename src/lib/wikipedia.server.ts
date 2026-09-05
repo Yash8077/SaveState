@@ -4,17 +4,37 @@ const FETCH_MS = 4000;
 const UA = "SaveState/1.0 (https://github.com/Yash8077/SaveState)";
 const API = "https://en.wikipedia.org/w/api.php";
 const REST = "https://en.wikipedia.org/api/rest_v1/page/summary";
+const WIKI_PREFIX = "wiki_b64_";
 
+/**
+ * Wiki catalog ids are opaque, URL-safe identifiers. The old implementation
+ * embedded percent-encoded titles in path segments, which made titles such as
+ * "Uncharted: The Nathan Drake Collection" change identity when routed through
+ * Flutter/go_router. New ids are base64url encoded and therefore survive every
+ * URL/path round-trip unchanged.
+ */
 export function wikiCatalogId(title: string): string {
-  return `wiki_${encodeURIComponent(title.replace(/ /g, "_"))}`;
+  return `${WIKI_PREFIX}${Buffer.from(title.trim(), "utf8").toString("base64url")}`;
 }
 
 export function parseWikiTitle(catalogId: string): string | null {
   if (!catalogId.startsWith("wiki_")) return null;
+  const payload = catalogId.slice(5);
+
+  if (payload.startsWith("b64_")) {
+    try {
+      return Buffer.from(payload.slice(4), "base64url").toString("utf8");
+    } catch {
+      return null;
+    }
+  }
+
+  // Backward compatibility for pre-Phase-2 ids such as
+  // wiki_Uncharted%3A_The_Nathan_Drake_Collection.
   try {
-    return decodeURIComponent(catalogId.slice(5)).replace(/_/g, " ");
+    return decodeURIComponent(payload).replace(/_/g, " ").trim() || null;
   } catch {
-    return null;
+    return payload.replace(/_/g, " ").trim() || null;
   }
 }
 
@@ -26,7 +46,10 @@ export function isVideoGameSummary(row: {
   const title = row.title ?? "";
   const description = row.description ?? "";
   if (/\(series\)|\(franchise\)|disambiguation/i.test(title)) return false;
-  if (/\b(awards?|publisher|company|magazine)\b/i.test(title) && !/\(video game\)/i.test(title)) {
+  if (
+    /\b(awards?|publisher|company|magazine)\b/i.test(title) &&
+    !/\(video game\)/i.test(title)
+  ) {
     return false;
   }
   if (/publisher|awards show|award ceremony|media franchise/i.test(description)) {
@@ -68,7 +91,9 @@ async function wikiGet<T>(url: string): Promise<T> {
 
 async function fetchSummary(title: string): Promise<WikiSummary | null> {
   try {
-    return await wikiGet<WikiSummary>(`${REST}/${encodeURIComponent(title.replace(/ /g, "_"))}`);
+    return await wikiGet<WikiSummary>(
+      `${REST}/${encodeURIComponent(title.replace(/ /g, "_"))}`,
+    );
   } catch {
     return null;
   }
@@ -109,7 +134,9 @@ export async function searchWikipedia(query: string): Promise<CatalogGame[]> {
     const titles = (data.query?.search ?? [])
       .map((row) => row.title)
       .filter((title): title is string => Boolean(title));
-    const summaries = await Promise.all(titles.slice(0, 6).map(fetchSummary));
+    const summaries = await Promise.all(
+      titles.slice(0, 6).map(fetchSummary),
+    );
     const games: CatalogGame[] = [];
     const seen = new Set<string>();
     for (const summary of summaries) {
