@@ -1,35 +1,33 @@
-# SaveState Trophy Sync feature
+# SaveState Phase 2 — Collection Trophy Identity Fix
 
-This branch adds local PS5 trophy recovery using the trophy screenshot `.ext` sidecars.
+Baseline: `feature/trophy-sync` HEAD `8c0b935ef8553197ff0896016d54373e240298ba`
 
-## PS5 behavior
+This patch fixes the assumption that one library/catalog game maps to exactly one PlayStation trophy identity.
 
-The payload recursively scans:
+## Implemented
 
-`/user/av_contents/photo`
+- A trophy-capable collection/compilation can resolve to multiple PlayStation title IDs.
+- Collection members are discovered from the catalog's IGDB `series` relation when the game is a bundle/collection/compilation-style entry.
+- The same resolver is used by trophy detail and trophy overview aggregation.
+- Trophy rows are deduplicated using `(platform, title_id, trophy_title_id, trophy_id)`.
+- Trophy catalog writes preserve `trophy_title_id` and use it in their identity/upsert path.
+- The database uniqueness key is expanded to include `trophy_title_id`, allowing multiple trophy sets to coexist safely.
+- Existing legacy rows with an empty trophy-set ID are rebound when catalog metadata becomes available.
+- Incomplete trophy catalogs are returned to the catalog sync target list so old/partial collection sets can be recovered.
+- PS4 and PS5 identities remain separated; a collection uses the preferred platform from the library entry when available.
+- Wiki catalog IDs remain backward-compatible.
 
-It reads each `.ext` JSON file, gets `trophyTitleId` and every `trophyId`, and gets the game Title ID from the sibling `.meta` file (`appVerTitleId`). If the `.meta` file is missing that field, the scanner falls back to a `CUSA...`/`PPSA...` identifier in the path.
+## Expected result
 
-It groups the result by game and posts one request to `/api/trophies/sync` using the existing PS5 device token.
+A collection such as Uncharted: The Nathan Drake Collection is treated as one library game while its child PlayStation trophy identities are aggregated instead of selecting only one 54-trophy set.
 
-The scanner does **not** delete screenshots or sidecars.
+The same mechanism applies to other collection/bundle/compilation entries without a title-specific exception.
 
-## Server behavior
+## Deployment
 
-`POST /api/trophies/sync` authenticates with the existing PS5 device credentials, resolves the Title ID through `playstation_titles`, and marks only the locally observed trophy IDs as earned.
+1. Apply `migrations/0015_trophy_set_identity.sql`.
+2. Deploy the updated server code.
+3. Run the trophy catalog job so incomplete/legacy trophy sets are refreshed.
+4. Run a normal PS5 trophy sync.
 
-`GET/POST /api/trophies/catalog` is protected by `CRON_SECRET`. The GET returns NPWR IDs currently present in `game_trophies`; the POST stores Sony trophy metadata without changing earned state.
-
-## GitHub Action
-
-`.github/workflows/sync-playstation-trophies.yml` runs daily at 04:30 UTC and can also be started manually.
-
-Required GitHub repository secrets:
-
-- `SAVESTATE_URL` — e.g. `https://save-state-jade.vercel.app`
-- `CRON_SECRET` — same value configured on the backend
-- `PSN_NPSSO` — PSN NPSSO token, or preferably `PSN_REFRESH_TOKEN` when using a persistent refresh token
-
-The action installs `psn-api@2.18.1` for the job only. Sony's authenticated Trophy API is used for **catalog metadata only**, not for earned state.
-
-PS5 uses `trophy2`; PS4/BC uses `trophy` when calling `getTitleTrophies()`.
+No Flutter/APK changes are included.
