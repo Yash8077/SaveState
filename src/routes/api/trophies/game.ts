@@ -19,12 +19,30 @@ export const Route = createFileRoute("/api/trophies/game")({
           const { getGameTrophyProgressForCatalog } = await import(
             "@/lib/trophy-read.server"
           );
+          const { ensureLibraryArtwork } = await import(
+            "@/lib/library-artwork.server"
+          );
+
+          const sql = await getSql();
           const result = await getGameTrophyProgressForCatalog(
-            await getSql(),
+            sql,
             userId,
             catalogId,
           );
-          return apiJson(result);
+
+          if (!result.found) return apiJson(result);
+
+          // Older library rows may have trophy data but no artwork snapshot.
+          // Fill it once from the catalog and persist it for future requests.
+          const artwork = await ensureLibraryArtwork(sql, userId, catalogId, {
+            coverUrl: result.coverUrl,
+            headerUrl: result.headerUrl,
+          });
+
+          return apiJson({
+            ...result,
+            ...artwork,
+          });
         } catch (err) {
           return apiErrorResponse(err);
         }

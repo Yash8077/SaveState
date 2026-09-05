@@ -1,16 +1,19 @@
-SaveState trophy overview performance fix
+# SaveState Trophy Artwork Fix — based on 054c87f
 
-Base branch: feature/trophy-sync
-Base HEAD checked before changes: cd9f6fcbe2c7715119ba7c6d6a7460712ad9dc32
+Base commit: `054c87f41f2538e0570a2415499f8828e980a40c`
+Message: `Major Change: PS5 Trohpies Fast Fetching`
 
 Changes:
-- Replace the Trophies overview's per-library-game catalog/PlayStation resolver with one DB-only trophy query.
-- Keep the overview scoped to the authenticated user's library.
-- Prefer persisted catalog_trophy_identities and fall back to an exact DB title match for older library rows.
-- Aggregate trophy totals, earned counts, tier counts, percentage, title IDs, and last-earned timestamp in server code.
-- No Wikipedia, IGDB, catalog API, or per-game network resolution is used by /api/trophies/list.
-- The existing /api/trophies/game detail endpoint and trophy resolver are unchanged.
+- Preserves the latest fast trophy-overview implementation.
+- Keeps trophy overview restricted to games in the authenticated user's library.
+- Adds a shared artwork backfill for library entries whose `cover_url`/`header_url` is missing.
+- Only games missing artwork trigger the catalog fallback.
+- The fetched artwork is persisted to `game_entries`.
+- Trophy detail uses the same fallback, fixing blank Nathan Drake banner/cover data.
+- Existing trophy identity and NPWR logic are untouched.
+- No Flutter/Dart files are included; no APK rebuild is required.
 
-Validation performed:
-- Node TypeScript syntax check passed for both changed files.
-- Full npm typecheck/build was not run because this environment could not resolve github.com to clone/install the repository dependencies.
+Files:
+- `src/routes/api/trophies/list.ts`
+- `src/routes/api/trophies/game.ts`
+- `src/lib/library-artwork.server.ts`
