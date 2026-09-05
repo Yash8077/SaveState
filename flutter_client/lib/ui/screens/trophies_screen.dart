@@ -93,9 +93,12 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                   Text(
                     'Trophies',
                     style: theme.textTheme.headlineMedium?.copyWith(
@@ -104,14 +107,15 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    'Your trophy journey, game by game',
-                    style: TextStyle(
-                      color: scheme.onSurfaceVariant,
-                      fontSize: 14,
+                    Text(
+                      'Your trophy journey, game by game',
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             Expanded(child: _buildBody(theme, scheme)),

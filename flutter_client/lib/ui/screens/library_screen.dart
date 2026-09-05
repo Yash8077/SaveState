@@ -447,11 +447,11 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  height: 56,
-                  width: 56,
+                  height: 48,
+                  width: 48,
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(18),
+                    shape: BoxShape.circle,
                   ),
                   child: PopupMenuButton<_LibrarySort>(
                     tooltip: 'Sort',
