@@ -161,7 +161,7 @@ async function findPlaystationTitle(
     platform: Platform;
     title_id: string;
   }>(
-    `select distinct t.platform, t.title_id
+    `select t.platform, t.title_id
        from playstation_titles t
        where t.is_game = true
          and regexp_replace(lower(t.name), '[^a-z0-9]+', '', 'g') = $1
