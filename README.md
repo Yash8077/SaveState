@@ -1,28 +1,32 @@
-# SaveState Phase 2 — Collection Trophy Identity Fix (final)
+# SaveState PS5 trophy scanner fix
 
-Baseline: `feature/trophy-sync` after `8c0b935ef8553197ff0896016d54373e240298ba` and the pushed Phase 2 backend fix.
+Replace `ps5/activity_logger/trophy_sync.c` on `feature/trophy-sync`.
 
-This change fixes collection/compilation trophy resolution generically. It is not a Nathan Drake special case.
+## What this fixes
 
-## What it changes
+The old scanner keyed its in-memory game bucket only by `title_id` (CUSA/PPSA). That incorrectly merged multiple PlayStation trophy sets that share one application Title ID. A collection can therefore contain multiple `trophyTitleId`/NPWR values under one CUSA.
 
-- A PlayStation title can be associated with multiple trophy sets via `trophy_title_game_map`.
-- PSN sync persists `platform + title_id + trophy_title_id` even when a game has zero earned trophies.
-- Catalog ingestion uses those mappings to populate complete trophy sets, including sets with zero earned trophies.
-- Catalog reads can resolve a collection to multiple PlayStation child title IDs using the catalog's IGDB series relation.
-- Exact member matches are preferred; unresolved collection members use token-scored name matching for PlayStation naming differences such as remastered/edition suffixes.
-- Resolved catalog-to-PlayStation identities are persisted in `catalog_trophy_identities` so subsequent requests do not have to rediscover the mapping.
-- Trophy detail and trophy overview use the same identity resolver and aggregate all selected trophy sets.
-- Trophy rows are deduplicated by `(platform, title_id, trophy_title_id, trophy_id)`.
-- PS4/PS5 platform preference from the library entry is preserved.
-- SQL paths that used array-cast predicates were removed from the collection resolver to avoid the runtime `$1` syntax failure seen on Android.
+The scanner now keys every group by:
 
-## Deployment
+`title_id + trophy_title_id`
 
-1. Apply `migrations/0016_trophy_identity_maps.sql` after `0015_trophy_set_identity.sql`.
-2. Deploy the updated server files.
-3. Run the trophy catalog job. Existing sync mappings cause all known trophy sets to be requested; incomplete catalogs are retried.
-4. Run a normal PS5 trophy sync once after deployment.
-5. Open Nathan Drake Collection again. It should aggregate the child trophy identities rather than selecting a single 54-trophy list.
+Every `.ext` sidecar is still scanned, but duplicate trophy IDs are merged in memory inside the correct title/NPWR group. The payload sends one HTTP request containing one entry per unique Title ID + NPWR pair.
 
-No Flutter/APK changes are included.
+This means a layout such as:
+
+CUSA02320 + NPWR09798_00 -> Uncharted 1 earned trophies
+CUSA02320 + NPWRxxxxx_00 -> Uncharted 2 earned trophies
+
+is preserved as two separate sync groups instead of one.
+
+## Important behavior
+
+Do not skip an entire NPWR just because that NPWR already exists in the database. The user may earn additional trophies in an already-known set later. The correct optimization is to deduplicate repeated `.ext` observations for the same `title_id + trophy_title_id + trophy_id` during the current scan. The server remains idempotent on repeated syncs.
+
+The request is built dynamically, so a large trophy library does not depend on a fixed 128 KiB JSON body limit.
+
+## Build
+
+The existing `ps5/activity_logger/Makefile` already compiles `trophy_sync.c`, so no Makefile change is required.
+
+Run the existing `build-ps5-payload` GitHub Action and deploy its `savestate-activity.elf` artifact to the PS5 payload manager.
