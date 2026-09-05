@@ -253,7 +253,7 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
     );
   }
 
-  Widget _loading() {
+  Widget _loadingScaffold() {
     return Scaffold(
       appBar: AppBar(title: const Text('Trophies')),
       body: const Center(
@@ -281,7 +281,7 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
     final cs = Theme.of(context).colorScheme;
     final wide = MediaQuery.sizeOf(context).width >= 720;
 
-    if (_loading) return _loading();
+    if (_loading) return _loadingScaffold();
 
     if (_error != null) {
       return _message(
