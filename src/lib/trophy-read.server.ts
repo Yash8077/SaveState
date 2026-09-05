@@ -1,5 +1,5 @@
 import type { Sql } from "./db.ts";
-import type { CatalogDetails, GameEntry } from "./types.ts";
+import type { CatalogDetails } from "./types.ts";
 import { fetchCatalogDetails, titleKey } from "./catalog.server.ts";
 import { parseWikiTitle, wikiCatalogId } from "./wikipedia.server.ts";
 
@@ -153,18 +153,21 @@ async function findEntry(
   details: CatalogDetails | null,
 ): Promise<EntryIdentity | null> {
   const variants = catalogIdVariants(catalogId);
-  const exact = await sql.query<EntryIdentity>(
-    `select id, catalog_id as "catalogId", title,
-            cover_url as "coverUrl", header_url as "headerUrl", platforms
-       from game_entries
-      where user_id = $1
-        and catalog_id = any($2::text[])
-      order by case when catalog_id = $3 then 0 else 1 end,
-               updated_at desc, id desc
-      limit 1`,
-    [userId, variants, canonicalCatalogId(catalogId)],
-  );
-  if (exact[0]) return exact[0];
+  if (variants.length) {
+    const placeholders = variants.map((_, i) => `$${i + 2}`).join(', ');
+    const exact = await sql.query<EntryIdentity>(
+      `select id, catalog_id as "catalogId", title,
+              cover_url as "coverUrl", header_url as "headerUrl", platforms
+         from game_entries
+        where user_id = $1
+          and catalog_id in (${placeholders})
+        order by case when catalog_id = $2 then 0 else 1 end,
+                 updated_at desc, id desc
+        limit 1`,
+      [userId, ...variants],
+    );
+    if (exact[0]) return exact[0];
+  }
 
   if (!details?.title) return null;
   const key = titleKey(details.title).replace(/[^a-z0-9]+/g, "");
@@ -191,31 +194,87 @@ async function resolveDetails(catalogId: string): Promise<CatalogDetails | null>
   }
 }
 
+function normalizedTitle(title: string): string {
+  return titleKey(title).replace(/[^a-z0-9]+/g, "");
+}
+
+function meaningfulTitleTokens(title: string): string[] {
+  const stop = new Set([
+    "the", "of", "and", "a", "an", "for", "to", "in", "on", "at",
+    "game", "video", "edition", "bundle", "collection", "compilation",
+    "pack", "complete", "definitive", "deluxe", "ultimate", "remastered",
+    "remaster", "remake", "original", "version", "digital", "directors",
+    "director", "cut", "trilogy", "duology", "anthology", "set", "vol",
+  ]);
+  const clean = title
+    .replace(/[’']s\b/gi, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ");
+  return uniqueStrings(
+    clean
+      .split(" ")
+      .map((token) => token.trim())
+      .filter((token) => token.length >= 3 && !stop.has(token)),
+  );
+}
+
+function matchScore(sourceTitle: string, candidateTitle: string): number {
+  const source = normalizedTitle(sourceTitle);
+  const candidate = normalizedTitle(candidateTitle);
+  if (!source || !candidate) return 0;
+  if (source === candidate) return 1;
+
+  const sourceTokens = meaningfulTitleTokens(sourceTitle);
+  const candidateTokens = new Set(meaningfulTitleTokens(candidateTitle));
+  if (!sourceTokens.length || !candidateTokens.size) return 0;
+
+  const overlap = sourceTokens.filter((token) => candidateTokens.has(token)).length;
+  if (overlap < Math.min(2, sourceTokens.length)) return 0;
+  const coverage = overlap / sourceTokens.length;
+  const precision = overlap / candidateTokens.size;
+  if (coverage < 0.5) return 0;
+  return 0.7 * coverage + 0.3 * precision;
+}
+
 async function findPlaystationIdentities(
   sql: Sql,
   titles: string[],
 ): Promise<PlaystationIdentity[]> {
   const normalized = uniqueStrings(
-    titles
-      .map((title) => titleKey(title).replace(/[^a-z0-9]+/g, ""))
-      .filter(Boolean),
+    titles.map(normalizedTitle).filter(Boolean),
   );
   if (!normalized.length) return [];
+
+  const clauses: string[] = [];
+  const values: unknown[] = [];
+  for (const value of normalized) {
+    const n = values.length + 1;
+    clauses.push(`regexp_replace(lower(t.name), '[^a-z0-9]+', '', 'g') = $${n}`);
+    values.push(value);
+  }
 
   const rows = await sql.query<PlaystationIdentity>(
     `select distinct t.platform, t.title_id as "titleId"
        from playstation_titles t
       where t.is_game = true
-        and regexp_replace(lower(t.name), '[^a-z0-9]+', '', 'g') = any($1::text[])
-        and exists (
-          select 1
-            from game_trophies gt
-           where gt.platform = t.platform
-             and gt.title_id = t.title_id
+        and (${clauses.join(" or ")})
+        and (
+          exists (
+            select 1
+              from game_trophies gt
+             where gt.platform = t.platform
+               and gt.title_id = t.title_id
+          )
+          or exists (
+            select 1
+              from trophy_title_game_map gm
+             where gm.platform = t.platform
+               and gm.title_id = t.title_id
+          )
         )
       order by case t.platform when 'ps5' then 0 when 'ps4' then 1 else 2 end,
                t.title_id`,
-    [normalized],
+    values,
   );
 
   const seen = new Set<string>();
@@ -225,6 +284,120 @@ async function findPlaystationIdentities(
     seen.add(key);
     return true;
   });
+}
+
+async function findPlaystationCandidates(
+  sql: Sql,
+  titles: string[],
+  platform: Platform,
+): Promise<Array<PlaystationIdentity & { name: string }>> {
+  const tokens = uniqueStrings(
+    titles
+      .flatMap(meaningfulTitleTokens)
+      .sort((a, b) => b.length - a.length)
+      .slice(0, 12),
+  );
+  if (!tokens.length) return [];
+
+  const clauses: string[] = [];
+  const values: unknown[] = [platform];
+  for (const token of tokens) {
+    const n = values.length + 1;
+    clauses.push(`lower(t.name) like $${n}`);
+    values.push(`%${token}%`);
+  }
+
+  return sql.query<PlaystationIdentity & { name: string }>(
+    `select distinct t.platform, t.title_id as "titleId", t.name
+       from playstation_titles t
+      where t.is_game = true
+        and t.platform = $1
+        and (${clauses.join(" or ")})
+        and (
+          exists (
+            select 1
+              from game_trophies gt
+             where gt.platform = t.platform
+               and gt.title_id = t.title_id
+          )
+          or exists (
+            select 1
+              from trophy_title_game_map gm
+             where gm.platform = t.platform
+               and gm.title_id = t.title_id
+          )
+        )
+      order by t.title_id`,
+    values,
+  );
+}
+
+async function resolveMemberIdentities(
+  sql: Sql,
+  memberTitles: string[],
+  preferred: Platform[],
+): Promise<PlaystationIdentity[]> {
+  const selected: PlaystationIdentity[] = [];
+  const used = new Set<string>();
+
+  for (const platform of preferred) {
+    const unmatched: string[] = [];
+
+    // Resolve each member independently first. This prevents one member's
+    // exact title match from being incorrectly assigned to another member.
+    for (const member of memberTitles) {
+      const exact = await findPlaystationIdentities(sql, [member]);
+      const match = exact.find(
+        (identity) =>
+          identity.platform === platform &&
+          !used.has(`${identity.platform}:${identity.titleId}`),
+      );
+      if (!match) {
+        unmatched.push(member);
+        continue;
+      }
+      selected.push(match);
+      used.add(`${match.platform}:${match.titleId}`);
+    }
+
+    // Exact matching may fail when PlayStation uses a slightly different
+    // name (subtitle/remaster/edition suffix). Fuzzy matching is restricted
+    // to the unresolved members of a catalog collection.
+    if (unmatched.length) {
+      const candidates = await findPlaystationCandidates(
+        sql,
+        unmatched,
+        platform,
+      );
+      const remaining = candidates.filter(
+        (candidate) => !used.has(`${candidate.platform}:${candidate.titleId}`),
+      );
+
+      for (const member of unmatched) {
+        let bestIndex = -1;
+        let bestScore = 0;
+        for (let i = 0; i < remaining.length; i++) {
+          const candidate = remaining[i]!;
+          const score = matchScore(member, candidate.name);
+          if (score > bestScore) {
+            bestScore = score;
+            bestIndex = i;
+          }
+        }
+        if (bestIndex < 0 || bestScore < 0.55) continue;
+        const [best] = remaining.splice(bestIndex, 1);
+        if (!best) continue;
+        const key = `${best.platform}:${best.titleId}`;
+        if (used.has(key)) continue;
+        selected.push({ platform: best.platform, titleId: best.titleId });
+        used.add(key);
+      }
+    }
+
+    if (selected.length) return selected;
+  }
+
+  return [];
 }
 
 function choosePlatformIdentities(
@@ -238,49 +411,103 @@ function choosePlatformIdentities(
   return [];
 }
 
+const TROPHY_IDENTITY_RESOLVER_VERSION = 2;
+
+async function loadStoredIdentities(
+  sql: Sql,
+  catalogIds: string[],
+): Promise<PlaystationIdentity[]> {
+  const ids = uniqueStrings(catalogIds.map(canonicalCatalogId));
+  if (!ids.length) return [];
+  const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ");
+  const rows = await sql.query<PlaystationIdentity>(
+    `select platform, title_id as "titleId"
+       from catalog_trophy_identities
+      where resolver_version = ${TROPHY_IDENTITY_RESOLVER_VERSION}
+        and catalog_id in (${placeholders})
+      order by platform, title_id`,
+    ids,
+  );
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const key = `${row.platform}:${row.titleId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function persistIdentities(
+  sql: Sql,
+  catalogId: string,
+  identities: PlaystationIdentity[],
+) {
+  const canonical = canonicalCatalogId(catalogId);
+  await sql.query(
+    `delete from catalog_trophy_identities
+      where catalog_id = $1`,
+    [canonical],
+  );
+  for (const identity of identities) {
+    await sql.query(
+      `insert into catalog_trophy_identities (
+         catalog_id, platform, title_id, resolver_version, updated_at
+       ) values ($1, $2, $3, ${TROPHY_IDENTITY_RESOLVER_VERSION}, now())
+       on conflict (catalog_id, platform, title_id)
+       do update set resolver_version = excluded.resolver_version,
+                     updated_at = now()`,
+      [canonical, identity.platform, identity.titleId],
+    );
+  }
+}
+
 async function resolvePlaystationIdentities(
   sql: Sql,
   entry: EntryIdentity,
   details: CatalogDetails | null,
 ): Promise<PlaystationIdentity[]> {
-  const exactTitles = uniqueStrings([entry.title, details?.title ?? ""]);
-  let identities = await findPlaystationIdentities(sql, exactTitles);
-
+  const stored = await loadStoredIdentities(sql, catalogIdVariants(entry.catalogId));
   const preferred = titlePlatformPreference(entry);
-  identities = choosePlatformIdentities(identities, preferred);
+  if (stored.length) {
+    const selected = choosePlatformIdentities(stored, preferred);
+    if (selected.length) return selected;
+  }
+
+  const exactTitles = uniqueStrings([entry.title, details?.title ?? ""]);
+  const exact = choosePlatformIdentities(
+    await findPlaystationIdentities(sql, exactTitles),
+    preferred,
+  );
 
   const isCollection = collectionLike(details, entry.title);
-  const memberTitles = isCollection ? collectionMemberTitles(details) : [];
+  let resolvedDetails = details;
+  let identities = exact;
 
-  // A collection may have a PlayStation row for the collection itself plus
-  // separate rows for each child title. Include both, but only on one
-  // preferred platform.
-  if (isCollection && memberTitles.length) {
-    const memberIdentities = choosePlatformIdentities(
-      await findPlaystationIdentities(sql, memberTitles),
-      preferred,
-    );
-    const merged = [...identities, ...memberIdentities];
-    const seen = new Set<string>();
-    identities = merged.filter((identity) => {
-      const key = `${identity.platform}:${identity.titleId}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+  if (isCollection || !identities.length) {
+    if (!resolvedDetails) resolvedDetails = await resolveDetails(entry.catalogId);
+    const memberTitles = collectionMemberTitles(resolvedDetails);
+    if (isCollection && memberTitles.length) {
+      const memberIdentities = await resolveMemberIdentities(
+        sql,
+        memberTitles,
+        preferred,
+      );
+      const merged = [...identities, ...memberIdentities];
+      const seen = new Set<string>();
+      identities = merged.filter((identity) => {
+        const key = `${identity.platform}:${identity.titleId}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
   }
 
-  // If the collection has no exact/child match, a second pass using the
-  // collection's member titles is intentionally the only fuzzy fallback.
-  // This avoids accidentally merging ordinary sequels/franchise members.
-  if (!identities.length && memberTitles.length) {
-    identities = choosePlatformIdentities(
-      await findPlaystationIdentities(sql, memberTitles),
-      preferred,
-    );
+  const selected = choosePlatformIdentities(identities, preferred);
+  if (selected.length) {
+    await persistIdentities(sql, entry.catalogId, selected);
   }
-
-  return identities;
+  return selected;
 }
 
 async function readTrophies(
@@ -362,7 +589,14 @@ async function buildGameResult(
     gold: countTypes(trophies, "gold"),
     silver: countTypes(trophies, "silver"),
     bronze: countTypes(trophies, "bronze"),
-    lastEarnedAt: trophies.find((row) => row.earned)?.earned_at ?? null,
+    lastEarnedAt:
+      trophies.reduce<string | null>((latest, row) => {
+        if (!row.earned_at) return latest;
+        if (!latest) return row.earned_at;
+        return Date.parse(row.earned_at) > Date.parse(latest)
+          ? row.earned_at
+          : latest;
+      }, null),
   };
 }
 
@@ -406,158 +640,26 @@ export async function listLibraryTrophyProgressDeduped(
   sql: Sql,
   userId: string,
 ): Promise<LibraryTrophyGame[]> {
-  // Fast path: aggregate every exact-name PlayStation trophy identity. This
-  // handles multiple regions and collection title IDs without one query per
-  // library entry.
-  const rows = await sql.query<{
-    game_id: number;
-    catalog_id: string;
-    title: string;
-    cover_url: string | null;
-    header_url: string | null;
-    platform: Platform;
-    title_id: string;
-    total: number;
-    earned: number;
-    platinum_earned: number;
-    platinum_total: number;
-    gold_earned: number;
-    gold_total: number;
-    silver_earned: number;
-    silver_total: number;
-    bronze_earned: number;
-    bronze_total: number;
-    last_earned_at: string | null;
-    identity_count: number;
-  }>(
-    `with dedup as (
-       select distinct on (platform, title_id, trophy_title_id, trophy_id) *
-         from game_trophies
-        order by platform, title_id, trophy_title_id, trophy_id,
-                 earned desc,
-                 earned_at desc nulls last,
-                 id desc
-     ),
-     matched as (
-       select
-         ge.id as game_id,
-         ge.catalog_id,
-         ge.title,
-         ge.cover_url,
-         ge.header_url,
-         d.platform,
-         d.title_id,
-         d.trophy_title_id,
-         d.trophy_id,
-         d.trophy_type,
-         d.earned,
-         d.earned_at
-       from game_entries ge
-       join playstation_titles t
-         on t.is_game = true
-        and regexp_replace(lower(t.name), '[^a-z0-9]+', '', 'g') =
-            regexp_replace(lower(ge.title), '[^a-z0-9]+', '', 'g')
-       join dedup d
-         on d.platform = t.platform
-        and d.title_id = t.title_id
-       where ge.user_id = $1
-     )
-     select
-       game_id,
-       catalog_id,
-       title,
-       cover_url,
-       header_url,
-       platform,
-       min(title_id) as title_id,
-       count(*)::int as total,
-       count(*) filter (where earned)::int as earned,
-       count(*) filter (where trophy_type = 'platinum' and earned)::int as platinum_earned,
-       count(*) filter (where trophy_type = 'platinum')::int as platinum_total,
-       count(*) filter (where trophy_type = 'gold' and earned)::int as gold_earned,
-       count(*) filter (where trophy_type = 'gold')::int as gold_total,
-       count(*) filter (where trophy_type = 'silver' and earned)::int as silver_earned,
-       count(*) filter (where trophy_type = 'silver')::int as silver_total,
-       count(*) filter (where trophy_type = 'bronze' and earned)::int as bronze_earned,
-       count(*) filter (where trophy_type = 'bronze')::int as bronze_total,
-       max(earned_at)::text as last_earned_at,
-       count(distinct title_id)::int as identity_count
-     from matched
-     group by game_id, catalog_id, title, cover_url, header_url, platform
-     order by
-       case when count(*) = 0 then 1 else 0 end,
-       count(*) filter (where earned)::float / nullif(count(*), 0) desc,
-       max(earned_at) desc nulls last,
-       title asc`,
-    [userId],
-  );
-
-  const results = rows.map((row) => ({
-    gameId: row.game_id,
-    catalogId: canonicalCatalogId(row.catalog_id),
-    title: row.title,
-    coverUrl: row.cover_url,
-    headerUrl: row.header_url,
-    platform: row.platform,
-    titleId: row.title_id,
-    titleIds: [row.title_id],
-    total: Number(row.total),
-    earned: Number(row.earned),
-    percentage:
-      row.total === 0 ? 0 : Number(((row.earned / row.total) * 100).toFixed(1)),
-    platinum: {
-      earned: Number(row.platinum_earned),
-      total: Number(row.platinum_total),
-    },
-    gold: {
-      earned: Number(row.gold_earned),
-      total: Number(row.gold_total),
-    },
-    silver: {
-      earned: Number(row.silver_earned),
-      total: Number(row.silver_total),
-    },
-    bronze: {
-      earned: Number(row.bronze_earned),
-      total: Number(row.bronze_total),
-    },
-    lastEarnedAt: row.last_earned_at,
-    identityCount: Number(row.identity_count),
-  }));
-
-  // Collection fallback: only expand likely collection entries that resolved
-  // to no more than one PlayStation identity in the fast path. This keeps the
-  // overview cheap for ordinary games but supports bundles whose member games
-  // have different PlayStation names.
-  const library = await sql<EntryIdentity & { id: number }>(
+  const libraryRows = await sql.query<EntryIdentity>(
     `select id, catalog_id as "catalogId", title,
             cover_url as "coverUrl", header_url as "headerUrl", platforms
        from game_entries
-      where user_id = $1`,
+      where user_id = $1
+      order by updated_at desc, id desc`,
     [userId],
   );
+  const library = libraryRows as EntryIdentity[];
 
-  const resultByGame = new Map(results.map((row) => [row.gameId, row]));
-  const candidates = library.filter((entry) => {
-    if (!collectionLike(null, entry.title)) return false;
-    const existing = resultByGame.get(entry.id);
-    return !existing || existing.identityCount <= 1;
-  });
-
-  const expanded = await mapWithConcurrency(candidates, 6, async (entry) => {
-    const details = await resolveDetails(entry.catalogId);
-    if (!collectionLike(details, entry.title)) return null;
-    return buildGameResult(sql, entry, details);
-  });
-
-  for (const expandedRow of expanded) {
-    if (expandedRow && expandedRow.total > 0) {
-      resultByGame.set(expandedRow.gameId, expandedRow);
+  const results = await mapWithConcurrency(library, 4, async (entry: EntryIdentity) => {
+    try {
+      return await buildGameResult(sql, entry, null);
+    } catch {
+      return null;
     }
-  }
+  });
 
-  return [...resultByGame.values()]
-    .map(({ identityCount: _identityCount, ...row }) => row)
+  return results
+    .filter((row): row is LibraryTrophyGame => Boolean(row))
     .sort((a, b) => {
       const ar = a.total ? a.earned / a.total : 0;
       const br = b.total ? b.earned / b.total : 0;

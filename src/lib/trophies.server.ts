@@ -33,6 +33,18 @@ export async function syncPs5Trophies(sql: Sql, input: TrophySyncInput) {
       continue;
     }
 
+    if (trophyTitleId) {
+      await sql`
+        insert into trophy_title_game_map (
+          platform, title_id, trophy_title_id, updated_at
+        ) values (
+          ${platform}, ${titleId}, ${trophyTitleId}, now()
+        )
+        on conflict (platform, title_id, trophy_title_id)
+        do update set updated_at = now()
+      `;
+    }
+
     const trophyIds = [...new Set(game.trophyIds)];
     if (trophyIds.length === 0) {
       gamesProcessed++;
@@ -186,6 +198,18 @@ export async function listUncachedTrophyCatalogTargets(sql: Sql) {
     select distinct platform, trophy_title_id
     from (
       select
+        gm.platform,
+        gm.trophy_title_id
+      from trophy_title_game_map gm
+      left join trophy_catalogs tc
+        on tc.platform = gm.platform
+       and tc.trophy_title_id = gm.trophy_title_id
+      where gm.trophy_title_id <> ''
+        and tc.trophy_title_id is null
+
+      union
+
+      select
         gt.platform,
         gt.trophy_title_id
       from game_trophies gt
@@ -222,9 +246,17 @@ export async function applyTrophyCatalog(
 ) {
   const titleRows = await sql<{ title_id: string }>`
     select distinct title_id
-    from game_trophies
-    where platform = ${input.platform}
-      and trophy_title_id = ${input.trophyTitleId}
+    from (
+      select title_id
+      from trophy_title_game_map
+      where platform = ${input.platform}
+        and trophy_title_id = ${input.trophyTitleId}
+      union
+      select title_id
+      from game_trophies
+      where platform = ${input.platform}
+        and trophy_title_id = ${input.trophyTitleId}
+    ) mapped
   `;
 
   let updated = 0;
