@@ -1,31 +1,35 @@
-# SaveState UI update — based on latest main
+# SaveState Trophy Sync feature
 
-Latest verified repository commit fetched before changes:
-`9c6c552615c314fe93c75564628599be1444d2a4` — **Update stats_screen.dart**.
+This branch adds local PS5 trophy recovery using the trophy screenshot `.ext` sidecars.
 
-## Changelog
+## PS5 behavior
 
-### Already present in latest main (kept, not duplicated)
-- Flutter Stats already separates all-time activity from month-specific activity.
-- Flutter Stats already loads only the selected month when changing months.
-- Flutter Stats already handles signed-out users with a sign-in state.
-- Flutter Stats already uses a full-size Material `ColorScheme.primary` outline for the selected calendar cell.
+The payload recursively scans:
 
-### Changes in this package
-- **Home — Flutter + web:** refined the Playing / Beaten / Backlog / Favorites stat chips into compact Material-style outlined surfaces.
-- **Discover — Flutter + web:** added a clear `Discover` heading and supporting subtitle above search.
-- **Stats — Flutter + web:** removed the redundant progress bar from Most Played cards; playtime remains prominent.
-- **Stats calendar — Flutter + web:** calendar durations use compact `Xh+` for anything over a whole hour (`1h+`, `2h+`, etc.), while exact durations remain in the selected-day details.
-- **Stats calendar — web:** selected day uses a clear primary outline without the extra ring/glow treatment.
-- **Flutter Stats calendar:** removed the per-day progress indicator beneath the duration; artwork/intensity remains the visual activity indicator.
+`/user/av_contents/photo`
 
-## Files
-- `src/routes/index.tsx`
-- `src/routes/discover.tsx`
-- `src/routes/stats.tsx`
-- `flutter_client/lib/ui/screens/home_screen.dart`
-- `flutter_client/lib/ui/screens/discover_screen.dart`
-- `flutter_client/lib/ui/screens/stats_screen.dart`
+It reads each `.ext` JSON file, gets `trophyTitleId` and every `trophyId`, and gets the game Title ID from the sibling `.meta` file (`appVerTitleId`). If the `.meta` file is missing that field, the scanner falls back to a `CUSA...`/`PPSA...` identifier in the path.
 
-## Validation
-Flutter/Dart SDK was not available in this execution environment, so the Flutter changes were not locally compiled.
+It groups the result by game and posts one request to `/api/trophies/sync` using the existing PS5 device token.
+
+The scanner does **not** delete screenshots or sidecars.
+
+## Server behavior
+
+`POST /api/trophies/sync` authenticates with the existing PS5 device credentials, resolves the Title ID through `playstation_titles`, and marks only the locally observed trophy IDs as earned.
+
+`GET/POST /api/trophies/catalog` is protected by `CRON_SECRET`. The GET returns NPWR IDs currently present in `game_trophies`; the POST stores Sony trophy metadata without changing earned state.
+
+## GitHub Action
+
+`.github/workflows/sync-playstation-trophies.yml` runs daily at 04:30 UTC and can also be started manually.
+
+Required GitHub repository secrets:
+
+- `SAVESTATE_URL` — e.g. `https://save-state-jade.vercel.app`
+- `CRON_SECRET` — same value configured on the backend
+- `PSN_NPSSO` — PSN NPSSO token, or preferably `PSN_REFRESH_TOKEN` when using a persistent refresh token
+
+The action installs `psn-api@2.18.1` for the job only. Sony's authenticated Trophy API is used for **catalog metadata only**, not for earned state.
+
+PS5 uses `trophy2`; PS4/BC uses `trophy` when calling `getTitleTrophies()`.

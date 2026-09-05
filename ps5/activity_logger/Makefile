@@ -6,14 +6,13 @@ PS5_PAYLOAD_SDK ?= /opt/ps5-payload-sdk
 #   unzip -o sqlite.zip && cp sqlite-amalgamation-*/sqlite3.{c,h} .
 
 TARGET := savestate-activity.elf
-SRCS := main.c sqlite3.c
+SRCS := main.c trophy_sync.c sqlite3.c
 
 include $(PS5_PAYLOAD_SDK)/toolchain/prospero.mk
 
 CFLAGS += -O2 -Wall -Wextra -I. -I$(PS5_PAYLOAD_SDK)/include
 CFLAGS += `$(PS5_PAYLOAD_SDK)/bin/prospero-curl-config --cflags`
 
-# Use the PS5-payload-dev cURL stack. No libSceHttp/libSceHttp2/libSceSsl.
 LDLIBS += `$(PS5_PAYLOAD_SDK)/bin/prospero-curl-config --libs`
 
 all: $(TARGET)
