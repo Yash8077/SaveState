@@ -12,31 +12,43 @@ export const Route = createFileRoute("/api/trophies/catalog")({
     handlers: {
       GET: async ({ request }) => {
         const { apiJson } = await import("@/lib/api-auth.server");
-        if (!isAuthorizedCron(request)) return apiJson({ error: "Unauthorized" }, 401);
+        if (!isAuthorizedCron(request)) {
+          return apiJson({ error: "Unauthorized" }, 401);
+        }
 
         const { getSql } = await import("@/lib/db");
-        const { listTrophyCatalogTargets } = await import("@/lib/trophies.server");
-        const targets = await listTrophyCatalogTargets(await getSql());
+        const { listUncachedTrophyCatalogTargets } =
+          await import("@/lib/trophies.server");
+
+        const targets = await listUncachedTrophyCatalogTargets(await getSql());
 
         return apiJson({
           npCommunicationIds: targets.map((row) => ({
             npCommunicationId: row.trophy_title_id,
             platform: row.platform,
-            catalogSynced: row.catalog_synced,
-            trophySetVersion: row.trophy_set_version,
+            catalogSynced: false,
           })),
         });
       },
 
       POST: async ({ request }) => {
         const { apiJson } = await import("@/lib/api-auth.server");
-        if (!isAuthorizedCron(request)) return apiJson({ error: "Unauthorized" }, 401);
+        if (!isAuthorizedCron(request)) {
+          return apiJson({ error: "Unauthorized" }, 401);
+        }
 
         const parsed = trophyCatalogInput.safeParse(await request.json());
-        if (!parsed.success) return apiJson({ error: "Invalid trophy catalog payload" }, 400);
+        if (!parsed.success) {
+          return apiJson(
+            { error: "Invalid trophy catalog payload" },
+            400,
+          );
+        }
 
         const { getSql } = await import("@/lib/db");
-        const { applyTrophyCatalog } = await import("@/lib/trophies.server");
+        const { applyTrophyCatalog } =
+          await import("@/lib/trophies.server");
+
         const result = await applyTrophyCatalog(await getSql(), parsed.data);
 
         return apiJson({ ok: true, ...result });

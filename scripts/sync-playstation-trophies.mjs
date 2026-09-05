@@ -32,7 +32,12 @@ async function getAuthorization() {
   return exchangeAccessCodeForAuthTokens(accessCode);
 }
 
-async function postCatalog(platform, trophyTitleId, trophySetVersion, trophies) {
+async function postCatalog(
+  platform,
+  trophyTitleId,
+  trophySetVersion,
+  trophies,
+) {
   const response = await fetch(`${baseUrl}/api/trophies/catalog`, {
     method: "POST",
     headers: {
@@ -67,22 +72,18 @@ if (!targetsResponse.ok) {
 
 const { npCommunicationIds = [] } = await targetsResponse.json();
 
-const targetsToSync = npCommunicationIds.filter(
-  (target) => !target.catalogSynced,
-);
-
-if (!targetsToSync.length) {
+if (!npCommunicationIds.length) {
   console.log("No uncached trophy catalogs to sync.");
   process.exit(0);
 }
 
 console.log(
-  `Found ${targetsToSync.length} uncached trophy catalog target(s).`,
+  `Found ${npCommunicationIds.length} uncached trophy catalog target(s).`,
 );
 
 const authorization = await getAuthorization();
 
-for (const target of targetsToSync) {
+for (const target of npCommunicationIds) {
   const service = target.platform === "ps5" ? "trophy2" : "trophy";
 
   console.log(

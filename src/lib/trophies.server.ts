@@ -127,24 +127,43 @@ export async function listTrophyCatalogTargets(sql: Sql) {
   return sql<{
     trophy_title_id: string;
     platform: "ps4" | "ps5";
-    catalog_synced: boolean;
     trophy_set_version: string | null;
+    total_trophies: number;
+    synced_at: string;
   }>`
     select
       trophy_title_id,
       platform,
-      bool_and(catalog_synced_at is not null) as catalog_synced,
-      min(trophy_set_version) as trophy_set_version
-    from game_trophies
-    where trophy_title_id is not null
-    group by trophy_title_id, platform
-    order by trophy_title_id, platform
+      trophy_set_version,
+      total_trophies,
+      synced_at::text as synced_at
+    from trophy_catalogs
+    order by platform, trophy_title_id
+  `;
+}
+
+export async function listUncachedTrophyCatalogTargets(sql: Sql) {
+  return sql<{
+    trophy_title_id: string;
+    platform: "ps4" | "ps5";
+  }>`
+    select
+      gt.trophy_title_id,
+      min(gt.platform) as platform
+    from game_trophies gt
+    left join trophy_catalogs tc
+      on tc.platform = gt.platform
+     and tc.trophy_title_id = gt.trophy_title_id
+    where gt.trophy_title_id is not null
+      and tc.trophy_title_id is null
+    group by gt.trophy_title_id
+    order by gt.trophy_title_id
   `;
 }
 
 export async function applyTrophyCatalog(
   sql: Sql,
-  input: TrophyCatalogInput & { trophySetVersion?: string | null },
+  input: TrophyCatalogInput,
 ) {
   const titleRows = await sql<{
     title_id: string;
@@ -163,9 +182,8 @@ export async function applyTrophyCatalog(
 
       const existing = await sql<{
         id: number;
-        earned: boolean;
       }>`
-        select id, earned
+        select id
         from game_trophies
         where platform = ${input.platform}
           and title_id = ${title.title_id}
@@ -185,7 +203,6 @@ export async function applyTrophyCatalog(
               trophy_icon_url = ${trophy.trophyIconUrl ?? null},
               trophy_hidden = ${trophy.trophyHidden ?? null},
               trophy_progress_target_value = ${target == null ? null : String(target)},
-              catalog_synced_at = now(),
               metadata_synced_at = now(),
               updated_at = now()
           where id = ${existing[0].id}
@@ -207,7 +224,6 @@ export async function applyTrophyCatalog(
             trophy_progress_target_value,
             earned,
             metadata_synced_at,
-            catalog_synced_at,
             created_at,
             updated_at
           ) values (
@@ -226,7 +242,6 @@ export async function applyTrophyCatalog(
             false,
             now(),
             now(),
-            now(),
             now()
           )
         `;
@@ -236,5 +251,84 @@ export async function applyTrophyCatalog(
     }
   }
 
+  await sql`
+    insert into trophy_catalogs (
+      platform,
+      trophy_title_id,
+      trophy_set_version,
+      total_trophies,
+      synced_at,
+      updated_at
+    ) values (
+      ${input.platform},
+      ${input.trophyTitleId},
+      ${input.trophySetVersion ?? null},
+      ${input.trophies.length},
+      now(),
+      now()
+    )
+    on conflict (platform, trophy_title_id)
+    do update set
+      trophy_set_version = excluded.trophy_set_version,
+      total_trophies = excluded.total_trophies,
+      synced_at = now(),
+      updated_at = now()
+  `;
+
   return { updated };
+}
+
+export async function getGameTrophyProgress(
+  sql: Sql,
+  platform: "ps4" | "ps5",
+  titleId: string,
+) {
+  const normalizedTitleId = normalizeTitleId(titleId);
+
+  const rows = await sql<{
+    trophy_id: number;
+    trophy_type: string | null;
+    trophy_name: string | null;
+    trophy_detail: string | null;
+    trophy_icon_url: string | null;
+    trophy_hidden: boolean | null;
+    earned: boolean;
+    earned_at: string | null;
+  }>`
+    select
+      trophy_id,
+      trophy_type,
+      trophy_name,
+      trophy_detail,
+      trophy_icon_url,
+      trophy_hidden,
+      earned,
+      earned_at::text as earned_at
+    from game_trophies
+    where platform = ${platform}
+      and title_id = ${normalizedTitleId}
+    order by trophy_id
+  `;
+
+  const total = rows.length;
+  const earned = rows.filter((row) => row.earned).length;
+
+  const byType = (type: string) => {
+    const all = rows.filter((row) => row.trophy_type === type);
+    return {
+      earned: all.filter((row) => row.earned).length,
+      total: all.length,
+    };
+  };
+
+  return {
+    total,
+    earned,
+    percentage: total === 0 ? 0 : Number(((earned / total) * 100).toFixed(1)),
+    platinum: byType("platinum"),
+    gold: byType("gold"),
+    silver: byType("silver"),
+    bronze: byType("bronze"),
+    trophies: rows,
+  };
 }
