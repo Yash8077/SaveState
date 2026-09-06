@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Wraps a vertically scrollable surface with a floating header that hides
-/// while scrolling down and reveals immediately when scrolling up.
+/// Wraps a primary vertical scrolling surface with a floating page header.
 ///
-/// Header height is measured from the rendered widget, so it adapts to
-/// available width, text wrapping, orientation and dynamic content.
+/// The header hides after a small downward gesture and reappears immediately
+/// when the user scrolls upward. Only the direct vertical scroll surface
+/// controls the header; nested and horizontal scrollables are ignored.
 class FloatingScrollHeader extends StatefulWidget {
   final Widget header;
   final Widget body;
@@ -33,6 +33,7 @@ class _FloatingScrollHeaderState extends State<FloatingScrollHeader> {
   double _headerHeight = 0;
   double _lastPixels = 0;
   double _downDistance = 0;
+  double _bodyTopPadding = 0;
   bool _headerVisible = true;
 
   @override
@@ -49,40 +50,60 @@ class _FloatingScrollHeaderState extends State<FloatingScrollHeader> {
     }
   }
 
-  void _measureHeader() {
-    if (!mounted) return;
-
-    final renderObject = _headerKey.currentContext?.findRenderObject();
-    if (renderObject is! RenderBox || !renderObject.hasSize) return;
-
-    final height = renderObject.size.height;
-    if ((_headerHeight - height).abs() < 0.5) return;
-
-    setState(() => _headerHeight = height);
-  }
-
   void _scheduleHeaderMeasure() {
     WidgetsBinding.instance.addPostFrameCallback((_) => _measureHeader());
   }
 
-  void _showHeader() {
+  void _measureHeader() {
+    if (!mounted) return;
+    final renderObject = _headerKey.currentContext?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) {
+      _scheduleHeaderMeasure();
+      return;
+    }
+
+    final height = renderObject.size.height;
+    if ((_headerHeight - height).abs() < 0.5) return;
+
+    setState(() {
+      _headerHeight = height;
+      if (_headerVisible) {
+        _bodyTopPadding = height;
+      }
+    });
+  }
+
+  void _showHeader({bool atTop = false}) {
     _downDistance = 0;
-    if (_headerVisible || !mounted) return;
-    setState(() => _headerVisible = true);
+    if (!mounted) return;
+
+    final nextPadding = atTop ? _headerHeight : 0;
+    final visibilityChanged = !_headerVisible;
+    final paddingChanged = (_bodyTopPadding - nextPadding).abs() >= 0.5;
+
+    if (!visibilityChanged && !paddingChanged) return;
+
+    setState(() {
+      _headerVisible = true;
+      _bodyTopPadding = nextPadding;
+    });
   }
 
   void _hideHeader() {
     _downDistance = 0;
-    if (!_headerVisible || !mounted) return;
-    setState(() => _headerVisible = false);
+    if (!mounted) return;
+    if (!_headerVisible && _bodyTopPadding == 0) return;
+
+    setState(() {
+      _headerVisible = false;
+      _bodyTopPadding = 0;
+    });
   }
 
   bool _handleScrollNotification(ScrollNotification notification) {
-    // Horizontal rails/grids must never affect the floating header.
-    if (notification.metrics.axis != Axis.vertical) return false;
-
-    if (notification is SizeChangedLayoutNotification) {
-      _scheduleHeaderMeasure();
+    // Only the primary, direct vertical scroll surface controls the header.
+    // This prevents horizontal rails and nested vertical panels from moving it.
+    if (notification.depth != 0 || notification.metrics.axis != Axis.vertical) {
       return false;
     }
 
@@ -98,26 +119,21 @@ class _FloatingScrollHeaderState extends State<FloatingScrollHeader> {
     final delta = pixels - _lastPixels;
     _lastPixels = pixels;
 
-    // Keep the header visible at the top and during pull-to-refresh.
+    // Pull-to-refresh / top overscroll always restores the header and the
+    // initial content inset. The body inset remains collapsed everywhere else.
     if (pixels <= widget.topThreshold) {
-      _showHeader();
+      _showHeader(atTop: true);
       return false;
     }
 
-    // Only vertical scrolling controls the floating header. Horizontal
-    // rails/grids inside a page must never hide or reveal it.
-    if (notification.metrics.axis != Axis.vertical) return false;
-
     if (delta > 0) {
-      // Accumulate downward movement so tiny touch/physics updates do not
-      // flicker the header.
       _downDistance += delta;
       if (_downDistance >= widget.hideThreshold) {
         _hideHeader();
       }
     } else if (delta < 0) {
-      // Any upward movement reveals immediately, regardless of scroll offset.
-      _downDistance = 0;
+      // Any upward movement reveals the header immediately without pushing the
+      // already-scrolled content back down.
       _showHeader();
     } else {
       _downDistance = 0;
@@ -128,19 +144,17 @@ class _FloatingScrollHeaderState extends State<FloatingScrollHeader> {
 
   @override
   Widget build(BuildContext context) {
-    // Measurement is intentionally tied to the rendered header, not a
-    // hard-coded height. This also lets orientation/width changes settle.
     _scheduleHeaderMeasure();
-
-    final bodyTopPadding = _headerHeight;
 
     return NotificationListener<ScrollNotification>(
       onNotification: _handleScrollNotification,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Padding(
-            padding: EdgeInsets.only(top: bodyTopPadding),
+          AnimatedPadding(
+            duration: widget.animationDuration,
+            curve: Curves.easeOutCubic,
+            padding: EdgeInsets.only(top: _bodyTopPadding),
             child: widget.body,
           ),
           Positioned(
@@ -155,7 +169,7 @@ class _FloatingScrollHeaderState extends State<FloatingScrollHeader> {
                     : const Offset(0, -1),
                 duration: widget.animationDuration,
                 curve: Curves.easeOutCubic,
-                child: ColoredBox(
+                child: Material(
                   color: widget.backgroundColor,
                   child: SizeChangedLayoutNotifier(
                     child: KeyedSubtree(

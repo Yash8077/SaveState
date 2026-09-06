@@ -8,6 +8,7 @@ import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../../state/home_layout_controller.dart';
 import '../open_game.dart';
+import '../widgets/account_sheet.dart';
 import '../widgets/floating_scroll_header.dart';
 import '../widgets/game_card.dart';
 import '../widgets/game_rail.dart';
@@ -187,12 +188,20 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'Discover',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Discover',
+                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ),
+                          const AccountAvatarButton(size: 38),
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Text(

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'account_sheet.dart';
 import 'pill_nav.dart';
 
 const _destinations = <PillDestination>[
@@ -117,20 +116,6 @@ class AppShell extends StatelessWidget {
                     ),
                     child: child,
                   ),
-                ),
-              ),
-            ),
-
-            // Keep the profile avatar in the same 48dp header slot used by
-            // page-level IconButtons, while leaving it at the top-right.
-            Positioned(
-              top: systemPadding.top + 16,
-              right: 16,
-              child: const SizedBox(
-                width: 48,
-                height: 48,
-                child: Center(
-                  child: AccountAvatarButton(size: 38),
                 ),
               ),
             ),

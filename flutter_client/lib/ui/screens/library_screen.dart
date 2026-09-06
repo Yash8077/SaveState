@@ -9,6 +9,7 @@ import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../auth_ready_load.dart';
 import '../open_game.dart';
+import '../widgets/account_sheet.dart';
 import '../widgets/floating_scroll_header.dart';
 import '../widgets/game_card.dart';
 import '../widgets/m3_progress.dart';
@@ -204,36 +205,131 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
         bottom: false,
         child: FloatingScrollHeader(
           backgroundColor: colorScheme.surface,
-          header: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 8, 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Library',
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                        ),
+          header: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 12, 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Library',
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Every game you own, one shelf.',
+                            style: TextStyle(
+                              color: colorScheme.onSurfaceVariant,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Every game you own, one shelf.',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const AccountAvatarButton(size: 38),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        onChanged: (value) => setState(() => _titleQuery = value),
+                        textInputAction: TextInputAction.search,
+                        decoration: InputDecoration(
+                          hintText: 'Search your library',
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHigh,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      height: 48,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHigh,
+                        shape: BoxShape.circle,
+                      ),
+                      child: PopupMenuButton<_LibrarySort>(
+                        tooltip: 'Sort',
+                        initialValue: _sort,
+                        position: PopupMenuPosition.under,
+                        offset: const Offset(0, 8),
+                        icon: const Icon(Icons.sort_rounded),
+                        color: colorScheme.surfaceContainerHigh,
+                        surfaceTintColor: Colors.transparent,
+                        elevation: 6,
+                        shadowColor: Colors.black.withOpacity(0.4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          side: BorderSide(
+                            color: colorScheme.outlineVariant.withOpacity(0.3),
+                          ),
+                        ),
+                        padding: EdgeInsets.zero,
+                        onSelected: (value) => setState(() => _sort = value),
+                        itemBuilder: (context) => [
+                          for (final option in _LibrarySort.values)
+                            PopupMenuItem(
+                              value: option,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 22,
+                                    child: _sort == option
+                                        ? Icon(
+                                            Icons.check_rounded,
+                                            size: 18,
+                                            color: colorScheme.primary,
+                                          )
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    option.label,
+                                    style: TextStyle(
+                                      fontWeight: _sort == option
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                      color: _sort == option
+                                          ? colorScheme.primary
+                                          : colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _buildFilterChips(colorScheme),
+            ],
           ),
           body: _buildBody(theme, colorScheme),
         ),
@@ -422,104 +518,18 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
 
     return ExpressiveRefreshIndicator(
       onRefresh: _fetchLibrary,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Row(
+      child: filtered.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 24),
               children: [
-                Expanded(
-                  child: TextField(
-                    onChanged: (value) => setState(() => _titleQuery = value),
-                    textInputAction: TextInputAction.search,
-                    decoration: InputDecoration(
-                      hintText: 'Search your library',
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerHigh,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(28),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  height: 48,
-                  width: 48,
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHigh,
-                    shape: BoxShape.circle,
-                  ),
-                  child: PopupMenuButton<_LibrarySort>(
-                    tooltip: 'Sort',
-                    initialValue: _sort,
-                    position: PopupMenuPosition.under,
-                    offset: const Offset(0, 8),
-                    icon: const Icon(Icons.sort_rounded),
-                    color: colorScheme.surfaceContainerHigh,
-                    surfaceTintColor: Colors.transparent,
-                    elevation: 6,
-                    shadowColor: Colors.black.withOpacity(0.4),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      side: BorderSide(
-                        color: colorScheme.outlineVariant.withOpacity(0.3),
-                      ),
-                    ),
-                    padding: EdgeInsets.zero,
-                    onSelected: (value) => setState(() => _sort = value),
-                    itemBuilder: (context) => [
-                      for (final option in _LibrarySort.values)
-                        PopupMenuItem(
-                          value: option,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 22,
-                                child: _sort == option
-                                    ? Icon(
-                                        Icons.check_rounded,
-                                        size: 18,
-                                        color: colorScheme.primary,
-                                      )
-                                    : null,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                option.label,
-                                style: TextStyle(
-                                  fontWeight: _sort == option
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                  color: _sort == option
-                                      ? colorScheme.primary
-                                      : colorScheme.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
+                SizedBox(
+                  height: MediaQuery.sizeOf(context).height * 0.55,
+                  child: _buildEmptyFilteredState(theme, colorScheme),
                 ),
               ],
-            ),
-          ),
-          _buildFilterChips(colorScheme),
-          Expanded(
-            child: filtered.isEmpty
-                ? _buildEmptyFilteredState(theme, colorScheme)
-                : _buildGameGrid(filtered, colorScheme),
-          ),
-        ],
-      ),
+            )
+          : _buildGameGrid(filtered, colorScheme),
     );
   }
 

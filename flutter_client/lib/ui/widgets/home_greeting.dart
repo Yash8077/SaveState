@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../state/auth_controller.dart';
+import 'account_sheet.dart';
 
 class HomeGreeting extends StatelessWidget {
   const HomeGreeting({super.key});
@@ -91,15 +92,13 @@ class HomeGreeting extends StatelessWidget {
             ),
           ),
 
-          // The shell owns the avatar in the matching header slot.
-          Padding(
-            padding: const EdgeInsets.only(right: 52),
-            child: IconButton.filledTonal(
-              tooltip: 'Search',
-              onPressed: () => context.go('/discover?focus=1'),
-              icon: const Icon(Icons.search_rounded),
-            ),
+          IconButton.filledTonal(
+            tooltip: 'Search',
+            onPressed: () => context.go('/discover?focus=1'),
+            icon: const Icon(Icons.search_rounded),
           ),
+          const SizedBox(width: 4),
+          const AccountAvatarButton(size: 38),
         ],
       ),
     );

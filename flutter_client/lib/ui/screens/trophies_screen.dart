@@ -8,6 +8,7 @@ import '../../models/artwork_resolver.dart';
 import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../auth_ready_load.dart';
+import '../widgets/account_sheet.dart';
 import '../widgets/floating_scroll_header.dart';
 import '../widgets/m3_progress.dart';
 
@@ -106,12 +107,20 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'Trophies',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Trophies',
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ),
+                      const AccountAvatarButton(size: 38),
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
