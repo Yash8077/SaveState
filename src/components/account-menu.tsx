@@ -63,7 +63,7 @@ export function AccountMenu({ className }: { className?: string }) {
             className="fixed inset-0 z-40 bg-black/45"
             onClick={close}
           />
-          <div className="fixed inset-x-3 bottom-[5.5rem] z-50 overflow-hidden rounded-3xl bg-elevated p-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)] min-[600px]:inset-auto min-[600px]:top-16 min-[600px]:right-4 min-[600px]:bottom-auto min-[600px]:w-[22rem]">
+          <div className="fixed left-1/2 top-1/2 z-50 w-[min(22rem,calc(100vw-1.5rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl bg-elevated p-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
             <button
               type="button"
               className="flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left hover:bg-subtle"

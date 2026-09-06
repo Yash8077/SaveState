@@ -6,38 +6,19 @@ import 'user_avatar.dart';
 
 Future<void> showAccountSheet(BuildContext context) {
   final cs = Theme.of(context).colorScheme;
-  final wide = MediaQuery.sizeOf(context).width >= 720;
-  if (wide) {
-    return showDialog<void>(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.55),
-      builder: (ctx) => Dialog(
-        backgroundColor: cs.surfaceContainerHigh,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: const _AccountSheet(),
-        ),
-      ),
-    );
-  }
-  return showModalBottomSheet<void>(
+  return showDialog<void>(
     context: context,
     useRootNavigator: true,
-    backgroundColor: cs.surfaceContainerHigh,
-    showDragHandle: true,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
-    builder: (ctx) {
-      final bottom = MediaQuery.paddingOf(ctx).bottom;
-      return Padding(
-        padding: EdgeInsets.only(bottom: bottom),
+    barrierColor: Colors.black.withOpacity(0.55),
+    builder: (ctx) => Dialog(
+      backgroundColor: cs.surfaceContainerHigh,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
         child: const _AccountSheet(),
-      );
-    },
+      ),
+    ),
   );
 }
 
