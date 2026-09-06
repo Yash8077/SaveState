@@ -104,17 +104,22 @@ class _FloatingScrollHeaderState extends State<FloatingScrollHeader> {
       return false;
     }
 
-    final direction = notification.metrics.userScrollDirection;
+    // Only vertical scrolling controls the floating header. Horizontal
+    // rails/grids inside a page must never hide or reveal it.
+    if (notification.metrics.axis != Axis.vertical) return false;
 
-    if (direction == ScrollDirection.reverse && delta > 0) {
+    if (delta > 0) {
+      // Accumulate downward movement so tiny touch/physics updates do not
+      // flicker the header.
       _downDistance += delta;
       if (_downDistance >= widget.hideThreshold) {
         _hideHeader();
       }
-    } else if (direction == ScrollDirection.forward && delta < 0) {
-      // Any upward movement reveals immediately.
+    } else if (delta < 0) {
+      // Any upward movement reveals immediately, regardless of scroll offset.
+      _downDistance = 0;
       _showHeader();
-    } else if (direction == ScrollDirection.idle) {
+    } else {
       _downDistance = 0;
     }
 
