@@ -235,7 +235,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
         child: FloatingScrollHeader(
           backgroundColor: scheme.surface,
           header: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Column(
