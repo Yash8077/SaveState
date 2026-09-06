@@ -22,6 +22,7 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
   Map<String, dynamic> _response = const {};
   bool _loading = true;
   String? _error;
+  _TrophySort _sort = _TrophySort.gameDefault;
 
   @override
   void initState() {
@@ -68,11 +69,58 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
     final raw = _response['trophies'];
     if (raw is! List) return const [];
 
-    // Server order is canonical for Web and Flutter.
-    return raw
+    final source = raw
         .whereType<Map>()
         .map((row) => Map<String, dynamic>.from(row))
         .toList(growable: false);
+
+    if (_sort == _TrophySort.gameDefault) return source;
+
+    final indexed = [
+      for (var i = 0; i < source.length; i++) (i, source[i]),
+    ];
+    indexed.sort((a, b) {
+      final cmp = _compareTrophies(a.$2, b.$2);
+      return cmp != 0 ? cmp : a.$1.compareTo(b.$1);
+    });
+    return [for (final row in indexed) row.$2];
+  }
+
+  int _compareTrophies(Map<String, dynamic> a, Map<String, dynamic> b) {
+    switch (_sort) {
+      case _TrophySort.gameDefault:
+        return 0;
+      case _TrophySort.notEarned:
+        final ae = a['earned'] == true;
+        final be = b['earned'] == true;
+        if (ae == be) return 0;
+        return ae ? 1 : -1;
+      case _TrophySort.earnedDate:
+        final at = DateTime.tryParse(a['earned_at']?.toString() ?? '');
+        final bt = DateTime.tryParse(b['earned_at']?.toString() ?? '');
+        if (at == null && bt == null) return 0;
+        if (at == null) return 1;
+        if (bt == null) return -1;
+        return bt.compareTo(at);
+      case _TrophySort.grade:
+        return _gradeRank(a['trophy_type']?.toString())
+            .compareTo(_gradeRank(b['trophy_type']?.toString()));
+    }
+  }
+
+  int _gradeRank(String? type) {
+    switch (type) {
+      case 'platinum':
+        return 0;
+      case 'gold':
+        return 1;
+      case 'silver':
+        return 2;
+      case 'bronze':
+        return 3;
+      default:
+        return 4;
+    }
   }
 
   Widget _tierSummary(String type, int earned) {
@@ -143,7 +191,7 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -202,6 +250,12 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
                     ],
                   ],
                 ),
+              ),
+              const SizedBox(width: 10),
+              TrophyTierIcon(
+                type: trophy['trophy_type']?.toString(),
+                size: 36,
+                faded: !earned,
               ),
             ],
           ),
@@ -454,20 +508,73 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            Text(
-              'Trophy list',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Trophy list',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: cs.onSurfaceVariant,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$earned earned · ${total - earned} remaining',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ],
                   ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '$earned earned · ${total - earned} remaining',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                ),
+                Material(
+                  color: cs.surfaceContainerHigh,
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: PopupMenuButton<_TrophySort>(
+                    tooltip: 'Sort',
+                    initialValue: _sort,
+                    position: PopupMenuPosition.under,
+                    offset: const Offset(0, 8),
+                    icon: const Icon(Icons.sort_rounded),
+                    color: cs.surfaceContainerHigh,
+                    surfaceTintColor: Colors.transparent,
+                    elevation: 6,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    onSelected: (value) => setState(() => _sort = value),
+                    itemBuilder: (context) => [
+                      for (final option in _TrophySort.values)
+                        PopupMenuItem(
+                          value: option,
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 22,
+                                child: _sort == option
+                                    ? Icon(
+                                        Icons.check_rounded,
+                                        size: 18,
+                                        color: cs.primary,
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(option.label),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
             if (wide)
@@ -476,7 +583,7 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: 440,
-                  mainAxisExtent: 96,
+                  mainAxisExtent: 108,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
                 ),
@@ -501,5 +608,22 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
     final raw = _response[key];
     if (raw is Map) return raw[child];
     return null;
+  }
+}
+
+enum _TrophySort { gameDefault, notEarned, earnedDate, grade }
+
+extension on _TrophySort {
+  String get label {
+    switch (this) {
+      case _TrophySort.gameDefault:
+        return 'Game Default';
+      case _TrophySort.notEarned:
+        return 'Not Earned';
+      case _TrophySort.earnedDate:
+        return 'Earned Date (New - Old)';
+      case _TrophySort.grade:
+        return 'Grade (Platinum - Bronze)';
+    }
   }
 }

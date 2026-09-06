@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { ArrowLeft, Check, Trophy } from "lucide-react";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -10,6 +11,7 @@ import {
 } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrophyTierCount, TrophyTierIcon, trophyTiers, type TrophyTier } from "@/components/trophy-tier";
+import { sortTrophies, TROPHY_SORTS, type TrophySort } from "@/lib/trophy-sort";
 
 export const Route = createFileRoute("/trophies/$catalogId")({
   component: TrophyGamePage,
@@ -48,7 +50,7 @@ function TrophyCard({ trophy }: { trophy: TrophyRow }) {
         earned ? "" : "opacity-75"
       }`}
     >
-      <div className="flex items-start gap-3.5">
+      <div className="flex items-center gap-3.5">
         <div className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-subtle text-accent">
           {trophy.trophy_icon_url && !hidden ? (
             <img
@@ -87,6 +89,8 @@ function TrophyCard({ trophy }: { trophy: TrophyRow }) {
             </p>
           ) : null}
         </div>
+
+        <TrophyTierIcon type={trophy.trophy_type} size={36} faded={!earned} />
       </div>
     </article>
   );
@@ -110,12 +114,17 @@ function LoadingState() {
 function TrophyGamePage() {
   const { catalogId } = Route.useParams();
   const { user, isPending } = useCurrentUserState();
+  const [sort, setSort] = useState<TrophySort>("default");
   const query = useQuery({
     queryKey: ["game-trophy-progress", catalogId],
     queryFn: ({ signal }) => getGameTrophyProgress(catalogId, signal),
     enabled: Boolean(user),
     staleTime: 2 * 60_000,
   });
+  const trophies = useMemo(
+    () => (query.data?.found ? sortTrophies(query.data.trophies, sort) : []),
+    [query.data, sort],
+  );
 
   if (isPending || (user && query.isLoading)) return <LoadingState />;
   if (!user) return <RedirectToSignIn />;
@@ -152,8 +161,6 @@ function TrophyGamePage() {
     );
   }
 
-  // The API is the canonical ordering source. Do not resort on the client.
-  const trophies = data.trophies;
   const percentage = Math.min(100, Math.max(0, data.percentage));
 
   return (
@@ -218,13 +225,29 @@ function TrophyGamePage() {
       </section>
 
       <section>
-        <div className="mb-3">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-faint">
-            Trophy list
-          </p>
-          <h2 className="mt-1 text-xl font-semibold">
-            {data.earned} earned · {data.total - data.earned} remaining
-          </h2>
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-faint">
+              Trophy list
+            </p>
+            <h2 className="mt-1 text-xl font-semibold">
+              {data.earned} earned · {data.total - data.earned} remaining
+            </h2>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-muted">
+            Sort
+            <select
+              className="h-9 rounded-full bg-subtle px-3 text-sm text-fg"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as TrophySort)}
+            >
+              {TROPHY_SORTS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
