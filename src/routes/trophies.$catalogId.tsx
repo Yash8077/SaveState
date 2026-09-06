@@ -38,6 +38,60 @@ function TierCounts({
   );
 }
 
+function UpNextCard({ trophies }: { trophies: TrophyRow[] }) {
+  const rank = (type: string | null) => {
+    if (type === "gold") return 0;
+    if (type === "silver") return 1;
+    if (type === "bronze") return 2;
+    if (type === "platinum") return 3;
+    return 4;
+  };
+  const rows = trophies
+    .filter((trophy) => !trophy.earned)
+    .sort((a, b) => rank(a.trophy_type) - rank(b.trophy_type))
+    .slice(0, 6);
+
+  return (
+    <section className="hidden rounded-[2rem] bg-elevated p-5 min-[720px]:block sm:p-6">
+      <p className="text-xs font-medium uppercase tracking-[0.18em] text-faint">
+        Up next
+      </p>
+      {rows.length === 0 ? (
+        <p className="mt-3 text-sm text-muted">Every trophy in this list is earned.</p>
+      ) : (
+        <ul className="mt-3 space-y-2.5">
+          {rows.map((trophy) => {
+            const hidden = Boolean(trophy.trophy_hidden);
+            const name = hidden
+              ? "Secret Trophy"
+              : trophy.trophy_name || "Unnamed Trophy";
+            return (
+              <li key={trophy.trophy_id} className="flex items-center gap-3">
+                <span className="size-10 shrink-0 overflow-hidden rounded-xl bg-subtle">
+                  {trophy.trophy_icon_url && !hidden ? (
+                    <img
+                      src={trophy.trophy_icon_url}
+                      alt=""
+                      referrerPolicy="no-referrer"
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <span className="grid size-full place-items-center">
+                      <TrophyTierIcon type={trophy.trophy_type} size={22} faded />
+                    </span>
+                  )}
+                </span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{name}</span>
+                <TrophyTierIcon type={trophy.trophy_type} size={28} faded />
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function TrophyCard({ trophy }: { trophy: TrophyRow }) {
   const earned = trophy.earned;
   const hidden = Boolean(trophy.trophy_hidden && !earned);
@@ -176,52 +230,55 @@ function TrophyGamePage() {
       </div>
 
       <div className="min-[720px]:grid min-[720px]:grid-cols-[22rem_minmax(0,1fr)] min-[720px]:items-start min-[720px]:gap-6">
-        <section className="overflow-hidden rounded-[2rem] bg-elevated min-[720px]:sticky min-[720px]:top-4 min-[720px]:flex min-[720px]:min-h-[calc(100dvh-7rem)] min-[720px]:flex-col">
-          <div className="relative h-40 overflow-hidden bg-subtle sm:h-52 min-[720px]:h-auto min-[720px]:min-h-56 min-[720px]:flex-1">
-            {data.headerUrl || data.coverUrl ? (
-              <img
-                src={data.headerUrl || data.coverUrl || undefined}
-                alt=""
-                referrerPolicy="no-referrer"
-                className="size-full object-cover object-center"
-              />
-            ) : null}
-            <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/35 to-transparent" />
-          </div>
+        <div className="space-y-4 min-[720px]:sticky min-[720px]:top-4">
+          <section className="overflow-hidden rounded-[2rem] bg-elevated">
+            <div className="relative h-40 overflow-hidden bg-subtle sm:h-52">
+              {data.headerUrl || data.coverUrl ? (
+                <img
+                  src={data.headerUrl || data.coverUrl || undefined}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="size-full object-cover object-center"
+                />
+              ) : null}
+              <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/35 to-transparent" />
+            </div>
 
-          <div className="relative -mt-10 px-5 pb-5 sm:px-6">
-            <div className="min-w-0">
-              <div className="inline-flex rounded-full bg-accent/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
-                {data.platform}
+            <div className="relative -mt-10 px-5 pb-5 sm:px-6">
+              <div className="min-w-0">
+                <div className="inline-flex rounded-full bg-accent/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
+                  {data.platform}
+                </div>
+                <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+                  {data.titleName}
+                </h1>
+                <p className="mt-1 text-sm text-muted">
+                  {data.earned} of {data.total} trophies · {data.percentage}%
+                </p>
               </div>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                {data.titleName}
-              </h1>
-              <p className="mt-1 text-sm text-muted">
-                {data.earned} of {data.total} trophies · {data.percentage}%
-              </p>
-            </div>
 
-            <div className="mt-5 h-2 overflow-hidden rounded-full bg-subtle">
-              <div
-                className="h-full rounded-full bg-accent transition-[width] duration-500"
-                style={{ width: `${percentage}%` }}
-              />
-            </div>
+              <div className="mt-5 h-2 overflow-hidden rounded-full bg-subtle">
+                <div
+                  className="h-full rounded-full bg-accent transition-[width] duration-500"
+                  style={{ width: `${percentage}%` }}
+                />
+              </div>
 
-            <div className="mt-4">
-              <TierCounts data={data} />
-            </div>
+              <div className="mt-4">
+                <TierCounts data={data} />
+              </div>
 
-            <Link
-              to="/game/$catalogId"
-              params={{ catalogId }}
-              className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-accent px-5 text-sm font-semibold text-accent-fg"
-            >
-              Open game
-            </Link>
-          </div>
-        </section>
+              <Link
+                to="/game/$catalogId"
+                params={{ catalogId }}
+                className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-accent px-5 text-sm font-semibold text-accent-fg"
+              >
+                Open game
+              </Link>
+            </div>
+          </section>
+          <UpNextCard trophies={data.trophies} />
+        </div>
 
         <section>
           <div className="mb-3 flex items-end justify-between gap-3">

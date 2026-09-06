@@ -114,17 +114,20 @@ function TrophiesPage() {
       </header>
 
       <div className="min-[720px]:grid min-[720px]:grid-cols-[22rem_minmax(0,1fr)] min-[720px]:items-start min-[720px]:gap-6">
-        <section className="rounded-[2rem] bg-elevated p-5 sm:p-6 min-[720px]:sticky min-[720px]:top-4 min-[720px]:min-h-[calc(100dvh-7rem)]">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-faint">Overall progress</p>
-          <p className="mt-2 text-3xl font-semibold tabular-nums">{summary.earned}/{summary.total}</p>
-          <p className="mt-1 text-sm text-muted">{summary.percentage}% across {summary.games} game{summary.games === 1 ? "" : "s"}</p>
-          <div className="mt-5 h-2 overflow-hidden rounded-full bg-subtle"><div className="h-full rounded-full bg-accent" style={{ width: `${summary.percentage}%` }} /></div>
-          <div className="mt-5 flex gap-5">
-            {trophyTiers.map((type) => (
-              <Metric key={type} type={type} value={summary[type]} />
-            ))}
-          </div>
-        </section>
+        <div className="space-y-4 min-[720px]:sticky min-[720px]:top-4">
+          <section className="rounded-[2rem] bg-elevated p-5 sm:p-6">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-faint">Overall progress</p>
+            <p className="mt-2 text-3xl font-semibold tabular-nums">{summary.earned}/{summary.total}</p>
+            <p className="mt-1 text-sm text-muted">{summary.percentage}% across {summary.games} game{summary.games === 1 ? "" : "s"}</p>
+            <div className="mt-5 h-2 overflow-hidden rounded-full bg-subtle"><div className="h-full rounded-full bg-accent" style={{ width: `${summary.percentage}%` }} /></div>
+            <div className="mt-5 flex gap-5">
+              {trophyTiers.map((type) => (
+                <Metric key={type} type={type} value={summary[type]} />
+              ))}
+            </div>
+          </section>
+          <ClosestToPlatinum games={games} />
+        </div>
 
         {games.length ? (
           <section>
@@ -144,6 +147,65 @@ function TrophiesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function ClosestToPlatinum({ games }: { games: TrophyGameProgress[] }) {
+  const rows = [...games]
+    .filter((game) => game.earned < game.total)
+    .sort((a, b) => b.percentage - a.percentage)
+    .slice(0, 5);
+
+  return (
+    <section className="hidden rounded-[2rem] bg-elevated p-5 min-[720px]:block sm:p-6">
+      <p className="text-xs font-medium uppercase tracking-[0.18em] text-faint">
+        Closest to platinum
+      </p>
+      {rows.length === 0 ? (
+        <p className="mt-3 text-sm text-muted">Every tracked game is complete.</p>
+      ) : (
+        <ul className="mt-3 space-y-2.5">
+          {rows.map((game) => (
+            <li key={`${game.platform}-${game.titleId}`}>
+              {game.catalogId ? (
+                <Link
+                  to="/trophies/$catalogId"
+                  params={{ catalogId: game.catalogId }}
+                  className="flex items-center gap-3 rounded-2xl py-0.5 hover:bg-subtle"
+                >
+                  <ClosestRow game={game} />
+                </Link>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <ClosestRow game={game} />
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function ClosestRow({ game }: { game: TrophyGameProgress }) {
+  return (
+    <>
+      <span className="size-11 shrink-0 overflow-hidden rounded-xl bg-subtle">
+        {game.coverUrl ? (
+          <img
+            src={game.coverUrl}
+            alt=""
+            referrerPolicy="no-referrer"
+            className="size-full object-cover"
+          />
+        ) : null}
+      </span>
+      <span className="min-w-0 flex-1 truncate font-semibold">{game.title}</span>
+      <span className="shrink-0 text-sm font-semibold tabular-nums text-accent">
+        {Math.round(game.percentage)}%
+      </span>
+    </>
   );
 }
 

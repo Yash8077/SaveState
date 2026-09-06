@@ -190,9 +190,14 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
           children: [
             SizedBox(
               width: 380,
-              child: Padding(
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 8, 8, 24),
-                child: _buildSummary(theme, scheme, wide: false, fill: true),
+                children: [
+                  _buildSummary(theme, scheme, wide: false),
+                  const SizedBox(height: 12),
+                  _landscapeSideCard(theme, scheme, games),
+                ],
               ),
             ),
             Expanded(
@@ -242,13 +247,12 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     ThemeData theme,
     ColorScheme scheme, {
     required bool wide,
-    bool fill = false,
   }) {
     final earned = _int(_summary['earned']);
     final total = _int(_summary['total']);
     final percentage = _double(_summary['percentage']);
     final games = _int(_summary['games']);
-    final card = Card(
+    return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
       color: scheme.surfaceContainerHigh,
@@ -295,13 +299,116 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
                   _typeSummary(type, _int(_summary[type])),
               ],
             ),
-            if (fill) const Spacer(),
           ],
         ),
       ),
     );
-    if (fill) return SizedBox.expand(child: card);
-    return card;
+  }
+
+  Widget _landscapeSideCard(
+    ThemeData theme,
+    ColorScheme scheme,
+    List<Map<String, dynamic>> games,
+  ) {
+    final closest = games
+        .where((game) => _int(game['earned']) < _int(game['total']))
+        .toList()
+      ..sort(
+        (a, b) => _double(b['percentage']).compareTo(_double(a['percentage'])),
+      );
+    final rows = closest.take(5).toList();
+
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: scheme.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'CLOSEST TO PLATINUM',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.4,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (rows.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Every tracked game is complete.',
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+              )
+            else
+              for (final game in rows) _sideGameRow(scheme, game),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sideGameRow(
+    ColorScheme scheme,
+    Map<String, dynamic> game,
+  ) {
+    final catalogId = game['catalogId']?.toString();
+    final artwork = resolveGameArtwork(
+      coverUrl: game['coverUrl']?.toString() ?? game['cover_url']?.toString(),
+      headerUrl: game['headerUrl']?.toString() ?? game['header_url']?.toString(),
+      capsuleUrl:
+          game['capsuleUrl']?.toString() ?? game['capsule_url']?.toString(),
+      catalogId: catalogId,
+    );
+    final cover = artwork.coverUrl;
+    final title = game['title']?.toString() ?? 'Unknown game';
+    final percent = _double(game['percentage']);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: catalogId == null || catalogId.isEmpty
+            ? null
+            : () => context.push('/trophies/$catalogId'),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: cover == null || cover.isEmpty
+                    ? ColoredBox(color: scheme.surfaceContainerHighest)
+                    : CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${percent.toStringAsFixed(0)}%',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: scheme.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _tierRow({required bool wide, required List<Widget> children}) {

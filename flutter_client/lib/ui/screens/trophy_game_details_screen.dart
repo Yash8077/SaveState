@@ -418,6 +418,122 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
     if (fill) return SizedBox.expand(child: card);
     return card;
   }
+
+  int _upNextRank(String? type) {
+    switch (type) {
+      case 'gold':
+        return 0;
+      case 'silver':
+        return 1;
+      case 'bronze':
+        return 2;
+      case 'platinum':
+        return 3;
+      default:
+        return 4;
+    }
+  }
+
+  Widget _upNextCard(ColorScheme cs, List<Map<String, dynamic>> trophies) {
+    final next = trophies.where((row) => row['earned'] != true).toList()
+      ..sort(
+        (a, b) => _upNextRank(a['trophy_type']?.toString())
+            .compareTo(_upNextRank(b['trophy_type']?.toString())),
+      );
+    final rows = next.take(6).toList();
+
+    return Card(
+      elevation: 0,
+      color: cs.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'UP NEXT',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.4,
+                    color: cs.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            if (rows.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Every trophy in this list is earned.',
+                  style: TextStyle(color: cs.onSurfaceVariant),
+                ),
+              )
+            else
+              for (final trophy in rows) _upNextRow(cs, trophy),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _upNextRow(ColorScheme cs, Map<String, dynamic> trophy) {
+    final earned = trophy['earned'] == true;
+    final hidden = trophy['trophy_hidden'] == true && !earned;
+    final name = hidden
+        ? 'Secret Trophy'
+        : trophy['trophy_name']?.toString() ?? 'Unnamed Trophy';
+    final iconUrl = hidden ? '' : trophy['trophy_icon_url']?.toString() ?? '';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              width: 40,
+              height: 40,
+              child: iconUrl.isEmpty
+                  ? ColoredBox(
+                      color: cs.surfaceContainerHighest,
+                      child: Center(
+                        child: TrophyTierIcon(
+                          type: trophy['trophy_type']?.toString(),
+                          size: 22,
+                          faded: true,
+                        ),
+                      ),
+                    )
+                  : CachedNetworkImage(
+                      imageUrl: iconUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => ColoredBox(
+                        color: cs.surfaceContainerHighest,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(width: 8),
+          TrophyTierIcon(
+            type: trophy['trophy_type']?.toString(),
+            size: 28,
+            faded: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _listHeading(ColorScheme cs, {required int earned, required int total}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -612,19 +728,23 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
             children: [
               SizedBox(
                 width: 380,
-                child: Padding(
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 8, 8, 24),
-                  child: _heroCard(
-                    cs,
-                    bannerHeight: 220,
-                    earned: earned,
-                    total: total,
-                    percentage: percentage,
-                    heroUrl: heroUrl,
-                    heroFallback: heroFallback,
-                    wideTiers: false,
-                    fill: true,
-                  ),
+                  children: [
+                    _heroCard(
+                      cs,
+                      bannerHeight: 180,
+                      earned: earned,
+                      total: total,
+                      percentage: percentage,
+                      heroUrl: heroUrl,
+                      heroFallback: heroFallback,
+                      wideTiers: false,
+                    ),
+                    const SizedBox(height: 12),
+                    _upNextCard(cs, trophies),
+                  ],
                 ),
               ),
               Expanded(
