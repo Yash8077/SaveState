@@ -164,7 +164,7 @@ function TrophyGamePage() {
   const percentage = Math.min(100, Math.max(0, data.percentage));
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 pb-12">
+    <div className="mx-auto max-w-6xl space-y-5 pb-12 min-[720px]:max-w-none">
       <div>
         <Link
           to="/trophies"
@@ -175,26 +175,26 @@ function TrophyGamePage() {
         </Link>
       </div>
 
-      <section className="overflow-hidden rounded-[2rem] bg-elevated">
-        <div className="relative h-40 overflow-hidden bg-subtle sm:h-52">
-          {data.headerUrl || data.coverUrl ? (
-            <img
-              src={data.headerUrl || data.coverUrl || undefined}
-              alt=""
-              referrerPolicy="no-referrer"
-              className="size-full object-cover object-center"
-            />
-          ) : null}
-          <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/35 to-transparent" />
-        </div>
+      <div className="min-[720px]:grid min-[720px]:grid-cols-[22rem_minmax(0,1fr)] min-[720px]:items-start min-[720px]:gap-6">
+        <section className="overflow-hidden rounded-[2rem] bg-elevated min-[720px]:sticky min-[720px]:top-4">
+          <div className="relative h-40 overflow-hidden bg-subtle sm:h-52">
+            {data.headerUrl || data.coverUrl ? (
+              <img
+                src={data.headerUrl || data.coverUrl || undefined}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="size-full object-cover object-center"
+              />
+            ) : null}
+            <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/35 to-transparent" />
+          </div>
 
-        <div className="relative -mt-10 px-5 pb-5 sm:px-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="relative -mt-10 px-5 pb-5 sm:px-6">
             <div className="min-w-0">
               <div className="inline-flex rounded-full bg-accent/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
                 {data.platform}
               </div>
-              <h1 className="mt-2 truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
                 {data.titleName}
               </h1>
               <p className="mt-1 text-sm text-muted">
@@ -202,60 +202,60 @@ function TrophyGamePage() {
               </p>
             </div>
 
+            <div className="mt-5 h-2 overflow-hidden rounded-full bg-subtle">
+              <div
+                className="h-full rounded-full bg-accent transition-[width] duration-500"
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
+
+            <div className="mt-4">
+              <TierCounts data={data} />
+            </div>
+
             <Link
               to="/game/$catalogId"
               params={{ catalogId }}
-              className="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-accent px-5 text-sm font-semibold text-accent-fg"
+              className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-accent px-5 text-sm font-semibold text-accent-fg"
             >
               Open game
             </Link>
           </div>
+        </section>
 
-          <div className="mt-5 h-2 overflow-hidden rounded-full bg-subtle">
-            <div
-              className="h-full rounded-full bg-accent transition-[width] duration-500"
-              style={{ width: `${percentage}%` }}
-            />
+        <section>
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-faint">
+                Trophy list
+              </p>
+              <h2 className="mt-1 text-xl font-semibold">
+                {data.earned} earned · {data.total - data.earned} remaining
+              </h2>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-muted">
+              Sort
+              <select
+                className="h-9 rounded-full bg-subtle px-3 text-sm text-fg"
+                value={sort}
+                onChange={(e) => setSort(e.target.value as TrophySort)}
+              >
+                {TROPHY_SORTS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
-          <div className="mt-4">
-            <TierCounts data={data} />
+          <div className="grid grid-cols-1 gap-3 min-[720px]:grid-cols-2">
+            {trophies.map((trophy) => (
+              <TrophyCard key={`${trophy.trophy_id}`} trophy={trophy} />
+            ))}
           </div>
-        </div>
-      </section>
-
-      <section>
-        <div className="mb-3 flex items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-faint">
-              Trophy list
-            </p>
-            <h2 className="mt-1 text-xl font-semibold">
-              {data.earned} earned · {data.total - data.earned} remaining
-            </h2>
-          </div>
-          <label className="flex items-center gap-2 text-sm text-muted">
-            Sort
-            <select
-              className="h-9 rounded-full bg-subtle px-3 text-sm text-fg"
-              value={sort}
-              onChange={(e) => setSort(e.target.value as TrophySort)}
-            >
-              {TROPHY_SORTS.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {trophies.map((trophy) => (
-            <TrophyCard key={`${trophy.trophy_id}`} trophy={trophy} />
-          ))}
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }

@@ -182,6 +182,43 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
 
     final games = _games;
     final wide = MediaQuery.sizeOf(context).width >= 720;
+    if (wide) {
+      return ExpressiveRefreshIndicator(
+        onRefresh: _fetch,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: 360,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 8, 8, 24),
+                children: [
+                  _buildSummary(theme, scheme, wide: false),
+                ],
+              ),
+            ),
+            Expanded(
+              child: games.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(8, 8, 16, 24),
+                      children: [_emptyState(theme, scheme)],
+                    )
+                  : ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(8, 8, 16, 24),
+                      itemCount: games.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) =>
+                          _gameCard(theme, scheme, games[index]),
+                    ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return ExpressiveRefreshIndicator(
       onRefresh: _fetch,
       child: ListView(
@@ -192,20 +229,6 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
           const SizedBox(height: 16),
           if (games.isEmpty)
             _emptyState(theme, scheme)
-          else if (wide)
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: games.length,
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 520,
-                mainAxisExtent: 168,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemBuilder: (context, index) =>
-                  _gameCard(theme, scheme, games[index]),
-            )
           else
             ...games.map(
               (game) => Padding(

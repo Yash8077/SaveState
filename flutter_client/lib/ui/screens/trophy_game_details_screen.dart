@@ -279,6 +279,210 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
     );
   }
 
+  Widget _heroCard(
+    ColorScheme cs, {
+    required double bannerHeight,
+    required int earned,
+    required int total,
+    required double percentage,
+    required String heroUrl,
+    required String? heroFallback,
+    required bool wideTiers,
+  }) {
+    return Card(
+      elevation: 0,
+      color: cs.surfaceContainerHigh,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        children: [
+          SizedBox(
+            height: bannerHeight,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (heroUrl.isNotEmpty)
+                  CachedNetworkImage(
+                    imageUrl: heroUrl,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, url, __) {
+                      if (heroFallback != null && heroFallback != url) {
+                        return CachedNetworkImage(
+                          imageUrl: heroFallback,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) =>
+                              ColoredBox(color: cs.surfaceContainerHighest),
+                        );
+                      }
+                      return ColoredBox(color: cs.surfaceContainerHighest);
+                    },
+                  )
+                else
+                  ColoredBox(color: cs.surfaceContainerHighest),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        cs.surfaceContainerHigh.withOpacity(0.98),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    _response['platform']?.toString().toUpperCase() ?? '',
+                    style: TextStyle(
+                      color: cs.onPrimaryContainer,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _response['titleName']?.toString() ?? 'Trophies',
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$earned of $total trophies · ${percentage.toStringAsFixed(1)}%',
+                  style: TextStyle(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 14),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: percentage / 100,
+                    minHeight: 8,
+                    backgroundColor: cs.surfaceContainerHighest,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _tierRow(
+                  wide: wideTiers,
+                  children: [
+                    for (final type in trophyTiers)
+                      _tierSummary(
+                        type,
+                        _int(_mapValue(type, 'earned')),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () =>
+                        context.push('/game/${widget.catalogId}'),
+                    icon: const Icon(Icons.sports_esports_rounded, size: 18),
+                    label: const Text('Open game'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _listHeading(ColorScheme cs, {required int earned, required int total}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Trophy list',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$earned earned · ${total - earned} remaining',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+        ),
+        Material(
+          color: cs.surfaceContainerHigh,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: PopupMenuButton<_TrophySort>(
+            tooltip: 'Sort',
+            initialValue: _sort,
+            position: PopupMenuPosition.under,
+            offset: const Offset(0, 8),
+            icon: const Icon(Icons.sort_rounded),
+            color: cs.surfaceContainerHigh,
+            surfaceTintColor: Colors.transparent,
+            elevation: 6,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            onSelected: (value) => setState(() => _sort = value),
+            itemBuilder: (context) => [
+              for (final option in _TrophySort.values)
+                PopupMenuItem(
+                  value: option,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 22,
+                        child: _sort == option
+                            ? Icon(
+                                Icons.check_rounded,
+                                size: 18,
+                                color: cs.primary,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(option.label),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _loadingScaffold() {
     return Scaffold(
       appBar: AppBar(title: const Text('Trophies')),
@@ -390,6 +594,67 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
         ? artwork.heroCandidates[1]
         : null;
     final trophies = _trophies;
+
+    if (wide) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(_response['titleName']?.toString() ?? 'Trophies'),
+        ),
+        body: RefreshIndicator(
+          onRefresh: _load,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: 380,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 8, 24),
+                  children: [
+                    _heroCard(
+                      cs,
+                      bannerHeight: 220,
+                      earned: earned,
+                      total: total,
+                      percentage: percentage,
+                      heroUrl: heroUrl,
+                      heroFallback: heroFallback,
+                      wideTiers: false,
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+                      child: _listHeading(cs, earned: earned, total: total),
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: GridView.builder(
+                        padding: const EdgeInsets.fromLTRB(8, 0, 16, 24),
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 440,
+                          mainAxisExtent: 108,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                        itemCount: trophies.length,
+                        itemBuilder: (context, index) =>
+                            _trophyCard(trophies[index]),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(

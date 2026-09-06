@@ -104,7 +104,7 @@ function TrophiesPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-7 pb-12">
+    <div className="mx-auto max-w-6xl space-y-7 pb-12 min-[720px]:max-w-none">
       <header className="flex items-start gap-3">
         <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-accent/15 text-accent"><Trophy className="size-6" /></div>
         <div>
@@ -113,38 +113,36 @@ function TrophiesPage() {
         </div>
       </header>
 
-      <section className="rounded-[2rem] bg-elevated p-5 sm:p-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-faint">Overall progress</p>
-            <p className="mt-2 text-3xl font-semibold tabular-nums">{summary.earned}/{summary.total}</p>
-            <p className="mt-1 text-sm text-muted">{summary.percentage}% across {summary.games} game{summary.games === 1 ? "" : "s"}</p>
-          </div>
-          <div className="flex flex-wrap items-end gap-5">
+      <div className="min-[720px]:grid min-[720px]:grid-cols-[22rem_minmax(0,1fr)] min-[720px]:items-start min-[720px]:gap-6">
+        <section className="rounded-[2rem] bg-elevated p-5 sm:p-6 min-[720px]:sticky min-[720px]:top-4">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-faint">Overall progress</p>
+          <p className="mt-2 text-3xl font-semibold tabular-nums">{summary.earned}/{summary.total}</p>
+          <p className="mt-1 text-sm text-muted">{summary.percentage}% across {summary.games} game{summary.games === 1 ? "" : "s"}</p>
+          <div className="mt-5 h-2 overflow-hidden rounded-full bg-subtle"><div className="h-full rounded-full bg-accent" style={{ width: `${summary.percentage}%` }} /></div>
+          <div className="mt-5 flex gap-5">
             {trophyTiers.map((type) => (
               <Metric key={type} type={type} value={summary[type]} />
             ))}
           </div>
-        </div>
-        <div className="mt-5 h-2 overflow-hidden rounded-full bg-subtle"><div className="h-full rounded-full bg-accent" style={{ width: `${summary.percentage}%` }} /></div>
-      </section>
-
-      {games.length ? (
-        <section>
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div><p className="text-xs font-medium uppercase tracking-[0.18em] text-faint">Your games</p><h2 className="mt-1 text-xl font-semibold">Trophy progress</h2></div>
-            <p className="text-sm text-muted">{games.length} tracked</p>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">{games.map((game) => <TrophyGameCard key={`${game.platform}-${game.titleId}`} game={game} />)}</div>
         </section>
-      ) : (
-        <div className="rounded-3xl bg-elevated p-8 text-center">
-          <Trophy className="mx-auto size-9 text-faint" />
-          <p className="mt-3 text-lg font-medium">No trophies synced yet</p>
-          <p className="mt-1 text-sm text-muted">Launch the SaveState PS5 payload once to import locally earned trophies.</p>
-          <Link to="/library" className="mt-4 inline-flex h-11 items-center rounded-full bg-accent px-5 text-sm font-medium text-accent-fg">Open library</Link>
-        </div>
-      )}
+
+        {games.length ? (
+          <section>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div><p className="text-xs font-medium uppercase tracking-[0.18em] text-faint">Your games</p><h2 className="mt-1 text-xl font-semibold">Trophy progress</h2></div>
+              <p className="text-sm text-muted">{games.length} tracked</p>
+            </div>
+            <div className="grid gap-4">{games.map((game) => <TrophyGameCard key={`${game.platform}-${game.titleId}`} game={game} />)}</div>
+          </section>
+        ) : (
+          <div className="rounded-3xl bg-elevated p-8 text-center">
+            <Trophy className="mx-auto size-9 text-faint" />
+            <p className="mt-3 text-lg font-medium">No trophies synced yet</p>
+            <p className="mt-1 text-sm text-muted">Launch the SaveState PS5 payload once to import locally earned trophies.</p>
+            <Link to="/library" className="mt-4 inline-flex h-11 items-center rounded-full bg-accent px-5 text-sm font-medium text-accent-fg">Open library</Link>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
