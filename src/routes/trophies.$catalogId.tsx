@@ -23,7 +23,7 @@ function TierCounts({
   data: Extract<GameTrophyProgressResult, { found: true }>;
 }) {
   return (
-    <div className="grid grid-cols-4">
+    <div className="flex max-w-md gap-6">
       {trophyTiers.map((type: TrophyTier) => (
         <TrophyTierCount
           key={type}

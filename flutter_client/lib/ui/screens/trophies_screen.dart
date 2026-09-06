@@ -181,16 +181,31 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     }
 
     final games = _games;
+    final wide = MediaQuery.sizeOf(context).width >= 720;
     return ExpressiveRefreshIndicator(
       onRefresh: _fetch,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(16, 8, 16, 32 + floatingPillClearance(context)),
         children: [
-          _buildSummary(theme, scheme),
+          _buildSummary(theme, scheme, wide: wide),
           const SizedBox(height: 16),
           if (games.isEmpty)
             _emptyState(theme, scheme)
+          else if (wide)
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: games.length,
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 520,
+                mainAxisExtent: 168,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemBuilder: (context, index) =>
+                  _gameCard(theme, scheme, games[index]),
+            )
           else
             ...games.map(
               (game) => Padding(
@@ -203,7 +218,7 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     );
   }
 
-  Widget _buildSummary(ThemeData theme, ColorScheme scheme) {
+  Widget _buildSummary(ThemeData theme, ColorScheme scheme, {required bool wide}) {
     final earned = _int(_summary['earned']);
     final total = _int(_summary['total']);
     final percentage = _double(_summary['percentage']);
@@ -248,7 +263,8 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
               ),
             ),
             const SizedBox(height: 18),
-            Row(
+            _tierRow(
+              wide: wide,
               children: [
                 for (final type in trophyTiers)
                   _typeSummary(type, _int(_summary[type])),
@@ -260,15 +276,30 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     );
   }
 
+  Widget _tierRow({required bool wide, required List<Widget> children}) {
+    if (!wide) {
+      return Row(
+        children: [for (final child in children) Expanded(child: child)],
+      );
+    }
+    return Row(
+      children: [
+        for (final child in children)
+          Padding(
+            padding: const EdgeInsets.only(right: 32),
+            child: child,
+          ),
+      ],
+    );
+  }
+
   Widget _typeSummary(String type, int value) {
-    return Expanded(
-      child: Column(
-        children: [
-          TrophyTierIcon(type: type, size: 36),
-          const SizedBox(height: 4),
-          Text('$value', style: const TextStyle(fontWeight: FontWeight.w800)),
-        ],
-      ),
+    return Column(
+      children: [
+        TrophyTierIcon(type: type, size: 36),
+        const SizedBox(height: 4),
+        Text('$value', style: const TextStyle(fontWeight: FontWeight.w800)),
+      ],
     );
   }
 

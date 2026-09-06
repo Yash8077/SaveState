@@ -48,7 +48,7 @@ function TrophyGameCard({ game }: { game: TrophyGameProgress }) {
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-subtle">
             <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(0, Math.min(100, game.percentage))}%` }} />
           </div>
-          <div className="mt-4 grid grid-cols-4">
+          <div className="mt-4 flex max-w-sm gap-5">
             {trophyTiers.map((type) => (
               <TypeStat key={type} type={type} count={game[type]} />
             ))}

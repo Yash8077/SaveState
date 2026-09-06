@@ -123,14 +123,29 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
     }
   }
 
+  Widget _tierRow({required bool wide, required List<Widget> children}) {
+    if (!wide) {
+      return Row(
+        children: [for (final child in children) Expanded(child: child)],
+      );
+    }
+    return Row(
+      children: [
+        for (final child in children)
+          Padding(
+            padding: const EdgeInsets.only(right: 32),
+            child: child,
+          ),
+      ],
+    );
+  }
+
   Widget _tierSummary(String type, int earned) {
-    return Expanded(
-      child: TrophyTierCount(
-        type: type,
-        value: '$earned',
-        iconSize: 34,
-        stacked: true,
-      ),
+    return TrophyTierCount(
+      type: type,
+      value: '$earned',
+      iconSize: 34,
+      stacked: true,
     );
   }
 
@@ -481,24 +496,30 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Row(
+                        _tierRow(
+                          wide: wide,
                           children: [
-                            for (var i = 0; i < trophyTiers.length; i++) ...[
-                              if (i > 0) const SizedBox(width: 6),
+                            for (final type in trophyTiers)
                               _tierSummary(
-                                trophyTiers[i],
-                                _int(_mapValue(trophyTiers[i], 'earned')),
+                                type,
+                                _int(_mapValue(type, 'earned')),
                               ),
-                            ],
                           ],
                         ),
                         const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: () => context.push('/game/${widget.catalogId}'),
-                            icon: const Icon(Icons.sports_esports_rounded, size: 18),
-                            label: const Text('Open game'),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: SizedBox(
+                            width: wide ? 260 : double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: () =>
+                                  context.push('/game/${widget.catalogId}'),
+                              icon: const Icon(
+                                Icons.sports_esports_rounded,
+                                size: 18,
+                              ),
+                              label: const Text('Open game'),
+                            ),
                           ),
                         ),
                       ],

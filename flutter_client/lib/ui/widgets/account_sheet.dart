@@ -24,13 +24,20 @@ Future<void> showAccountSheet(BuildContext context) {
   }
   return showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: true,
     backgroundColor: cs.surfaceContainerHigh,
     showDragHandle: true,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
-    builder: (ctx) => const _AccountSheet(),
+    builder: (ctx) {
+      final bottom = MediaQuery.paddingOf(ctx).bottom;
+      return Padding(
+        padding: EdgeInsets.only(bottom: bottom),
+        child: const _AccountSheet(),
+      );
+    },
   );
 }
 
