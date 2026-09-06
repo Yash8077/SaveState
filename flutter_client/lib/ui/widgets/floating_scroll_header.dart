@@ -65,9 +65,17 @@ class _FloatingScrollHeaderState extends State<FloatingScrollHeader> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Padding(
-          padding: EdgeInsets.only(top: _headerHeight),
-          child: widget.body,
+        // Give the body a real viewport that begins below the header and
+        // hard-clip it to that viewport. This prevents scroll/overscroll
+        // content from painting into the sticky header region.
+        Positioned(
+          top: _headerHeight,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: ClipRect(
+            child: widget.body,
+          ),
         ),
         Positioned(
           top: 0,
