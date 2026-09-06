@@ -14,6 +14,7 @@ import '../widgets/game_card.dart';
 import '../widgets/game_rail.dart';
 import '../widgets/hero_carousel.dart';
 import '../widgets/m3_progress.dart';
+import '../widgets/pill_nav.dart';
 
 class DiscoverScreen extends StatefulWidget {
   final String? q;
@@ -332,7 +333,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
       ),
-      padding: const EdgeInsets.only(bottom: 32),
+      padding: EdgeInsets.only(bottom: 32 + floatingPillClearance(context)),
       children: children,
     );
   }

@@ -13,6 +13,7 @@ import '../widgets/account_sheet.dart';
 import '../widgets/floating_scroll_header.dart';
 import '../widgets/game_card.dart';
 import '../widgets/m3_progress.dart';
+import '../widgets/pill_nav.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -526,7 +527,7 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
       child: filtered.isEmpty
           ? ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 24),
+              padding: EdgeInsets.only(bottom: 24 + floatingPillClearance(context)),
               children: [
                 SizedBox(
                   height: MediaQuery.sizeOf(context).height * 0.55,
@@ -681,7 +682,7 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
             math.max(2, (constraints.maxWidth / 148).floor()).clamp(2, 8);
         return GridView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+          padding: EdgeInsets.fromLTRB(16, 4, 16, 24 + floatingPillClearance(context)),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
             childAspectRatio: 0.58,

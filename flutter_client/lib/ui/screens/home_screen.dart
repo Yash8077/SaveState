@@ -11,6 +11,7 @@ import '../auth_ready_load.dart';
 import '../widgets/floating_scroll_header.dart';
 import '../widgets/game_rail.dart';
 import '../widgets/home_greeting.dart';
+import '../widgets/pill_nav.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -159,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
-          padding: const EdgeInsets.only(bottom: 32),
+          padding: EdgeInsets.only(bottom: 32 + floatingPillClearance(context)),
           children: _layoutChildren(),
         ),
       ),

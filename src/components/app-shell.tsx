@@ -59,20 +59,20 @@ function NavItem({
       to={to}
       className={cn(
         "flex select-none items-center justify-center rounded-xl text-muted transition-colors duration-150",
-        rail ? "h-16 w-16 flex-col gap-0.5" : "min-h-12 flex-1 flex-col gap-0.5",
+        rail ? "h-16 w-16 flex-col gap-0.5" : "size-12",
         active && "text-fg",
       )}
     >
       <span
         className={cn(
           "grid place-items-center rounded-full transition-colors duration-150",
-          rail ? "h-8 w-14" : "h-8 w-16",
+          rail ? "h-8 w-14" : "size-10",
           active && "bg-accent/20 text-accent",
         )}
       >
         <Icon className="size-5" strokeWidth={active ? 2.4 : 1.8} />
       </span>
-      <span className={cn("text-xs font-medium", active && "text-fg")}>
+      <span className={cn("text-xs font-medium", rail ? "block" : "sr-only", active && "text-fg")}>
         {label}
       </span>
     </Link>
@@ -134,8 +134,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 bg-elevated/95 backdrop-blur-md min-[600px]:hidden">
-        <div className="flex w-full px-1 pt-1 pb-[max(0.35rem,env(safe-area-inset-bottom))]">
+      <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] min-[600px]:hidden">
+        <div className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-white/10 bg-elevated/80 px-1.5 py-1 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           {NAV.map((item) => (
             <NavItem key={item.to} {...item} active={isActive(pathname, item.to)} />
           ))}

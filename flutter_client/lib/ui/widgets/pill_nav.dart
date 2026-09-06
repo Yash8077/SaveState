@@ -1,6 +1,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
+/// Extra scroll space so the last row can clear the floating pill.
+double floatingPillClearance(BuildContext context) {
+  if (MediaQuery.sizeOf(context).width >= 720) return 0;
+  return 88;
+}
+
 class PillDestination {
   final IconData icon;
   final IconData selectedIcon;
@@ -32,58 +38,61 @@ class PillNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final vertical = axis == Axis.vertical;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(40),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: cs.surface.withOpacity(0.78),
-            borderRadius: BorderRadius.circular(40),
-            border: Border.all(color: cs.outlineVariant.withOpacity(0.35)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.28),
-                blurRadius: 28,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: vertical ? 8 : 10,
-              vertical: vertical ? 12 : 8,
+    return Material(
+      color: Colors.transparent,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(40),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHigh.withOpacity(0.82),
+              borderRadius: BorderRadius.circular(40),
+              border: Border.all(color: cs.outlineVariant.withOpacity(0.35)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.28),
+                  blurRadius: 28,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-            child: Flex(
-              direction: axis,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (account != null) ...[
-                  Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: account!,
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: vertical ? 10 : 6,
-                      vertical: vertical ? 6 : 10,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: vertical ? 8 : 10,
+                vertical: vertical ? 12 : 8,
+              ),
+              child: Flex(
+                direction: axis,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (account != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: account!,
                     ),
-                    child: SizedBox(
-                      width: vertical ? 22 : 1,
-                      height: vertical ? 1 : 22,
-                      child: ColoredBox(
-                        color: cs.outlineVariant.withOpacity(0.5),
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: vertical ? 10 : 6,
+                        vertical: vertical ? 6 : 10,
+                      ),
+                      child: SizedBox(
+                        width: vertical ? 22 : 1,
+                        height: vertical ? 1 : 22,
+                        child: ColoredBox(
+                          color: cs.outlineVariant.withOpacity(0.5),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
+                  for (var i = 0; i < destinations.length; i++)
+                    _PillButton(
+                      destination: destinations[i],
+                      selected: i == index,
+                      onTap: () => onSelect(i),
+                    ),
                 ],
-                for (var i = 0; i < destinations.length; i++)
-                  _PillButton(
-                    destination: destinations[i],
-                    selected: i == index,
-                    onTap: () => onSelect(i),
-                  ),
-              ],
+              ),
             ),
           ),
         ),

@@ -11,6 +11,7 @@ import '../auth_ready_load.dart';
 import '../widgets/account_sheet.dart';
 import '../widgets/floating_scroll_header.dart';
 import '../widgets/m3_progress.dart';
+import '../widgets/pill_nav.dart';
 import '../widgets/trophy_tier.dart';
 
 class TrophiesScreen extends StatefulWidget {
@@ -184,7 +185,7 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
       onRefresh: _fetch,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 32 + floatingPillClearance(context)),
         children: [
           _buildSummary(theme, scheme),
           const SizedBox(height: 16),

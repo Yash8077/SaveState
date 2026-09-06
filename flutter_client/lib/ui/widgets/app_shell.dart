@@ -84,16 +84,14 @@ class AppShell extends StatelessWidget {
         context.go('/');
       },
       child: Scaffold(
+        extendBody: true,
         body: Stack(
           children: [
-            // Each shell page owns its own top SafeArea. Do not add another
-            // top SafeArea here, otherwise every page header is shifted down.
+            // Pages fill the screen so covers draw behind the floating pill.
+            // Do not inset the stack — that left a solid bar under the nav.
             Positioned.fill(
               child: Padding(
-                padding: EdgeInsets.only(
-                  left: wide ? 84 : 0,
-                  bottom: wide ? 0 : 84 + systemPadding.bottom,
-                ),
+                padding: EdgeInsets.only(left: wide ? 84 : 0),
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 280),
                   switchInCurve: Curves.easeOutCubic,
@@ -121,15 +119,18 @@ class AppShell extends StatelessWidget {
             ),
 
             Positioned(
-              left: wide ? 12 : 0,
+              left: 0,
               right: wide ? null : 0,
               top: wide ? 0 : null,
-              bottom: wide ? 0 : 10 + systemPadding.bottom,
+              bottom: wide ? 0 : 8 + systemPadding.bottom,
               child: wide
-                  ? Center(child: pill)
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: Center(child: pill),
+                    )
                   : Align(
                       alignment: Alignment.bottomCenter,
-                      child: pill,
+                      child: UnconstrainedBox(child: pill),
                     ),
             ),
           ],
