@@ -1,25 +1,26 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Award, Crown, Gem, Medal, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import {
   getTrophyProgress,
   type TrophyCounts,
   type TrophyGameProgress,
-  type TrophySummary,
 } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TrophyTierCount, TrophyTierIcon, trophyTiers, type TrophyTier } from "@/components/trophy-tier";
 
 export const Route = createFileRoute("/trophies")({ component: TrophiesPage });
 
-function TypeStat({ icon: Icon, label, count }: { icon: typeof Trophy; label: string; count: TrophyCounts }) {
+function TypeStat({ type, count }: { type: TrophyTier; count: TrophyCounts }) {
   return (
-    <div className="flex items-center gap-2 text-xs text-muted">
-      <Icon className="size-4 text-accent" strokeWidth={2} />
-      <span className="font-medium tabular-nums">{count.earned}/{count.total}</span>
-      <span>{label}</span>
-    </div>
+    <TrophyTierCount
+      type={type}
+      value={`${count.earned}/${count.total}`}
+      size={18}
+      className="text-xs text-muted"
+    />
   );
 }
 
@@ -46,11 +47,10 @@ function TrophyGameCard({ game }: { game: TrophyGameProgress }) {
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-subtle">
             <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(0, Math.min(100, game.percentage))}%` }} />
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
-            <TypeStat icon={Crown} label="Platinum" count={game.platinum} />
-            <TypeStat icon={Gem} label="Gold" count={game.gold} />
-            <TypeStat icon={Medal} label="Silver" count={game.silver} />
-            <TypeStat icon={Award} label="Bronze" count={game.bronze} />
+          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+            {trophyTiers.map((type) => (
+              <TypeStat key={type} type={type} count={game[type]} />
+            ))}
           </div>
         </div>
       </div>
@@ -119,11 +119,10 @@ function TrophiesPage() {
             <p className="mt-2 text-3xl font-semibold tabular-nums">{summary.earned}/{summary.total}</p>
             <p className="mt-1 text-sm text-muted">{summary.percentage}% across {summary.games} game{summary.games === 1 ? "" : "s"}</p>
           </div>
-          <div className="grid grid-cols-4 gap-3">
-            <Metric label="Platinum" value={summary.platinum} />
-            <Metric label="Gold" value={summary.gold} />
-            <Metric label="Silver" value={summary.silver} />
-            <Metric label="Bronze" value={summary.bronze} />
+          <div className="flex flex-wrap items-end gap-5">
+            {trophyTiers.map((type) => (
+              <Metric key={type} type={type} value={summary[type]} />
+            ))}
           </div>
         </div>
         <div className="mt-5 h-2 overflow-hidden rounded-full bg-subtle"><div className="h-full rounded-full bg-accent" style={{ width: `${summary.percentage}%` }} /></div>
@@ -149,6 +148,11 @@ function TrophiesPage() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
-  return <div className="min-w-14 text-center"><p className="text-base font-semibold tabular-nums">{value}</p><p className="mt-0.5 text-[10px] uppercase tracking-wider text-faint">{label}</p></div>;
+function Metric({ type, value }: { type: TrophyTier; value: number }) {
+  return (
+    <div className="flex min-w-14 flex-col items-center gap-1">
+      <TrophyTierIcon type={type} size={28} />
+      <p className="text-base font-semibold tabular-nums">{value}</p>
+    </div>
+  );
 }

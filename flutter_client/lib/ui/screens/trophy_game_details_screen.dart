@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../models/artwork_resolver.dart';
 import '../../services/api_client.dart';
 import '../widgets/m3_progress.dart';
+import '../widgets/trophy_tier.dart';
 
 class TrophyGameDetailsScreen extends StatefulWidget {
   final String catalogId;
@@ -74,31 +75,12 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
         .toList(growable: false);
   }
 
-  IconData _tierIcon(String? type) {
-    switch (type) {
-      case 'platinum':
-        return Icons.workspace_premium_rounded;
-      case 'gold':
-        return Icons.stars_rounded;
-      case 'silver':
-        return Icons.military_tech_rounded;
-      default:
-        return Icons.emoji_events_rounded;
-    }
-  }
-
-  Widget _tierSummary(String label, int earned) {
+  Widget _tierSummary(String type, int earned) {
     final cs = Theme.of(context).colorScheme;
-    final typeByLabel = const <String, String>{
-      'P': 'platinum',
-      'G': 'gold',
-      'S': 'silver',
-      'B': 'bronze',
-    };
 
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
@@ -106,25 +88,11 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              _tierIcon(typeByLabel[label]),
-              size: 17,
-              color: cs.primary,
-            ),
-            const SizedBox(width: 7),
+            TrophyTierIcon(type: type, size: 22),
+            const SizedBox(width: 6),
             Text(
               '$earned',
               style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(width: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: cs.onSurfaceVariant,
-                letterSpacing: 1.1,
-              ),
             ),
           ],
         ),
@@ -158,10 +126,12 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
     Widget fallbackIcon() {
       return ColoredBox(
         color: cs.surfaceContainerHighest,
-        child: Icon(
-          _tierIcon(trophy['trophy_type']?.toString()),
-          color: cs.primary,
-          size: 22,
+        child: Center(
+          child: TrophyTierIcon(
+            type: trophy['trophy_type']?.toString(),
+            size: 28,
+            faded: !earned,
+          ),
         ),
       );
     }
@@ -473,13 +443,13 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            _tierSummary('P', _int(_mapValue('platinum', 'earned'))),
-                            const SizedBox(width: 6),
-                            _tierSummary('G', _int(_mapValue('gold', 'earned'))),
-                            const SizedBox(width: 6),
-                            _tierSummary('S', _int(_mapValue('silver', 'earned'))),
-                            const SizedBox(width: 6),
-                            _tierSummary('B', _int(_mapValue('bronze', 'earned'))),
+                            for (var i = 0; i < trophyTiers.length; i++) ...[
+                              if (i > 0) const SizedBox(width: 6),
+                              _tierSummary(
+                                trophyTiers[i],
+                                _int(_mapValue(trophyTiers[i], 'earned')),
+                              ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 12),

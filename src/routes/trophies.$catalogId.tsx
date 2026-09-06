@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Award, Check, Crown, Gem, Medal, Trophy } from "lucide-react";
+import { ArrowLeft, Check, Trophy } from "lucide-react";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import {
@@ -9,44 +9,26 @@ import {
   type TrophyRow,
 } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TrophyTierIcon, trophyTiers, type TrophyTier } from "@/components/trophy-tier";
 
 export const Route = createFileRoute("/trophies/$catalogId")({
   component: TrophyGamePage,
 });
-
-function tierIcon(type: string | null) {
-  if (type === "platinum") return Crown;
-  if (type === "gold") return Gem;
-  if (type === "silver") return Medal;
-  return Award;
-}
 
 function TierCounts({
   data,
 }: {
   data: Extract<GameTrophyProgressResult, { found: true }>;
 }) {
-  const entries = [
-    [Crown, "Platinum", data.platinum.earned],
-    [Gem, "Gold", data.gold.earned],
-    [Medal, "Silver", data.silver.earned],
-    [Award, "Bronze", data.bronze.earned],
-  ] as const;
-
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {entries.map(([Icon, label, earned]) => (
+    <div className="grid grid-cols-4 gap-2">
+      {trophyTiers.map((type: TrophyTier) => (
         <div
-          key={label}
-          className="flex items-center gap-3 rounded-2xl bg-subtle px-3 py-2.5"
+          key={type}
+          className="flex items-center justify-center gap-2 rounded-2xl bg-subtle px-3 py-2.5"
         >
-          <Icon className="size-4 shrink-0 text-accent" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold tabular-nums">{earned}</p>
-            <p className="truncate text-[10px] uppercase tracking-[0.14em] text-faint">
-              {label}
-            </p>
-          </div>
+          <TrophyTierIcon type={type} size={22} />
+          <p className="text-sm font-semibold tabular-nums">{data[type].earned}</p>
         </div>
       ))}
     </div>
@@ -58,7 +40,6 @@ function TrophyCard({ trophy }: { trophy: TrophyRow }) {
   const hidden = Boolean(trophy.trophy_hidden && !earned);
   const name = hidden ? "Secret Trophy" : trophy.trophy_name || "Unnamed Trophy";
   const detail = hidden ? "Hidden trophy" : trophy.trophy_detail || "";
-  const Icon = tierIcon(trophy.trophy_type);
 
   return (
     <article
@@ -76,7 +57,7 @@ function TrophyCard({ trophy }: { trophy: TrophyRow }) {
               className="size-full object-cover"
             />
           ) : (
-            <Icon className="size-5" />
+            <TrophyTierIcon type={trophy.trophy_type} size={28} faded={!earned} />
           )}
         </div>
 

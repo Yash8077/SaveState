@@ -11,6 +11,7 @@ import '../auth_ready_load.dart';
 import '../widgets/account_sheet.dart';
 import '../widgets/floating_scroll_header.dart';
 import '../widgets/m3_progress.dart';
+import '../widgets/trophy_tier.dart';
 
 class TrophiesScreen extends StatefulWidget {
   const TrophiesScreen({super.key});
@@ -248,10 +249,8 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
             const SizedBox(height: 18),
             Row(
               children: [
-                _typeSummary('Platinum', _int(_summary['platinum']), scheme),
-                _typeSummary('Gold', _int(_summary['gold']), scheme),
-                _typeSummary('Silver', _int(_summary['silver']), scheme),
-                _typeSummary('Bronze', _int(_summary['bronze']), scheme),
+                for (final type in trophyTiers)
+                  _typeSummary(type, _int(_summary[type])),
               ],
             ),
           ],
@@ -260,16 +259,13 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     );
   }
 
-  Widget _typeSummary(String label, int value, ColorScheme scheme) {
+  Widget _typeSummary(String type, int value) {
     return Expanded(
       child: Column(
         children: [
+          TrophyTierIcon(type: type, size: 28),
+          const SizedBox(height: 4),
           Text('$value', style: const TextStyle(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
-          ),
         ],
       ),
     );
@@ -293,10 +289,6 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     final earned = _int(game['earned']);
     final total = _int(game['total']);
     final percentage = _double(game['percentage']);
-    final platinum = _map(game['platinum']);
-    final gold = _map(game['gold']);
-    final silver = _map(game['silver']);
-    final bronze = _map(game['bronze']);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -382,10 +374,8 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
                       spacing: 10,
                       runSpacing: 6,
                       children: [
-                        _typeChip('P', platinum, scheme),
-                        _typeChip('G', gold, scheme),
-                        _typeChip('S', silver, scheme),
-                        _typeChip('B', bronze, scheme),
+                        for (final type in trophyTiers)
+                          _typeChip(type, _map(game[type]), scheme),
                       ],
                     ),
                   ],
@@ -399,20 +389,21 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
   }
 
   Widget _typeChip(
-    String short,
+    String type,
     Map<String, dynamic> count,
     ColorScheme scheme,
   ) {
     final earned = _int(count['earned']);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.fromLTRB(8, 5, 10, 5),
       decoration: BoxDecoration(
         color: scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
-        '$short $earned',
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+      child: TrophyTierCount(
+        type: type,
+        value: '$earned',
+        iconSize: 18,
       ),
     );
   }

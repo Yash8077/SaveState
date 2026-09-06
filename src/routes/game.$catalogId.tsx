@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Award, Check, Crown, Gem, Heart, Medal, Plus, Trophy } from "lucide-react";
+import { Check, Heart, Plus } from "lucide-react";
 import { Poster } from "@/components/poster";
 import { StatusBadge } from "@/components/status-badge";
 import { TrackerPanel } from "@/components/tracker-panel";
@@ -9,6 +9,7 @@ import { ListEditor, type ListEditorValue } from "@/components/list-editor";
 import { GameCard, GameRail } from "@/components/game-card";
 import { ScreenshotLightbox, ScreenshotThumb } from "@/components/screenshot-lightbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TrophyTierCount, trophyTiers } from "@/components/trophy-tier";
 import { useLibrary, useLibraryMutations } from "@/hooks/use-library";
 import {
   catalogGameQueryKey,
@@ -16,6 +17,7 @@ import {
   getCatalogGame,
   getGameTrophyProgress,
   snapshotFromDetails,
+  type GameTrophyProgressResult,
 } from "@/lib/api";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { seedRelated } from "@/lib/catalog-seed";
@@ -127,16 +129,21 @@ function GamePage() {
             <div className="mt-2 flex flex-wrap items-center justify-center gap-2 text-sm text-muted min-[600px]:justify-start">
               {entry ? <StatusBadge status={entry.status} /> : null}
               {user && trophyProgress.data?.found ? (
-                <Link to="/trophies/$catalogId" params={{ catalogId }} className="inline-flex items-center gap-2 rounded-full bg-subtle px-2.5 py-1 text-xs font-medium text-fg hover:bg-accent/15 hover:text-accent">
-                  <Trophy className="size-3.5 text-accent" />
-                  <span>{trophyProgress.data.platinum.earned}/{trophyProgress.data.platinum.total}</span>
-                  <Crown className="size-3 text-accent" />
-                  <span>{trophyProgress.data.gold.earned}/{trophyProgress.data.gold.total}</span>
-                  <Gem className="size-3 text-accent" />
-                  <span>{trophyProgress.data.silver.earned}/{trophyProgress.data.silver.total}</span>
-                  <Medal className="size-3 text-accent" />
-                  <span>{trophyProgress.data.bronze.earned}/{trophyProgress.data.bronze.total}</span>
-                  <Award className="size-3 text-accent" />
+                <Link to="/trophies/$catalogId" params={{ catalogId }} className="inline-flex items-center gap-2.5 rounded-full bg-subtle px-2.5 py-1 text-xs font-medium text-fg hover:bg-accent/15 hover:text-accent">
+                  {trophyTiers.map((type) => {
+                    const data = trophyProgress.data as Extract<
+                      GameTrophyProgressResult,
+                      { found: true }
+                    >;
+                    return (
+                      <TrophyTierCount
+                        key={type}
+                        type={type}
+                        value={data[type].earned}
+                        size={16}
+                      />
+                    );
+                  })}
                 </Link>
               ) : null}
               {releaseDate ? <span>{releaseDate}</span> : null}

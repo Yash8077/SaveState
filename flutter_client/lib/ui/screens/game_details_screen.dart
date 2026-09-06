@@ -12,6 +12,7 @@ import '../widgets/game_card.dart';
 import '../widgets/list_editor_sheet.dart';
 import '../widgets/m3_progress.dart';
 import '../widgets/screenshot_gallery.dart';
+import '../widgets/trophy_tier.dart';
 
 class GameDetailsScreen extends StatefulWidget {
   final String id;
@@ -500,9 +501,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                                         onTap: () => context.push(
                                           '/trophies/${widget.id}',
                                         ),
-                                        child: _chip(
-                                          _trophyChipLabel(_trophyProgress!),
-                                          cs.primary,
+                                        child: _trophyProgressChip(
+                                          _trophyProgress!,
                                         ),
                                       ),
                                   ],
@@ -751,7 +751,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     );
   }
 
-  String _trophyChipLabel(Map<String, dynamic> progress) {
+  Widget _trophyProgressChip(Map<String, dynamic> progress) {
     Map<String, dynamic> count(String key) {
       final value = progress[key];
       return value is Map
@@ -759,23 +759,33 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           : const <String, dynamic>{};
     }
 
-    final p = count('platinum');
-    final g = count('gold');
-    final s = count('silver');
-    final b = count('bronze');
+    int earned(String key) => (count(key)['earned'] as num?)?.toInt() ?? 0;
 
-    int earned(Map<String, dynamic> row) {
-      return (row['earned'] as num?)?.toInt() ?? 0;
-    }
-
-    int total(Map<String, dynamic> row) {
-      return (row['total'] as num?)?.toInt() ?? 0;
-    }
-
-    return '🏆 ${earned(p)}/${total(p)} · '
-        '🥇 ${earned(g)}/${total(g)} · '
-        '🥈 ${earned(s)}/${total(s)} · '
-        '🥉 ${earned(b)}/${total(b)}';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 4, 10, 4),
+      decoration: BoxDecoration(
+        color: Colors.black45,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < trophyTiers.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            TrophyTierCount(
+              type: trophyTiers[i],
+              value: '${earned(trophyTiers[i])}',
+              iconSize: 16,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Future<void> _openScreenshot(
