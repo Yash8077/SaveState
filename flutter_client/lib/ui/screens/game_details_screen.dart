@@ -776,6 +776,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               type: trophyTiers[i],
               value: '${earned(trophyTiers[i])}',
               iconSize: 16,
+              graded: false,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 11,

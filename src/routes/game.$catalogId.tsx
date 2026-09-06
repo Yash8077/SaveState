@@ -141,6 +141,7 @@ function GamePage() {
                         type={type}
                         value={data[type].earned}
                         size={16}
+                        graded={false}
                       />
                     );
                   })}
