@@ -1,0 +1,18 @@
+Phase 4 - Layer 1: incremental trophy sync
+Baseline: feature/trophy-sync @ 4a7b6c8fcf6e5737cd3a551aa381194f549c9d8c
+
+Changed files:
+- migrations/0017_ps5_trophy_sync_state.sql
+- src/lib/trophy-sync.server.ts
+- src/routes/api/trophies/sync.ts
+- ps5/activity_logger/trophy_sync.c
+
+Design invariants:
+- game_trophies is authoritative; missing/deleted screenshots never unearn trophies.
+- PS5 local state is /data/savestate-sync/trophy-sync.state.
+- Only HTTP 200 marks local discovery fingerprints processed.
+- HTTP 409 means only SYNC_LOCKED; it remains pending.
+- HTTP 207/5xx/network failure leaves local discoveries pending.
+- Duplicate submissions are safe via idempotent database writes.
+- Backend lock expires after 10 minutes.
+- Last attempt and last successful sync are stored separately.
