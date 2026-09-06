@@ -8,6 +8,7 @@ import '../../models/artwork_resolver.dart';
 import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../auth_ready_load.dart';
+import '../widgets/floating_scroll_header.dart';
 import '../widgets/m3_progress.dart';
 
 class TrophiesScreen extends StatefulWidget {
@@ -95,37 +96,36 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
       backgroundColor: scheme.surface,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Trophies',
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
+        child: FloatingScrollHeader(
+          backgroundColor: scheme.surface,
+          header: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Trophies',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Your trophy journey, game by game',
-                      style: TextStyle(
-                        color: scheme.onSurfaceVariant,
-                        fontSize: 14,
-                      ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Your trophy journey, game by game',
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 14,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            Expanded(child: _buildBody(theme, scheme)),
-          ],
+          ),
+          body: _buildBody(theme, scheme),
         ),
       ),
     );

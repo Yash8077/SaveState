@@ -9,6 +9,7 @@ import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../auth_ready_load.dart';
 import '../open_game.dart';
+import '../widgets/floating_scroll_header.dart';
 import '../widgets/game_card.dart';
 import '../widgets/m3_progress.dart';
 
@@ -201,41 +202,40 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
       backgroundColor: colorScheme.surface,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 8, 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Library',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                          ),
+        child: FloatingScrollHeader(
+          backgroundColor: colorScheme.surface,
+          header: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 8, 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Library',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Every game you own, one shelf.',
-                          style: TextStyle(
-                            color: colorScheme.onSurfaceVariant,
-                            fontSize: 14,
-                          ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Every game you own, one shelf.',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 14,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Expanded(child: _buildBody(theme, colorScheme)),
-          ],
+          ),
+          body: _buildBody(theme, colorScheme),
         ),
       ),
     );

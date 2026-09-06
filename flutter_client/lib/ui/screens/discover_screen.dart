@@ -8,6 +8,7 @@ import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../../state/home_layout_controller.dart';
 import '../open_game.dart';
+import '../widgets/floating_scroll_header.dart';
 import '../widgets/game_card.dart';
 import '../widgets/game_rail.dart';
 import '../widgets/hero_carousel.dart';
@@ -173,81 +174,83 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Discover',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
+        child: FloatingScrollHeader(
+          backgroundColor: colorScheme.surface,
+          header: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Discover',
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Explore something worth playing.',
-                      style: TextStyle(
-                        color: colorScheme.onSurfaceVariant,
-                        fontSize: 14,
+                      const SizedBox(height: 2),
+                      Text(
+                        'Explore something worth playing.',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 14,
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: SearchBar(
+                  controller: _searchController,
+                  focusNode: _searchFocus,
+                  hintText: 'Search games',
+                  hintStyle: WidgetStatePropertyAll(
+                    TextStyle(
+                      color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                      fontSize: 15,
                     ),
+                  ),
+                  leading: Icon(
+                    Icons.search_rounded,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  trailing: [
+                    if (_searchController.text.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(Icons.clear_rounded),
+                        onPressed: _clearSearch,
+                      ),
                   ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: SearchBar(
-                controller: _searchController,
-                focusNode: _searchFocus,
-                hintText: 'Search games',
-                hintStyle: WidgetStatePropertyAll(
-                  TextStyle(
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.7),
-                    fontSize: 15,
+                  elevation: const WidgetStatePropertyAll(0),
+                  backgroundColor: WidgetStatePropertyAll(
+                    colorScheme.surfaceContainerHigh,
                   ),
-                ),
-                leading: Icon(
-                  Icons.search_rounded,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                trailing: [
-                  if (_searchController.text.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.clear_rounded),
-                      onPressed: _clearSearch,
+                  shape: WidgetStatePropertyAll(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
                     ),
-                ],
-                elevation: const WidgetStatePropertyAll(0),
-                backgroundColor: WidgetStatePropertyAll(
-                  colorScheme.surfaceContainerHigh,
-                ),
-                shape: WidgetStatePropertyAll(
-                  RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
                   ),
+                  onChanged: _onSearchChanged,
+                  onSubmitted: (value) {
+                    _debounceTimer?.cancel();
+                    _performSearch(value.trim());
+                  },
                 ),
-                onChanged: _onSearchChanged,
-                onSubmitted: (value) {
-                  _debounceTimer?.cancel();
-                  _performSearch(value.trim());
-                },
               ),
-            ),
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child: _buildContent(colorScheme),
-              ),
-            ),
-          ],
+            ],
+          ),
+          body: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: _buildContent(colorScheme),
+          ),
         ),
       ),
     );

@@ -8,6 +8,7 @@ import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
 import '../../state/home_layout_controller.dart';
 import '../auth_ready_load.dart';
+import '../widgets/floating_scroll_header.dart';
 import '../widgets/game_rail.dart';
 import '../widgets/home_greeting.dart';
 
@@ -148,15 +149,19 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
   Widget _buildBody(ColorScheme colorScheme) {
     if (_isLoading) return const _HomeScreenSkeleton();
     if (_errorMessage != null) return _buildErrorView(colorScheme);
-    return ExpressiveRefreshIndicator(
-      onRefresh: _loadData,
+    return FloatingScrollHeader(
+      backgroundColor: colorScheme.surface,
+      header: const HomeGreeting(),
+      body: ExpressiveRefreshIndicator(
+        onRefresh: _loadData,
       color: colorScheme.primary,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
-        padding: const EdgeInsets.only(bottom: 32),
-        children: _layoutChildren(),
+          padding: const EdgeInsets.only(bottom: 32),
+          children: _layoutChildren(),
+        ),
       ),
     );
   }
@@ -183,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
     final recommended = (_because?.games ?? [])
         .where((g) => !owned.contains(g.id))
         .toList();
-    final out = <Widget>[const HomeGreeting()];
+    final out = <Widget>[];
     if (!signedIn) {
       out.add(
         Padding(
