@@ -236,12 +236,16 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
                         ],
                       ),
                     ),
-                    const AccountAvatarButton(size: 38),
+                    const SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: AccountAvatarButton(size: 48),
+                    ),
                   ],
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
                 child: Row(
                   children: [
                     Expanded(
@@ -262,67 +266,68 @@ class _LibraryScreenState extends State<LibraryScreen> with AuthReadyLoad {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(
-                      height: 48,
+                    SizedBox(
                       width: 48,
-                      decoration: BoxDecoration(
+                      height: 48,
+                      child: Material(
                         color: colorScheme.surfaceContainerHigh,
-                        shape: BoxShape.circle,
-                      ),
-                      child: PopupMenuButton<_LibrarySort>(
-                        tooltip: 'Sort',
-                        initialValue: _sort,
-                        position: PopupMenuPosition.under,
-                        offset: const Offset(0, 8),
-                        icon: const Icon(Icons.sort_rounded),
-                        color: colorScheme.surfaceContainerHigh,
-                        surfaceTintColor: Colors.transparent,
-                        elevation: 6,
-                        shadowColor: Colors.black.withOpacity(0.4),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                          side: BorderSide(
-                            color: colorScheme.outlineVariant.withOpacity(0.3),
-                          ),
-                        ),
-                        padding: EdgeInsets.zero,
-                        onSelected: (value) => setState(() => _sort = value),
-                        itemBuilder: (context) => [
-                          for (final option in _LibrarySort.values)
-                            PopupMenuItem(
-                              value: option,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              child: Row(
-                                children: [
-                                  SizedBox(
-                                    width: 22,
-                                    child: _sort == option
-                                        ? Icon(
-                                            Icons.check_rounded,
-                                            size: 18,
-                                            color: colorScheme.primary,
-                                          )
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    option.label,
-                                    style: TextStyle(
-                                      fontWeight: _sort == option
-                                          ? FontWeight.w600
-                                          : FontWeight.w400,
-                                      color: _sort == option
-                                          ? colorScheme.primary
-                                          : colorScheme.onSurface,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                        shape: const CircleBorder(),
+                        clipBehavior: Clip.antiAlias,
+                        child: PopupMenuButton<_LibrarySort>(
+                          tooltip: 'Sort',
+                          initialValue: _sort,
+                          position: PopupMenuPosition.under,
+                          offset: const Offset(0, 8),
+                          icon: const Icon(Icons.sort_rounded),
+                          color: colorScheme.surfaceContainerHigh,
+                          surfaceTintColor: Colors.transparent,
+                          elevation: 6,
+                          shadowColor: Colors.black.withOpacity(0.4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            side: BorderSide(
+                              color: colorScheme.outlineVariant.withOpacity(0.3),
                             ),
-                        ],
+                          ),
+                          padding: EdgeInsets.zero,
+                          onSelected: (value) => setState(() => _sort = value),
+                          itemBuilder: (context) => [
+                            for (final option in _LibrarySort.values)
+                              PopupMenuItem(
+                                value: option,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 22,
+                                      child: _sort == option
+                                          ? Icon(
+                                              Icons.check_rounded,
+                                              size: 18,
+                                              color: colorScheme.primary,
+                                            )
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      option.label,
+                                      style: TextStyle(
+                                        fontWeight: _sort == option
+                                            ? FontWeight.w600
+                                            : FontWeight.w400,
+                                        color: _sort == option
+                                            ? colorScheme.primary
+                                            : colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
