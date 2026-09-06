@@ -29,13 +29,17 @@
 #define POST_URL_MAX 512
 #define TOKEN_MAX 256
 #define DEVICE_ID_MAX 64
-
-/* Transport is provided by ps5-payload-dev cURL and its configured TLS backend. */
+#define RESPONSE_MAX 8192
 
 struct config {
     char endpoint[POST_URL_MAX];
     char device_id[DEVICE_ID_MAX];
     char token[TOKEN_MAX];
+};
+
+struct response_buffer {
+    char data[RESPONSE_MAX];
+    size_t len;
 };
 
 static void log_msg(const char *fmt, ...) {
@@ -88,9 +92,21 @@ static int write_cursor(long long n) {
 
     fprintf(f, "%lld\n", n);
     fflush(f);
+
+    if (fsync(fileno(f)) != 0) {
+        fclose(f);
+        unlink(tmp);
+        return -1;
+    }
+
     fclose(f);
 
-    return rename(tmp, CURSOR_FILE);
+    if (rename(tmp, CURSOR_FILE) != 0) {
+        unlink(tmp);
+        return -1;
+    }
+
+    return 0;
 }
 
 static int load_config(struct config *c) {
@@ -255,10 +271,19 @@ done:
         sqlite3_close(db);
 }
 
-static size_t curl_discard_body(void *ptr, size_t size, size_t nmemb, void *userdata) {
-    (void)ptr;
-    (void)userdata;
-    return size * nmemb;
+static size_t curl_capture_body(void *ptr, size_t size, size_t nmemb,
+                                void *userdata) {
+    const size_t bytes = size * nmemb;
+    struct response_buffer *response = (struct response_buffer *)userdata;
+
+    if (response->len + bytes >= sizeof(response->data))
+        return 0;
+
+    memcpy(response->data + response->len, ptr, bytes);
+    response->len += bytes;
+    response->data[response->len] = 0;
+
+    return bytes;
 }
 
 static int post_json(const struct config *cfg, const char *body, size_t body_len) {
@@ -267,6 +292,7 @@ static int post_json(const struct config *cfg, const char *body, size_t body_len
     long status = 0;
     char error_buf[CURL_ERROR_SIZE] = {0};
     struct curl_slist *headers = NULL;
+    struct response_buffer response = {{0}, 0};
 
     log_msg("[SaveState] initializing cURL\n");
 
@@ -291,18 +317,19 @@ static int post_json(const struct config *cfg, const char *body, size_t body_len
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)body_len);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_discard_body);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "SaveState-PS5-Activity/1.0");
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_capture_body);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "SaveState-PS5-Activity/1.1");
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
 
     /* Diagnostic TLS test: use cURL's TLS stack, but do not require its CA store.
-     * This mirrors ps5-payload-dev/fetchpkg's current PS5 HTTPS approach.
      * Re-enable peer/host verification once a working CA bundle is established. */
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 
-    log_msg("[SaveState] cURL POST %s (%zu bytes body)\n", cfg->endpoint, body_len);
+    log_msg("[SaveState] cURL POST %s (%zu bytes body)\n",
+            cfg->endpoint, body_len);
 
     code = curl_easy_perform(curl);
     if (code != CURLE_OK) {
@@ -324,7 +351,9 @@ static int post_json(const struct config *cfg, const char *body, size_t body_len
         return -1;
     }
 
-    log_msg("[SaveState] cURL HTTP status=%ld\n", status);
+    log_msg("[SaveState] cURL HTTP status=%ld response=%s\n",
+            status,
+            response.len ? response.data : "<empty>");
 
     if (status < 200 || status >= 300) {
         log_msg("[SaveState] upload rejected, HTTP status=%ld\n", status);
@@ -437,7 +466,6 @@ static int sync_once(const struct config *cfg) {
         const char *created = (const char *)sqlite3_column_text(st, 1);
         const char *log = (const char *)sqlite3_column_text(st, 2);
 
-        /* Stop before consuming the next row when the event batch is full. */
         if (count >= MAX_BATCH)
             break;
 
@@ -446,8 +474,8 @@ static int sync_once(const struct config *cfg) {
             continue;
         }
 
-        char title_id[80];
-        char title_name[240];
+        char title_id[80] = {0};
+        char title_name[240] = {0};
 
         if (!json_string_field(log, "appTitleId",
                                title_id, sizeof(title_id))) {
@@ -458,7 +486,6 @@ static int sync_once(const struct config *cfg) {
 
         int fg = json_int_field(log, "totalFgTime");
 
-        /* Best-effort local lookup. titleId remains authoritative. */
         lookup_title_name(title_id, title_name, sizeof(title_name));
 
         char escaped_name[480];

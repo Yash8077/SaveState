@@ -12,6 +12,7 @@ import '../../state/home_layout_controller.dart';
 import '../../state/theme_controller.dart';
 import '../widgets/profile_editor.dart';
 import '../widgets/save_state_mark.dart';
+import 'sync_health_page.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -57,6 +58,13 @@ class SettingsScreen extends StatelessWidget {
             title: 'PS5 Activity',
             hint: 'Log completed PS5 play sessions and daily hours',
             page: const _Ps5ActivityPage(),
+          ),
+          _tile(
+            context,
+            icon: Icons.health_and_safety_outlined,
+            title: 'Sync & Health',
+            hint: 'PS5 session and trophy synchronization',
+            page: const SyncHealthPage(),
           ),
           _tile(
             context,
@@ -382,8 +390,8 @@ class _Ps5ActivityPage extends StatefulWidget {
 class _Ps5ActivityPageState extends State<_Ps5ActivityPage> {
   bool _loading = true;
   bool _busy = false;
-  Map<String, dynamic>? _device; // existing device metadata (no token — see below)
-  Map<String, dynamic>? _freshResult; // just-created device, includes the one-time token
+  Map<String, dynamic>? _device;
+  Map<String, dynamic>? _freshResult;
   String? _error;
 
   @override
@@ -428,10 +436,6 @@ class _Ps5ActivityPageState extends State<_Ps5ActivityPage> {
     }
   }
 
-  // Personal-use setup only ever needs one device. Losing the token means
-  // the original secret can't be shown again (it's stored hashed) — the
-  // only way back is to drop the old row and mint a fresh one, then update
-  // /data/savestate-sync/config on the PS5 to match.
   Future<void> _reissue() async {
     final existing = _device;
     setState(() {
@@ -498,14 +502,10 @@ class _Ps5ActivityPageState extends State<_Ps5ActivityPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
                 if (_error != null) ...[
                   Text(_error!, style: TextStyle(color: cs.error)),
                   const SizedBox(height: 12),
                 ],
-
-                // Already set up: show status, no secret to display (never
-                // stored in plaintext), just a way to start over if needed.
                 if (_device != null && token == null) ...[
                   Card(
                     child: Padding(
@@ -517,19 +517,29 @@ class _Ps5ActivityPageState extends State<_Ps5ActivityPage> {
                             children: [
                               Icon(Icons.check_circle_rounded, color: cs.primary, size: 20),
                               const SizedBox(width: 8),
-                              Text('PS5 connection set up',
-                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                              Text(
+                                'PS5 connection set up',
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 10),
-                          Text('Device: ${_device!['name'] ?? 'PS5'}',
-                              style: TextStyle(color: cs.onSurfaceVariant)),
+                          Text(
+                            'Device: ${_device!['name'] ?? 'PS5'}',
+                            style: TextStyle(color: cs.onSurfaceVariant),
+                          ),
                           if (_device!['lastSeenAt'] != null)
-                            Text('Last synced: ${_device!['lastSeenAt']}',
-                                style: TextStyle(color: cs.onSurfaceVariant))
+                            Text(
+                              'Last seen: ${_device!['lastSeenAt']}',
+                              style: TextStyle(color: cs.onSurfaceVariant),
+                            )
                           else
-                            Text('Not synced yet — run the payload on your PS5',
-                                style: TextStyle(color: cs.onSurfaceVariant)),
+                            Text(
+                              'Not seen yet — run the payload on your PS5',
+                              style: TextStyle(color: cs.onSurfaceVariant),
+                            ),
                         ],
                       ),
                     ),
@@ -538,24 +548,27 @@ class _Ps5ActivityPageState extends State<_Ps5ActivityPage> {
                   OutlinedButton.icon(
                     onPressed: _busy ? null : _reissue,
                     icon: _busy
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Icon(Icons.refresh_rounded),
                     label: Text(_busy ? 'Working…' : 'Lost the token? Reissue it'),
                   ),
                 ],
-
-                // Nothing set up yet.
                 if (_device == null && token == null)
                   FilledButton.icon(
                     onPressed: _busy ? null : _create,
                     icon: _busy
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Icon(Icons.add_rounded),
                     label: Text(_busy ? 'Creating…' : 'Create PS5 connection'),
                   ),
-
-                // Just (re)created: this is the only time the token is
-                // ever shown, since the server only stores it hashed.
                 if (token != null && id != null) ...[
                   Card(
                     child: Padding(
@@ -563,10 +576,17 @@ class _Ps5ActivityPageState extends State<_Ps5ActivityPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('One-time setup values', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                          Text(
+                            'One-time setup values',
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
                           const SizedBox(height: 4),
-                          Text('This token will not be shown again — copy it now.',
-                              style: TextStyle(color: cs.error, fontSize: 12)),
+                          Text(
+                            'This token will not be shown again — copy it now.',
+                            style: TextStyle(color: cs.error, fontSize: 12),
+                          ),
                           const SizedBox(height: 12),
                           const SelectableText(
                             'ENDPOINT=https://save-state-jade.vercel.app/api/activity/ingest',
@@ -648,8 +668,8 @@ class _BackupPageState extends State<_BackupPage> {
         if (raw is! Map) continue;
         String cell(Object? v) {
           final text = v?.toString() ?? '';
-          if (text.contains(',') || text.contains('"') || text.contains('\n')) {
-            return '"${text.replaceAll('"', '""')}"';
+          if (text.contains(',') || text.contains('\"') || text.contains('\n')) {
+            return '\"${text.replaceAll('\"', '\"\"')}\"';
           }
           return text;
         }
