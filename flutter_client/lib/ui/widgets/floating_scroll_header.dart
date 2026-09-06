@@ -77,7 +77,7 @@ class _FloatingScrollHeaderState extends State<FloatingScrollHeader> {
     _downDistance = 0;
     if (!mounted) return;
 
-    final nextPadding = atTop ? _headerHeight : 0;
+    final double nextPadding = atTop ? _headerHeight : 0.0;
     final visibilityChanged = !_headerVisible;
     final paddingChanged = (_bodyTopPadding - nextPadding).abs() >= 0.5;
 
