@@ -76,26 +76,12 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
   }
 
   Widget _tierSummary(String type, int earned) {
-    final cs = Theme.of(context).colorScheme;
-
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TrophyTierIcon(type: type, size: 22),
-            const SizedBox(width: 6),
-            Text(
-              '$earned',
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
+      child: TrophyTierCount(
+        type: type,
+        value: '$earned',
+        iconSize: 34,
+        stacked: true,
       ),
     );
   }

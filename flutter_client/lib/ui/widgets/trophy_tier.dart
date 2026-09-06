@@ -34,7 +34,7 @@ class TrophyTierIcon extends StatelessWidget {
       child: Image.asset(
         trophyTierAsset(type),
         height: size,
-        width: size * 0.82,
+        width: size,
         fit: BoxFit.contain,
         filterQuality: FilterQuality.high,
         gaplessPlayback: true,
@@ -48,6 +48,7 @@ class TrophyTierCount extends StatelessWidget {
   final String value;
   final double iconSize;
   final TextStyle? style;
+  final bool stacked;
 
   const TrophyTierCount({
     super.key,
@@ -55,24 +56,39 @@ class TrophyTierCount extends StatelessWidget {
     required this.value,
     this.iconSize = 22,
     this.style,
+    this.stacked = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final icon = TrophyTierIcon(type: type, size: iconSize);
+    final label = Text(
+      value,
+      style: style ??
+          const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            fontFeatures: [FontFeature.tabularFigures()],
+          ),
+    );
+
+    if (!stacked) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          icon,
+          const SizedBox(width: 6),
+          label,
+        ],
+      );
+    }
+
+    return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        TrophyTierIcon(type: type, size: iconSize),
-        const SizedBox(width: 6),
-        Text(
-          value,
-          style: style ??
-              const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
-        ),
+        icon,
+        const SizedBox(height: 4),
+        label,
       ],
     );
   }

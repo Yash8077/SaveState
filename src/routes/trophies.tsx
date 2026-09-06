@@ -17,9 +17,10 @@ function TypeStat({ type, count }: { type: TrophyTier; count: TrophyCounts }) {
   return (
     <TrophyTierCount
       type={type}
-      value={`${count.earned}/${count.total}`}
-      size={18}
-      className="text-xs text-muted"
+      value={count.earned}
+      size={34}
+      stacked
+      className="text-sm"
     />
   );
 }
@@ -47,7 +48,7 @@ function TrophyGameCard({ game }: { game: TrophyGameProgress }) {
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-subtle">
             <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(0, Math.min(100, game.percentage))}%` }} />
           </div>
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+          <div className="mt-4 grid grid-cols-4">
             {trophyTiers.map((type) => (
               <TypeStat key={type} type={type} count={game[type]} />
             ))}
@@ -151,7 +152,7 @@ function TrophiesPage() {
 function Metric({ type, value }: { type: TrophyTier; value: number }) {
   return (
     <div className="flex min-w-14 flex-col items-center gap-1">
-      <TrophyTierIcon type={type} size={28} />
+      <TrophyTierIcon type={type} size={36} />
       <p className="text-base font-semibold tabular-nums">{value}</p>
     </div>
   );

@@ -9,7 +9,7 @@ import {
   type TrophyRow,
 } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrophyTierIcon, trophyTiers, type TrophyTier } from "@/components/trophy-tier";
+import { TrophyTierCount, TrophyTierIcon, trophyTiers, type TrophyTier } from "@/components/trophy-tier";
 
 export const Route = createFileRoute("/trophies/$catalogId")({
   component: TrophyGamePage,
@@ -21,15 +21,16 @@ function TierCounts({
   data: Extract<GameTrophyProgressResult, { found: true }>;
 }) {
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-4">
       {trophyTiers.map((type: TrophyTier) => (
-        <div
+        <TrophyTierCount
           key={type}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-subtle px-3 py-2.5"
-        >
-          <TrophyTierIcon type={type} size={22} />
-          <p className="text-sm font-semibold tabular-nums">{data[type].earned}</p>
-        </div>
+          type={type}
+          value={data[type].earned}
+          size={34}
+          stacked
+          className="text-sm"
+        />
       ))}
     </div>
   );

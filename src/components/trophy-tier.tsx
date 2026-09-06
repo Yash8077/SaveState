@@ -29,10 +29,10 @@ export function TrophyTierIcon({
     <img
       src={trophyTierSrc(type)}
       alt=""
-      width={Math.round(size * 0.82)}
+      width={size}
       height={size}
       className={cn("shrink-0 object-contain", faded && "opacity-40", className)}
-      style={{ width: Math.round(size * 0.82), height: size }}
+      style={{ width: size, height: size }}
     />
   );
 }
@@ -41,15 +41,23 @@ export function TrophyTierCount({
   type,
   value,
   size = 22,
+  stacked = false,
   className,
 }: {
   type: string;
   value: string | number;
   size?: number;
+  stacked?: boolean;
   className?: string;
 }) {
   return (
-    <span className={cn("inline-flex items-center gap-1.5 tabular-nums", className)}>
+    <span
+      className={cn(
+        "inline-flex tabular-nums",
+        stacked ? "flex-col items-center gap-1" : "items-center gap-1.5",
+        className,
+      )}
+    >
       <TrophyTierIcon type={type} size={size} />
       <span className="font-semibold">{value}</span>
     </span>

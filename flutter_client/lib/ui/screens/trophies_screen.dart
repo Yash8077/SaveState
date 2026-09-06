@@ -263,7 +263,7 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     return Expanded(
       child: Column(
         children: [
-          TrophyTierIcon(type: type, size: 28),
+          TrophyTierIcon(type: type, size: 36),
           const SizedBox(height: 4),
           Text('$value', style: const TextStyle(fontWeight: FontWeight.w800)),
         ],
@@ -370,12 +370,12 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 6,
+                    Row(
                       children: [
                         for (final type in trophyTiers)
-                          _typeChip(type, _map(game[type]), scheme),
+                          Expanded(
+                            child: _typeChip(type, _map(game[type])),
+                          ),
                       ],
                     ),
                   ],
@@ -388,23 +388,13 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     );
   }
 
-  Widget _typeChip(
-    String type,
-    Map<String, dynamic> count,
-    ColorScheme scheme,
-  ) {
+  Widget _typeChip(String type, Map<String, dynamic> count) {
     final earned = _int(count['earned']);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 5, 10, 5),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: TrophyTierCount(
-        type: type,
-        value: '$earned',
-        iconSize: 18,
-      ),
+    return TrophyTierCount(
+      type: type,
+      value: '$earned',
+      iconSize: 34,
+      stacked: true,
     );
   }
 
