@@ -189,13 +189,10 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
-              width: 360,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
+              width: 380,
+              child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 8, 24),
-                children: [
-                  _buildSummary(theme, scheme, wide: false),
-                ],
+                child: _buildSummary(theme, scheme, wide: false, fill: true),
               ),
             ),
             Expanded(
@@ -241,12 +238,17 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     );
   }
 
-  Widget _buildSummary(ThemeData theme, ColorScheme scheme, {required bool wide}) {
+  Widget _buildSummary(
+    ThemeData theme,
+    ColorScheme scheme, {
+    required bool wide,
+    bool fill = false,
+  }) {
     final earned = _int(_summary['earned']);
     final total = _int(_summary['total']);
     final percentage = _double(_summary['percentage']);
     final games = _int(_summary['games']);
-    return Card(
+    final card = Card(
       margin: EdgeInsets.zero,
       elevation: 0,
       color: scheme.surfaceContainerHigh,
@@ -293,10 +295,13 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
                   _typeSummary(type, _int(_summary[type])),
               ],
             ),
+            if (fill) const Spacer(),
           ],
         ),
       ),
     );
+    if (fill) return SizedBox.expand(child: card);
+    return card;
   }
 
   Widget _tierRow({required bool wide, required List<Widget> children}) {

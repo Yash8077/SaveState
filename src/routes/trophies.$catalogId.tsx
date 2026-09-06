@@ -176,8 +176,8 @@ function TrophyGamePage() {
       </div>
 
       <div className="min-[720px]:grid min-[720px]:grid-cols-[22rem_minmax(0,1fr)] min-[720px]:items-start min-[720px]:gap-6">
-        <section className="overflow-hidden rounded-[2rem] bg-elevated min-[720px]:sticky min-[720px]:top-4">
-          <div className="relative h-40 overflow-hidden bg-subtle sm:h-52">
+        <section className="overflow-hidden rounded-[2rem] bg-elevated min-[720px]:sticky min-[720px]:top-4 min-[720px]:flex min-[720px]:min-h-[calc(100dvh-7rem)] min-[720px]:flex-col">
+          <div className="relative h-40 overflow-hidden bg-subtle sm:h-52 min-[720px]:h-auto min-[720px]:min-h-56 min-[720px]:flex-1">
             {data.headerUrl || data.coverUrl ? (
               <img
                 src={data.headerUrl || data.coverUrl || undefined}

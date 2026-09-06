@@ -288,8 +288,45 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
     required String heroUrl,
     required String? heroFallback,
     required bool wideTiers,
+    bool fill = false,
   }) {
-    return Card(
+    final banner = Stack(
+      fit: StackFit.expand,
+      children: [
+        if (heroUrl.isNotEmpty)
+          CachedNetworkImage(
+            imageUrl: heroUrl,
+            fit: BoxFit.cover,
+            errorWidget: (_, url, __) {
+              if (heroFallback != null && heroFallback != url) {
+                return CachedNetworkImage(
+                  imageUrl: heroFallback,
+                  fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) =>
+                      ColoredBox(color: cs.surfaceContainerHighest),
+                );
+              }
+              return ColoredBox(color: cs.surfaceContainerHighest);
+            },
+          )
+        else
+          ColoredBox(color: cs.surfaceContainerHighest),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.transparent,
+                cs.surfaceContainerHigh.withOpacity(0.98),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    final card = Card(
       elevation: 0,
       color: cs.surfaceContainerHigh,
       clipBehavior: Clip.antiAlias,
@@ -298,45 +335,13 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
       ),
       child: Column(
         children: [
-          SizedBox(
-            height: bannerHeight,
-            width: double.infinity,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (heroUrl.isNotEmpty)
-                  CachedNetworkImage(
-                    imageUrl: heroUrl,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, url, __) {
-                      if (heroFallback != null && heroFallback != url) {
-                        return CachedNetworkImage(
-                          imageUrl: heroFallback,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) =>
-                              ColoredBox(color: cs.surfaceContainerHighest),
-                        );
-                      }
-                      return ColoredBox(color: cs.surfaceContainerHighest);
-                    },
-                  )
-                else
-                  ColoredBox(color: cs.surfaceContainerHighest),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        cs.surfaceContainerHigh.withOpacity(0.98),
-                      ],
-                    ),
-                  ),
+          fill
+              ? Expanded(child: banner)
+              : SizedBox(
+                  height: bannerHeight,
+                  width: double.infinity,
+                  child: banner,
                 ),
-              ],
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
@@ -410,9 +415,9 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
         ],
       ),
     );
+    if (fill) return SizedBox.expand(child: card);
+    return card;
   }
-
-  Widget _listHeading(ColorScheme cs, {required int earned, required int total}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -582,7 +587,7 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
 
     final earned = _int(_response['earned']);
     final total = _int(_response['total']);
-    final percentage = _double(_response['percentage']).clamp(0, 100);
+    final percentage = _double(_response['percentage']).clamp(0, 100).toDouble();
     final artwork = resolveGameArtwork(
       coverUrl: _response['coverUrl']?.toString(),
       headerUrl: _response['headerUrl']?.toString(),
@@ -607,21 +612,19 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
             children: [
               SizedBox(
                 width: 380,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
+                child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 8, 24),
-                  children: [
-                    _heroCard(
-                      cs,
-                      bannerHeight: 220,
-                      earned: earned,
-                      total: total,
-                      percentage: percentage,
-                      heroUrl: heroUrl,
-                      heroFallback: heroFallback,
-                      wideTiers: false,
-                    ),
-                  ],
+                  child: _heroCard(
+                    cs,
+                    bannerHeight: 220,
+                    earned: earned,
+                    total: total,
+                    percentage: percentage,
+                    heroUrl: heroUrl,
+                    heroFallback: heroFallback,
+                    wideTiers: false,
+                    fill: true,
+                  ),
                 ),
               ),
               Expanded(

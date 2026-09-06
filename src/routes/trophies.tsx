@@ -114,7 +114,7 @@ function TrophiesPage() {
       </header>
 
       <div className="min-[720px]:grid min-[720px]:grid-cols-[22rem_minmax(0,1fr)] min-[720px]:items-start min-[720px]:gap-6">
-        <section className="rounded-[2rem] bg-elevated p-5 sm:p-6 min-[720px]:sticky min-[720px]:top-4">
+        <section className="rounded-[2rem] bg-elevated p-5 sm:p-6 min-[720px]:sticky min-[720px]:top-4 min-[720px]:min-h-[calc(100dvh-7rem)]">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-faint">Overall progress</p>
           <p className="mt-2 text-3xl font-semibold tabular-nums">{summary.earned}/{summary.total}</p>
           <p className="mt-1 text-sm text-muted">{summary.percentage}% across {summary.games} game{summary.games === 1 ? "" : "s"}</p>
