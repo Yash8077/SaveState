@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/artwork_resolver.dart';
 import '../../services/api_client.dart';
 import '../widgets/m3_progress.dart';
 
@@ -353,9 +354,16 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
     final earned = _int(_response['earned']);
     final total = _int(_response['total']);
     final percentage = _double(_response['percentage']).clamp(0, 100);
-    final heroUrl = (_response['headerUrl']?.toString().isNotEmpty ?? false)
-        ? _response['headerUrl'].toString()
-        : _response['coverUrl']?.toString() ?? '';
+    final artwork = resolveGameArtwork(
+      coverUrl: _response['coverUrl']?.toString(),
+      headerUrl: _response['headerUrl']?.toString(),
+      capsuleUrl: _response['capsuleUrl']?.toString(),
+      catalogId: widget.catalogId,
+    );
+    final heroUrl = artwork.heroUrl ?? '';
+    final heroFallback = artwork.heroCandidates.length > 1
+        ? artwork.heroCandidates[1]
+        : null;
     final trophies = _trophies;
 
     return Scaffold(
@@ -387,6 +395,17 @@ class _TrophyGameDetailsScreenState extends State<TrophyGameDetailsScreen> {
                           CachedNetworkImage(
                             imageUrl: heroUrl,
                             fit: BoxFit.cover,
+                            errorWidget: (_, url, __) {
+                              if (heroFallback != null && heroFallback != url) {
+                                return CachedNetworkImage(
+                                  imageUrl: heroFallback,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, __, ___) =>
+                                      ColoredBox(color: cs.surfaceContainerHighest),
+                                );
+                              }
+                              return ColoredBox(color: cs.surfaceContainerHighest);
+                            },
                           )
                         else
                           ColoredBox(color: cs.surfaceContainerHighest),

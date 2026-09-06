@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../models/artwork_resolver.dart';
 import '../../models/types.dart';
 import '../open_game.dart';
 import 'game_card.dart';
@@ -181,11 +182,13 @@ class _Art extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final art = pickPortraitCover([
-      game.coverUrl,
-      game.capsuleUrl,
-      game.headerUrl,
-    ]);
+    final artwork = resolveGameArtwork(
+      coverUrl: game.coverUrl,
+      headerUrl: game.headerUrl,
+      capsuleUrl: game.capsuleUrl,
+      catalogId: game.id,
+    );
+    final art = artwork.coverUrl;
     return Material(
       color: cs.surfaceContainerHighest,
       child: InkWell(
@@ -199,6 +202,19 @@ class _Art extends StatelessWidget {
                 fit: isLandscapeArt(art) ? BoxFit.contain : BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,
+                errorWidget: (_, url, __) {
+                  final fallback = artwork.coverCandidates.firstWhere(
+                    (candidate) => candidate != url,
+                    orElse: () => '',
+                  );
+                  if (fallback.isEmpty) return const SizedBox.shrink();
+                  return CachedNetworkImage(
+                    imageUrl: fallback,
+                    fit: isLandscapeArt(fallback)
+                        ? BoxFit.contain
+                        : BoxFit.cover,
+                  );
+                },
               ),
             if (game.metacritic != null) RatingBadge(score: game.metacritic!),
           ],

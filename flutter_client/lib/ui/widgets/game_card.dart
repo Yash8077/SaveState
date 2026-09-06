@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../models/artwork_resolver.dart';
 import '../../models/types.dart';
 import '../open_game.dart';
 
@@ -16,7 +17,13 @@ class GameCardWidget extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final coverUrl = game.artUrl;
+    final artwork = resolveGameArtwork(
+      coverUrl: game.coverUrl,
+      headerUrl: game.headerUrl,
+      capsuleUrl: game.capsuleUrl,
+      catalogId: game.id,
+    );
+    final coverUrl = artwork.coverUrl;
     BoxFit fitFor(String url) =>
         isLandscapeArt(url) ? BoxFit.contain : BoxFit.cover;
 
@@ -67,22 +74,22 @@ class GameCardWidget extends StatelessWidget {
                               color: colorScheme.surfaceContainerHighest,
                             ),
                             errorWidget: (context, url, error) {
-                              final tried = <String>{url};
-                              final fallbacks = [
-                                normalizeArtUrl(game.headerUrl),
-                                upgradeSteamCapsule(game.capsuleUrl),
-                              ].whereType<String>().where((u) => !tried.contains(u));
+                              final fallbacks = artwork.coverCandidates
+                                  .where((u) => u != url)
+                                  .toList(growable: false);
                               final next = fallbacks.isEmpty ? null : fallbacks.first;
                               if (next != null) {
                                 return CachedNetworkImage(
                                   imageUrl: next,
                                   fit: fitFor(next),
                                   errorWidget: (context, failed, __) {
-                                    final last = upgradeSteamCapsule(game.capsuleUrl);
-                                    if (last != null && last != failed && last != next) {
+                                    final remaining = fallbacks
+                                        .where((u) => u != failed)
+                                        .toList(growable: false);
+                                    if (remaining.isNotEmpty) {
                                       return CachedNetworkImage(
-                                        imageUrl: last,
-                                        fit: fitFor(last),
+                                        imageUrl: remaining.first,
+                                        fit: fitFor(remaining.first),
                                         errorWidget: (context, _, ___) => missingArt(),
                                       );
                                     }

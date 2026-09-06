@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/artwork_resolver.dart';
 import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../auth_ready_load.dart';
@@ -185,8 +186,14 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
     return remainder == 0 ? '${hours}h' : '${hours}h ${remainder}m';
   }
 
-  String? _cover(Map<String, dynamic> row) =>
-      row['coverUrl']?.toString() ?? row['cover_url']?.toString();
+  ArtworkSelection _artwork(Map<String, dynamic> row) => resolveGameArtwork(
+        coverUrl: row['coverUrl']?.toString() ?? row['cover_url']?.toString(),
+        headerUrl: row['headerUrl']?.toString() ?? row['header_url']?.toString(),
+        capsuleUrl: row['capsuleUrl']?.toString() ?? row['capsule_url']?.toString(),
+        catalogId: row['catalogId']?.toString() ?? row['catalog_id']?.toString(),
+      );
+
+  String? _cover(Map<String, dynamic> row) => _artwork(row).coverUrl;
 
   String? _catalogId(Map<String, dynamic> row) =>
       row['catalogId']?.toString() ?? row['catalog_id']?.toString();
@@ -377,7 +384,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
     final sessions = (_totals['sessions'] as num?)?.toInt() ?? 0;
     final days = (_totals['days'] as num?)?.toInt() ?? 0;
     final top = _games.isNotEmpty ? _games.first : null;
-    final headerUrl = top?['headerUrl']?.toString();
+    final headerUrl = top == null ? null : _artwork(top).heroUrl;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
@@ -395,6 +402,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
                   fit: BoxFit.cover,
                   color: Colors.black.withOpacity(0.42),
                   colorBlendMode: BlendMode.darken,
+                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
                 ),
               ),
             Positioned.fill(

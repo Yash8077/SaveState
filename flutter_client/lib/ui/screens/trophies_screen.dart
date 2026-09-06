@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/artwork_resolver.dart';
+import '../../models/types.dart';
 import '../../services/api_client.dart';
 import '../auth_ready_load.dart';
 import '../widgets/m3_progress.dart';
@@ -270,8 +272,15 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     Map<String, dynamic> game,
   ) {
     final title = game['title']?.toString() ?? 'Unknown game';
-    final cover = game['coverUrl']?.toString();
     final catalogId = game['catalogId']?.toString();
+    final artwork = resolveGameArtwork(
+      coverUrl: game['coverUrl']?.toString() ?? game['cover_url']?.toString(),
+      headerUrl: game['headerUrl']?.toString() ?? game['header_url']?.toString(),
+      capsuleUrl:
+          game['capsuleUrl']?.toString() ?? game['capsule_url']?.toString(),
+      catalogId: catalogId,
+    );
+    final cover = artwork.coverUrl;
     final earned = _int(game['earned']);
     final total = _int(game['total']);
     final percentage = _double(game['percentage']);
@@ -302,7 +311,19 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
                   height: 104,
                   child: cover == null || cover.isEmpty
                       ? ColoredBox(color: scheme.surfaceContainerHighest)
-                      : CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover),
+                      : CachedNetworkImage(
+                          imageUrl: cover,
+                          fit: isLandscapeArt(cover)
+                              ? BoxFit.contain
+                              : BoxFit.cover,
+                          errorWidget: (_, __, ___) => ColoredBox(
+                            color: scheme.surfaceContainerHighest,
+                            child: Icon(
+                              Icons.videogame_asset_outlined,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: 14),
