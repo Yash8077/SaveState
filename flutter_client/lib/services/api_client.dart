@@ -37,10 +37,15 @@ class ApiClient {
   final Map<String, ({DateTime at, FeaturedRail rail})> _becauseCache = {};
   final Map<String, Future<FeaturedRail>> _becauseInflight = {};
   final Map<String, ({DateTime at, List<CatalogGame> games})> _searchCache = {};
+  final Map<String, ({DateTime at, Map<String, dynamic> data})> _activityCache = {};
+  Map<String, dynamic>? _trophyListCache;
+  DateTime? _trophyListAt;
   static const _featuredTtl = Duration(minutes: 30);
   static const _becauseTtl = Duration(hours: 6);
   static const _searchTtl = Duration(minutes: 10);
   static const _libraryTtl = Duration(minutes: 2);
+  static const _activityTtl = Duration(minutes: 2);
+  static const _trophyTtl = Duration(minutes: 2);
   static const _httpTimeout = Duration(seconds: 10);
   static const _featuredDiskKey = 'cache_featured_v1';
   static const _libraryDiskKey = 'cache_library_v1';
@@ -85,15 +90,46 @@ class ApiClient {
   void prefetchGameDetails(String catalogId) { if (catalogId.isEmpty) return; if (_detailsCache.containsKey(catalogId) || _detailsInflight.containsKey(catalogId)) return; unawaited(getGameDetails(catalogId)); }
   Future<List<GameEntry>> getLibrary({bool force = false}) async { if (!force && _libraryCache != null && _libraryAt != null && DateTime.now().difference(_libraryAt!) < _libraryTtl) return _libraryCache!; final decoded = await _send('GET', _u('/api/library')); List<GameEntry> items = const []; if (decoded is List) items = decoded.map((e) => GameEntry.fromJson(e as Map<String, dynamic>)).toList(); else if (decoded is Map && decoded['items'] is List) items = (decoded['items'] as List).map((e) => GameEntry.fromJson(e as Map<String, dynamic>)).toList(); _libraryCache = items; _libraryAt = DateTime.now(); unawaited(_persistLibrary(items)); return items; }
   void _invalidateLibrary() { _libraryCache = null; _libraryAt = null; unawaited(_prefs?.remove(_libraryDiskKey)); }
-  Future<Map<String, dynamic>> getActivity({bool force = false, String? month}) async { final q = <String, String>{'limit': '200', if (month != null && month.isNotEmpty) 'month': month}; final decoded = await _send('GET', _u('/api/activity', q)); if (decoded is Map) return Map<String, dynamic>.from(decoded); throw ApiException(500, 'Invalid activity response'); }
+  Future<Map<String, dynamic>> getActivity({bool force = false, String? month}) async {
+    final key = (month != null && month.isNotEmpty) ? month : 'all';
+    if (!force) {
+      final cached = _activityCache[key];
+      if (cached != null && DateTime.now().difference(cached.at) < _activityTtl) {
+        return cached.data;
+      }
+    }
+    final q = <String, String>{'limit': '200', if (month != null && month.isNotEmpty) 'month': month};
+    final decoded = await _send('GET', _u('/api/activity', q));
+    if (decoded is Map) {
+      final data = Map<String, dynamic>.from(decoded);
+      _activityCache[key] = (at: DateTime.now(), data: data);
+      return data;
+    }
+    throw ApiException(500, 'Invalid activity response');
+  }
 
-  Future<Map<String, dynamic>> getTrophyProgress() async { final decoded = await _send('GET', _u('/api/trophies/list')); if (decoded is Map) return Map<String, dynamic>.from(decoded); throw ApiException(500, 'Invalid trophy response'); }
+  Future<Map<String, dynamic>> getTrophyProgress({bool force = false}) async {
+    if (!force &&
+        _trophyListCache != null &&
+        _trophyListAt != null &&
+        DateTime.now().difference(_trophyListAt!) < _trophyTtl) {
+      return _trophyListCache!;
+    }
+    final decoded = await _send('GET', _u('/api/trophies/list'));
+    if (decoded is Map) {
+      final data = Map<String, dynamic>.from(decoded);
+      _trophyListCache = data;
+      _trophyListAt = DateTime.now();
+      return data;
+    }
+    throw ApiException(500, 'Invalid trophy response');
+  }
   Future<Map<String, dynamic>> getGameTrophyProgress(String catalogId) async { final decoded = await _send('GET', _u('/api/trophies/game?catalogId=${Uri.encodeComponent(catalogId)}')); if (decoded is Map) return Map<String, dynamic>.from(decoded); throw ApiException(500, 'Invalid trophy response'); }
 
   Future<Map<String, dynamic>> createPs5Device({String name = 'PS5'}) async { final decoded = await _send('POST', _u('/api/activity/device'), body: {'name': name}, jsonBody: true); if (decoded is Map) return Map<String, dynamic>.from(decoded); throw ApiException(500, 'Invalid device response'); }
   Future<List<Map<String, dynamic>>> getPs5Devices() async { final decoded = await _send('GET', _u('/api/activity/device')); if (decoded is List) return decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList(); throw ApiException(500, 'Invalid device list response'); }
   Future<void> deletePs5Device(String id) async { await _send('DELETE', _u('/api/activity/device?id=$id')); }
-  Future<void> clearUserCaches() async { _libraryCache = null; _libraryAt = null; _becauseCache.clear(); _prefs ??= await SharedPreferences.getInstance(); await _prefs!.remove(_libraryDiskKey); await _prefs!.remove(_becauseDiskKey); }
+  Future<void> clearUserCaches() async { _libraryCache = null; _libraryAt = null; _becauseCache.clear(); _activityCache.clear(); _trophyListCache = null; _trophyListAt = null; _prefs ??= await SharedPreferences.getInstance(); await _prefs!.remove(_libraryDiskKey); await _prefs!.remove(_becauseDiskKey); }
 
   Future<GameEntry> addToLibrary(CatalogGame game, {String status = 'playing', int? score, num? hours, bool favorite = false, String? startedAt, String? finishedAt, CatalogDetails? details}) async { final decoded = await _send('POST', _u('/api/library'), jsonBody: true, body: {'catalogId': game.id, 'status': status, 'score': score, 'hours': hours, 'favorite': favorite, 'startedAt': startedAt, 'finishedAt': finishedAt, 'snapshot': {'title': details?.title ?? game.title, 'coverUrl': details?.coverUrl ?? game.coverUrl, 'headerUrl': details?.headerUrl ?? game.headerUrl, 'summary': details?.summary, 'releaseDate': details?.releaseDate, 'platforms': details?.platforms ?? game.platforms, 'genres': details?.genres ?? <String>[], 'metacritic': details?.metacritic ?? game.metacritic, 'developers': details?.developers ?? <String>[], 'publishers': details?.publishers ?? <String>[], 'screenshots': details?.screenshots ?? <String>[]}}); var entry = GameEntry.fromJson(decoded as Map<String, dynamic>); if (score != null || hours != null || favorite || startedAt != null || finishedAt != null) entry = await updateEntry(entry.id, {if (score != null) 'score': score, if (hours != null) 'hours': hours, 'favorite': favorite, if (startedAt != null) 'startedAt': startedAt, if (finishedAt != null) 'finishedAt': finishedAt}); _invalidateLibrary(); return entry; }
   Future<GameEntry> updateEntry(int id, Map<String, dynamic> updates) async { final decoded = await _send('PATCH', _u('/api/library/$id'), jsonBody: true, body: updates); _invalidateLibrary(); return GameEntry.fromJson(decoded as Map<String, dynamic>); }

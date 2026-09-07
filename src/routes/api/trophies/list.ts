@@ -14,36 +14,12 @@ export const Route = createFileRoute("/api/trophies/list")({
           const { listLibraryTrophyProgressFast } = await import(
             "@/lib/trophy-list.server"
           );
-          const { ensureLibraryArtwork } = await import(
-            "@/lib/library-artwork.server"
-          );
           const { summarizeTrophyGames } = await import("@/lib/trophies.server");
 
           const sql = await getSql();
-
-          // Keep the fast DB-only trophy query. Only entries missing artwork
-          // use the one-time catalog fallback, which persists the result.
           const games = await listLibraryTrophyProgressFast(sql, userId);
-          const hydratedGames = await Promise.all(
-            games.map(async (game) => {
-              if (game.coverUrl && game.headerUrl) return game;
-
-              const artwork = await ensureLibraryArtwork(
-                sql,
-                userId,
-                game.catalogId,
-                {
-                  coverUrl: game.coverUrl,
-                  headerUrl: game.headerUrl,
-                },
-              );
-
-              return { ...game, ...artwork };
-            }),
-          );
-
-          const summary = summarizeTrophyGames(hydratedGames);
-          return apiJson({ summary, games: hydratedGames });
+          const summary = summarizeTrophyGames(games);
+          return apiJson({ summary, games });
         } catch (err) {
           return apiErrorResponse(err);
         }

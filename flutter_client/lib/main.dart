@@ -95,6 +95,14 @@ ThemeData _appTheme(ColorScheme scheme) {
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
+    appBarTheme: AppBarTheme(
+      backgroundColor: scheme.surface,
+      foregroundColor: scheme.onSurface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      shadowColor: Colors.transparent,
+    ),
     progressIndicatorTheme: ProgressIndicatorThemeData(
       color: scheme.primary,
       linearTrackColor: scheme.surfaceContainerHighest,

@@ -45,23 +45,9 @@ export const Route = createRootRoute({
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/__grok/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      {
-        rel: "preconnect",
-        href: "https://fonts.gstatic.com",
-        crossOrigin: "anonymous",
-      },
-      { rel: "preconnect", href: "https://store.steampowered.com" },
-      { rel: "preconnect", href: "https://api.igdb.com" },
-      { rel: "preconnect", href: "https://images.igdb.com" },
-      { rel: "preconnect", href: "https://id.twitch.tv" },
       {
         rel: "preconnect",
         href: "https://shared.akamai.steamstatic.com",
-      },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap",
       },
     ],
   }),
@@ -126,12 +112,20 @@ function RootDocument() {
 
 function PrefetchCatalog() {
   const qc = useQueryClient();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   useEffect(() => {
+    if (
+      pathname === "/login" ||
+      pathname.startsWith("/trophies") ||
+      pathname.startsWith("/stats")
+    ) {
+      return;
+    }
     void qc.prefetchQuery({
       queryKey: ["featured", FEATURED_REL],
       queryFn: ({ signal }) => getFeaturedRails(signal),
       staleTime: FEATURED_STALE_MS,
     });
-  }, [qc]);
+  }, [qc, pathname]);
   return null;
 }

@@ -41,14 +41,15 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     });
   }
 
-  Future<void> _fetch() async {
+  Future<void> _fetch({bool force = false}) async {
     setState(() {
       _isLoading = true;
       _isAuthError = false;
       _errorMessage = '';
     });
     try {
-      final response = await context.read<ApiClient>().getTrophyProgress();
+      final response =
+          await context.read<ApiClient>().getTrophyProgress(force: force);
       if (!mounted) return;
       setState(() {
         _response = response;
@@ -176,7 +177,7 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
         'Couldn’t load trophies',
         _errorMessage,
         'Try Again',
-        _fetch,
+        () => _fetch(),
       );
     }
 
@@ -184,7 +185,7 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     final wide = MediaQuery.sizeOf(context).width >= 720;
     if (wide) {
       return ExpressiveRefreshIndicator(
-        onRefresh: _fetch,
+        onRefresh: () => _fetch(force: true),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -222,7 +223,7 @@ class _TrophiesScreenState extends State<TrophiesScreen> with AuthReadyLoad {
     }
 
     return ExpressiveRefreshIndicator(
-      onRefresh: _fetch,
+      onRefresh: () => _fetch(force: true),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(16, 8, 16, 32 + floatingPillClearance(context)),

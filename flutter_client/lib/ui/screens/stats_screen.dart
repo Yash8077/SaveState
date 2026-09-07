@@ -55,7 +55,7 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
     });
   }
 
-  Future<void> _fetchInitial() async {
+  Future<void> _fetchInitial({bool force = false}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -65,9 +65,9 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
     try {
       final client = context.read<ApiClient>();
       final results = await Future.wait([
-        client.getLibrary(force: true),
-        client.getActivity(force: true),
-        client.getActivity(force: true, month: _monthKey),
+        client.getLibrary(force: force),
+        client.getActivity(force: force),
+        client.getActivity(force: force, month: _monthKey),
       ]);
 
       if (!mounted) return;
@@ -104,7 +104,6 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
     try {
       final client = context.read<ApiClient>();
       final activity = await client.getActivity(
-        force: true,
         month: _monthKey,
       );
 
@@ -310,12 +309,12 @@ class _StatsScreenState extends State<StatsScreen> with AuthReadyLoad {
         'Couldn’t load stats',
         _errorMessage,
         'Try Again',
-        _fetchInitial,
+        () => _fetchInitial(),
       );
     }
 
     return ExpressiveRefreshIndicator(
-      onRefresh: _fetchInitial,
+      onRefresh: () => _fetchInitial(force: true),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 700;
