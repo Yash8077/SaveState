@@ -3,6 +3,7 @@ import { slimCatalogGame } from "./catalog-seed.ts";
 import {
   BECAUSE_RESULT_LIMIT,
   BECAUSE_SEED_LIMIT,
+  becauseRailTitle,
   becauseWeight,
   rankSimilarIds,
   type BecauseSeed,
@@ -18,7 +19,7 @@ import {
 } from "./igdb.server.ts";
 import { mapSteamIdsToIgdb } from "./igdb-steam.server.ts";
 
-const TTL_MS = 6 * 60 * 60 * 1000;
+const TTL_MS = 2 * 24 * 60 * 60 * 1000;
 const cache = new Map<string, { at: number; rail: FeaturedRail }>();
 const inflight = new Map<string, Promise<FeaturedRail>>();
 
@@ -35,8 +36,10 @@ export async function fetchBecauseRail(
   seeds: BecauseSeed[],
 ): Promise<FeaturedRail> {
   const list = seeds.slice(0, BECAUSE_SEED_LIMIT);
-  if (list.length < 2 || !isIgdbReady()) return emptyBecauseRail();
-  const key = list.map((row) => row.catalogId).join(",");
+  if (list.length < 1 || !isIgdbReady()) return emptyBecauseRail();
+  const key = list
+    .map((row) => `${row.catalogId}:${becauseWeight(row)}`)
+    .join(",");
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.rail;
   const pending = inflight.get(key);
@@ -65,7 +68,7 @@ async function buildBecauseRail(seeds: BecauseSeed[]): Promise<FeaturedRail> {
     seedIgdb.push({ seed, igdbId });
     exclude.add(igdbId);
   }
-  if (seedIgdb.length < 2) return emptyBecauseRail();
+  if (seedIgdb.length < 1) return emptyBecauseRail();
 
   const rows = await igdbQuery<IgdbGame[]>(
     "games",
@@ -75,14 +78,8 @@ async function buildBecauseRail(seeds: BecauseSeed[]): Promise<FeaturedRail> {
   );
   const byId = new Map((rows ?? []).map((row) => [row.id, row]));
   const votes = new Map<number, number>();
-  let seedTitle: string | null = null;
-  let bestWeight = -1;
   for (const { seed, igdbId } of seedIgdb) {
     const weight = becauseWeight(seed);
-    if (weight > bestWeight) {
-      bestWeight = weight;
-      seedTitle = byId.get(igdbId)?.name || seed.title;
-    }
     const similar = byId.get(igdbId)?.similar_games ?? [];
     for (const item of similar) {
       const id = typeof item === "number" ? item : item.id;
@@ -109,8 +106,11 @@ async function buildBecauseRail(seeds: BecauseSeed[]): Promise<FeaturedRail> {
   mapped.sort(
     (a, b) => (order.get(a.id) ?? 99) - (order.get(b.id) ?? 99),
   );
-  const title = seedTitle
-    ? `Because you played ${seedTitle}`
-    : "Recommended";
+  const title = becauseRailTitle(
+    seedIgdb.map(({ seed, igdbId }) => ({
+      ...seed,
+      title: byId.get(igdbId)?.name || seed.title,
+    })),
+  );
   return { id: "recommended", title, games: mapped.slice(0, 12) };
 }

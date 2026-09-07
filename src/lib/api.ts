@@ -17,9 +17,9 @@ import type {
 
 export const CATALOG_GAME_REL = "rel-14";
 export const CATALOG_GAME_STALE_MS = 10 * 60_000;
-export const FEATURED_REL = "rel-19";
+export const FEATURED_REL = "rel-20";
 export const FEATURED_STALE_MS = 30 * 60_000;
-export const BECAUSE_STALE_MS = 6 * 60 * 60_000;
+export const BECAUSE_STALE_MS = 2 * 24 * 60 * 60_000;
 export const SEARCH_STALE_MS = 10 * 60_000;
 
 export function catalogGameQueryKey(catalogId: string) {
@@ -53,18 +53,31 @@ export function getCatalogGame(id: string, signal?: AbortSignal): Promise<Catalo
 }
 
 export function getFeaturedRails(signal?: AbortSignal): Promise<FeaturedRail[]> {
-  return catalogGet<FeaturedRail[]>(`/api/catalog/featured?rel=19`, signal);
+  return catalogGet<FeaturedRail[]>(`/api/catalog/featured?rel=20`, signal);
 }
 
-export function getBecauseRail(seeds: string[], signal?: AbortSignal): Promise<FeaturedRail> {
-  const ids = seeds.filter(Boolean).slice(0, 8);
-  if (ids.length < 2) {
+export function getBecauseRail(
+  seeds: Array<{
+    catalogId: string;
+    title?: string;
+    favorite?: boolean;
+    status?: string;
+    score?: number | null;
+  }>,
+  signal?: AbortSignal,
+): Promise<FeaturedRail> {
+  const rows = seeds.filter((row) => row.catalogId).slice(0, 8);
+  if (rows.length < 1) {
     return Promise.resolve({ id: "recommended", title: "Recommended", games: [] });
   }
-  return catalogGet<FeaturedRail>(
-    `/api/catalog/because?seeds=${encodeURIComponent(ids.join(","))}`,
-    signal,
-  );
+  const params = new URLSearchParams({
+    seeds: rows.map((row) => row.catalogId).join(","),
+    names: rows.map((row) => row.title ?? "").join("|"),
+    status: rows.map((row) => row.status ?? "beaten").join(","),
+    fav: rows.map((row) => (row.favorite ? "1" : "0")).join(","),
+    score: rows.map((row) => (row.score == null ? "" : String(row.score))).join(","),
+  });
+  return catalogGet<FeaturedRail>(`/api/catalog/because?${params}`, signal);
 }
 
 export type TrophyCounts = { earned: number; total: number };

@@ -15,7 +15,7 @@ export function pickBecauseSeeds(entries: BecauseSeed[]): BecauseSeed[] {
     if (!entry.catalogId || entry.catalogId.startsWith("custom_")) return false;
     if (entry.favorite) return true;
     if (entry.status === "beaten") return true;
-    if (entry.status === "playing" && (entry.score ?? 0) >= 8) return true;
+    if (entry.status === "playing") return true;
     return false;
   });
   ranked.sort((a, b) => {
@@ -34,6 +34,30 @@ export function becauseWeight(seed: BecauseSeed): number {
   if (seed.status === "playing") n += 1;
   if ((seed.score ?? 0) >= 9) n += 1;
   return n || 1;
+}
+
+export function becauseRailTitle(seeds: BecauseSeed[]): string {
+  if (!seeds.length) return "Recommended for you";
+  const ranked = [...seeds].sort((a, b) => {
+    const cmp = becauseWeight(b) - becauseWeight(a);
+    if (cmp !== 0) return cmp;
+    return b.updatedAt.localeCompare(a.updatedAt);
+  });
+  const top = ranked[0]!;
+  const name = displaySeedTitle(top.title);
+  if (ranked.length >= 3 || !name) return "Recommended for you";
+  const second = ranked[1];
+  if (second && becauseWeight(top) < becauseWeight(second) + 2) {
+    return "Recommended for you";
+  }
+  return `Because you played ${name}`;
+}
+
+export function displaySeedTitle(raw: string | null | undefined): string | null {
+  const title = raw?.trim() ?? "";
+  if (!title) return null;
+  if (/^(steam|igdb|wiki|custom)_/i.test(title)) return null;
+  return title;
 }
 
 export function rankSimilarIds(

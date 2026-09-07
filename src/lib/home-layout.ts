@@ -85,7 +85,7 @@ export const HOME_SECTION_META: Record<
   },
   playstation: {
     title: "Popular on PlayStation",
-    hint: "Popular PS4 & PS5 titles",
+    hint: "New and loved PS4 & PS5 titles",
     catalog: true,
     surface: "home",
   },
@@ -97,7 +97,7 @@ export const HOME_SECTION_META: Record<
   },
   playstation_classics: {
     title: "PlayStation Classics",
-    hint: "Legendary PS1, PS2 & PS3 classics",
+    hint: "Retro and beloved PlayStation games",
     catalog: true,
     surface: "home",
   },

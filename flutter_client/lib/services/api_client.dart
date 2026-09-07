@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../because.dart';
 import '../models/types.dart';
 
 class ApiException implements Exception {
@@ -41,7 +42,7 @@ class ApiClient {
   Map<String, dynamic>? _trophyListCache;
   DateTime? _trophyListAt;
   static const _featuredTtl = Duration(minutes: 30);
-  static const _becauseTtl = Duration(hours: 6);
+  static const _becauseTtl = Duration(days: 2);
   static const _searchTtl = Duration(minutes: 10);
   static const _libraryTtl = Duration(minutes: 2);
   static const _activityTtl = Duration(minutes: 2);
@@ -55,7 +56,15 @@ class ApiClient {
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
   List<GameEntry>? get cachedLibrary => _libraryCache;
   List<FeaturedRail>? get cachedFeatured => _featuredCache;
-  FeaturedRail? cachedBecause(List<String> seeds) { final key = seeds.where((id) => id.isNotEmpty).take(8).join(','); if (key.isEmpty) return null; return _becauseCache[key]?.rail; }
+  FeaturedRail? cachedBecause(List<BecauseSeed> seeds) {
+    final key = seeds
+        .where((seed) => seed.catalogId.isNotEmpty)
+        .take(8)
+        .map((seed) => '${seed.catalogId}:${becauseWeight(seed)}')
+        .join(',');
+    if (key.isEmpty) return null;
+    return _becauseCache[key]?.rail;
+  }
 
   Future<void> hydrate() async {
     if (_hydrated) return; _hydrated = true;
@@ -84,8 +93,42 @@ class ApiClient {
   String? _tokenFrom(dynamic data, http.Response? raw) { if (data is Map) { final top = data['token']; if (top is String && top.isNotEmpty) return top; final session = data['session']; if (session is Map && session['token'] is String) return session['token'] as String; } return null; }
   Future<List<CatalogGame>> searchGames(String query) async { final q = query.trim(); if (q.length < 2) return const []; final key = q.toLowerCase(); final cached = _searchCache[key]; if (cached != null && DateTime.now().difference(cached.at) < _searchTtl) return cached.games; final decoded = await _send('GET', _u('/api/catalog/search', {'q': q})); if (decoded is! List) return const []; final games = decoded.map((e) => CatalogGame.fromJson(e as Map<String, dynamic>)).toList(); _searchCache[key] = (at: DateTime.now(), games: games); if (_searchCache.length > 40) _searchCache.remove(_searchCache.keys.first); return games; }
 
-  Future<List<FeaturedRail>> getFeaturedRails({bool force = false}) async { if (!force && _featuredCache != null && _featuredAt != null && DateTime.now().difference(_featuredAt!) < _featuredTtl) return _featuredCache!; final pending = _featuredInflight; if (pending != null) return pending; final future = () async { try { final decoded = await _send('GET', _u('/api/catalog/featured', {'rel': '19'})); if (decoded is! List) return const <FeaturedRail>[]; final rails = decoded.map((e) => FeaturedRail.fromJson(e as Map<String, dynamic>)).toList(); _featuredCache = rails; _featuredAt = DateTime.now(); unawaited(_persistFeatured(rails)); return rails; } finally { _featuredInflight = null; } }(); _featuredInflight = future; return future; }
-  Future<FeaturedRail> getBecauseRail(List<String> seeds) async { final ids = seeds.where((id) => id.isNotEmpty).take(8).toList(); if (ids.length < 2) return const FeaturedRail(id: 'recommended', title: 'Recommended'); final key = ids.join(','); final cached = _becauseCache[key]; if (cached != null && DateTime.now().difference(cached.at) < _becauseTtl) return cached.rail; final pending = _becauseInflight[key]; if (pending != null) return pending; final future = () async { try { final decoded = await _send('GET', _u('/api/catalog/because', {'seeds': key})); if (decoded is Map<String, dynamic>) { final rail = FeaturedRail.fromJson(decoded); _becauseCache[key] = (at: DateTime.now(), rail: rail); unawaited(_persistBecause(key, rail)); if (_becauseCache.length > 20) _becauseCache.remove(_becauseCache.keys.first); return rail; } return const FeaturedRail(id: 'recommended', title: 'Recommended'); } finally { _becauseInflight.remove(key); } }(); _becauseInflight[key] = future; return future; }
+  Future<List<FeaturedRail>> getFeaturedRails({bool force = false}) async { if (!force && _featuredCache != null && _featuredAt != null && DateTime.now().difference(_featuredAt!) < _featuredTtl) return _featuredCache!; final pending = _featuredInflight; if (pending != null) return pending; final future = () async { try { final decoded = await _send('GET', _u('/api/catalog/featured', {'rel': '20'})); if (decoded is! List) return const <FeaturedRail>[]; final rails = decoded.map((e) => FeaturedRail.fromJson(e as Map<String, dynamic>)).toList(); _featuredCache = rails; _featuredAt = DateTime.now(); unawaited(_persistFeatured(rails)); return rails; } finally { _featuredInflight = null; } }(); _featuredInflight = future; return future; }
+  Future<FeaturedRail> getBecauseRail(List<BecauseSeed> seeds) async {
+    final rows = seeds.where((seed) => seed.catalogId.isNotEmpty).take(8).toList();
+    if (rows.isEmpty) return const FeaturedRail(id: 'recommended', title: 'Recommended');
+    final key = rows.map((seed) => '${seed.catalogId}:${becauseWeight(seed)}').join(',');
+    final cached = _becauseCache[key];
+    if (cached != null && DateTime.now().difference(cached.at) < _becauseTtl) return cached.rail;
+    final pending = _becauseInflight[key];
+    if (pending != null) return pending;
+    final future = () async {
+      try {
+        final decoded = await _send(
+          'GET',
+          _u('/api/catalog/because', {
+            'seeds': rows.map((seed) => seed.catalogId).join(','),
+            'names': rows.map((seed) => seed.title).join('|'),
+            'status': rows.map((seed) => seed.status).join(','),
+            'fav': rows.map((seed) => seed.favorite ? '1' : '0').join(','),
+            'score': rows.map((seed) => seed.score?.toString() ?? '').join(','),
+          }),
+        );
+        if (decoded is Map<String, dynamic>) {
+          final rail = FeaturedRail.fromJson(decoded);
+          _becauseCache[key] = (at: DateTime.now(), rail: rail);
+          unawaited(_persistBecause(key, rail));
+          if (_becauseCache.length > 20) _becauseCache.remove(_becauseCache.keys.first);
+          return rail;
+        }
+        return const FeaturedRail(id: 'recommended', title: 'Recommended');
+      } finally {
+        _becauseInflight.remove(key);
+      }
+    }();
+    _becauseInflight[key] = future;
+    return future;
+  }
   Future<CatalogDetails?> getGameDetails(String catalogId) async { final cached = _detailsCache[catalogId]; if (cached != null) return cached; final pending = _detailsInflight[catalogId]; if (pending != null) return pending; final future = () async { try { final decoded = await _send('GET', _u('/api/catalog/game', {'id': catalogId, 'rel': '14'})); if (decoded is Map<String, dynamic>) { final details = CatalogDetails.fromJson(decoded); _detailsCache[catalogId] = details; if (_detailsCache.length > 80) _detailsCache.remove(_detailsCache.keys.first); return details; } return null; } finally { _detailsInflight.remove(catalogId); } }(); _detailsInflight[catalogId] = future; return future; }
   void prefetchGameDetails(String catalogId) { if (catalogId.isEmpty) return; if (_detailsCache.containsKey(catalogId) || _detailsInflight.containsKey(catalogId)) return; unawaited(getGameDetails(catalogId)); }
   Future<List<GameEntry>> getLibrary({bool force = false}) async { if (!force && _libraryCache != null && _libraryAt != null && DateTime.now().difference(_libraryAt!) < _libraryTtl) return _libraryCache!; final decoded = await _send('GET', _u('/api/library')); List<GameEntry> items = const []; if (decoded is List) items = decoded.map((e) => GameEntry.fromJson(e as Map<String, dynamic>)).toList(); else if (decoded is Map && decoded['items'] is List) items = (decoded['items'] as List).map((e) => GameEntry.fromJson(e as Map<String, dynamic>)).toList(); _libraryCache = items; _libraryAt = DateTime.now(); unawaited(_persistLibrary(items)); return items; }

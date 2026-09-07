@@ -69,14 +69,11 @@ function Home() {
   const wantRecommended =
     signedIn &&
     sections.some((row) => row.id === "recommended" && row.enabled) &&
-    seeds.length >= 2;
+    seeds.length >= 1;
   const because = useQuery({
     queryKey: ["because", seeds.map((s) => s.catalogId).join(",")],
     queryFn: ({ signal }) =>
-      getBecauseRail(
-        seeds.map((s) => s.catalogId),
-        signal,
-      ),
+      getBecauseRail(seeds, signal),
     staleTime: BECAUSE_STALE_MS,
     gcTime: BECAUSE_STALE_MS,
     enabled: wantRecommended,

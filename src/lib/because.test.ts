@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  becauseRailTitle,
   isUpcomingRelease,
   pickBecauseSeeds,
   rankSimilarIds,
@@ -27,10 +28,34 @@ describe("because you played", () => {
       seed({ catalogId: "steam_3", status: "backlog", title: "C" }),
       seed({ catalogId: "custom_x", status: "beaten", title: "D" }),
       seed({ catalogId: "steam_4", status: "playing", score: 9, title: "E" }),
+      seed({ catalogId: "steam_5", status: "playing", score: 3, title: "F" }),
     ]);
     assert.deepEqual(
       picked.map((row) => row.catalogId),
-      ["steam_1", "igdb_2", "steam_4"],
+      ["steam_1", "igdb_2", "steam_4", "steam_5"],
+    );
+  });
+
+  it("names a single dominant seed and stays generic otherwise", () => {
+    assert.equal(
+      becauseRailTitle([
+        seed({ catalogId: "igdb_1", title: "Astro Bot", status: "beaten", favorite: true }),
+      ]),
+      "Because you played Astro Bot",
+    );
+    assert.equal(
+      becauseRailTitle([
+        seed({ catalogId: "igdb_1", title: "Astro Bot", status: "beaten" }),
+        seed({ catalogId: "igdb_2", title: "Returnal", status: "beaten" }),
+        seed({ catalogId: "igdb_3", title: "Bloodborne", status: "playing" }),
+      ]),
+      "Recommended for you",
+    );
+    assert.equal(
+      becauseRailTitle([
+        seed({ catalogId: "igdb_1", title: "igdb_1", status: "beaten" }),
+      ]),
+      "Recommended for you",
     );
   });
 

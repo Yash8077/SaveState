@@ -68,9 +68,9 @@ const homeSectionHints = <String, String>{
   'new_releases': 'Popular new Steam games',
   'coming_soon': 'Most wishlisted upcoming games',
   'specials': 'Steam specials',
-  'playstation': 'Popular PS4 & PS5 titles',
+  'playstation': 'New and loved PS4 & PS5 titles',
   'playstation_upcoming': 'Hyped upcoming PlayStation releases',
-  'playstation_classics': 'Legendary PS1, PS2 & PS3 classics',
+  'playstation_classics': 'Retro and beloved PlayStation games',
 };
 
 List<HomeSectionPref> mergeSectionList(

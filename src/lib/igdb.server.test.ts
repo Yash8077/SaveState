@@ -27,6 +27,7 @@ import {
   playstationPopularBody,
   playstationUpcomingBody,
   playstationClassicsBody,
+  playstationClassicsPastBody,
   applyIgdbRatings,
   igdbRating100,
   popularityValue,
@@ -164,14 +165,19 @@ describe("IGDB field selection", () => {
     const classics = playstationClassicsBody();
 
     assert.match(popular, /platforms = \(167,48\)/);
-    assert.match(popular, /sort aggregated_rating_count desc/);
+    assert.match(popular, /sort follows desc/);
 
     assert.match(upcoming, /platforms = \(167\)/);
     assert.match(upcoming, /sort hypes desc/);
     assert.doesNotMatch(upcoming, /first_release_date = null/);
 
     assert.match(classics, /platforms = \(7,8,9,38,46\)/);
-    assert.match(classics, /total_rating > 75/);
+    assert.match(classics, /total_rating > 80/);
+
+    const past = playstationClassicsPastBody(1_704_067_200_000);
+    assert.match(past, /platforms = \(167,48\)/);
+    assert.match(past, /first_release_date </);
+    assert.match(past, /total_rating > 80/);
   });
 });
 

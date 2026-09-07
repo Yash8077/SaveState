@@ -48,7 +48,7 @@ List<BecauseSeed> pickBecauseSeeds(Iterable<GameEntry> entries) {
     }
     final keep = entry.favorite ||
         entry.status == GameStatus.beaten ||
-        (entry.status == GameStatus.playing && (entry.score ?? 0) >= 8);
+        entry.status == GameStatus.playing;
     if (!keep) continue;
     ranked.add(BecauseSeed.fromEntry(entry));
   }

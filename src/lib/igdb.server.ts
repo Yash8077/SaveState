@@ -1130,7 +1130,7 @@ export const PLAYSTATION_CLASSICS_FALLBACK_TITLES = [
 export function playstationPopularBody(): string {
   return `fields ${CARD_FIELDS};
        where cover != null & version_parent = null & (category = 0 | game_type = ${GAME_TYPE.main_game} | game_type = null) & platforms = (${PLAYSTATION_POPULAR_PLATFORM_IDS}) & (game_type != ${GAME_TYPE.port} | game_type = null);
-       sort aggregated_rating_count desc;
+       sort follows desc;
        limit 20;`;
 }
 
@@ -1144,7 +1144,15 @@ export function playstationUpcomingBody(now = Date.now()): string {
 
 export function playstationClassicsBody(): string {
   return `fields ${CARD_FIELDS};
-       where cover != null & version_parent = null & (category = 0 | game_type = ${GAME_TYPE.main_game} | game_type = null) & platforms = (${PLAYSTATION_CLASSIC_PLATFORM_IDS}) & (total_rating > 75 | aggregated_rating > 75);
+       where cover != null & version_parent = null & (category = 0 | game_type = ${GAME_TYPE.main_game} | game_type = null) & platforms = (${PLAYSTATION_CLASSIC_PLATFORM_IDS}) & (total_rating > 80 | aggregated_rating > 80);
+       sort aggregated_rating_count desc;
+       limit 24;`;
+}
+
+export function playstationClassicsPastBody(now = Date.now()): string {
+  const cutoff = Math.floor(now / 1000) - 5 * 365 * 24 * 60 * 60;
+  return `fields ${CARD_FIELDS};
+       where cover != null & version_parent = null & (category = 0 | game_type = ${GAME_TYPE.main_game} | game_type = null) & platforms = (${PLAYSTATION_POPULAR_PLATFORM_IDS}) & first_release_date < ${cutoff} & (total_rating > 80 | aggregated_rating > 80);
        sort aggregated_rating_count desc;
        limit 24;`;
 }
@@ -1179,8 +1187,7 @@ export function mixPlaystationGames(
   return out;
 }
 
-export async function fetchIgdbPlaystation(): Promise<FeaturedRail | null> {
-  const rows = await igdb<IgdbGame[]>("games", playstationPopularBody());
+function mapCoveredGames(rows: IgdbGame[] | null | undefined): CatalogGame[] {
   const games: CatalogGame[] = [];
   const seen = new Set<string>();
   for (const row of rows ?? []) {
@@ -1189,8 +1196,22 @@ export async function fetchIgdbPlaystation(): Promise<FeaturedRail | null> {
     seen.add(mapped.id);
     games.push(slimCatalogGame(mapped));
   }
+  return games;
+}
+
+export async function fetchIgdbPlaystation(): Promise<FeaturedRail | null> {
+  const [freshRows, lovedRows] = await Promise.all([
+    igdb<IgdbGame[]>("games", playstationFreshBody()),
+    igdb<IgdbGame[]>("games", playstationPopularBody()),
+  ]);
+  const games = mixPlaystationGames(
+    mapCoveredGames(freshRows),
+    mapCoveredGames(lovedRows),
+    12,
+  );
   if (games.length < 8) {
     const fallback = await lookupIgdbByTitles(PLAYSTATION_FALLBACK_TITLES);
+    const seen = new Set(games.map((game) => game.id));
     for (const g of fallback) {
       if (g.coverUrl && !seen.has(g.id)) {
         seen.add(g.id);
@@ -1226,17 +1247,18 @@ export async function fetchIgdbPlaystationUpcoming(): Promise<FeaturedRail | nul
 }
 
 export async function fetchIgdbPlaystationClassics(): Promise<FeaturedRail | null> {
-  const rows = await igdb<IgdbGame[]>("games", playstationClassicsBody());
-  const games: CatalogGame[] = [];
-  const seen = new Set<string>();
-  for (const row of rows ?? []) {
-    const mapped = toGame(row);
-    if (!mapped?.coverUrl || seen.has(mapped.id)) continue;
-    seen.add(mapped.id);
-    games.push(slimCatalogGame(mapped));
-  }
+  const [retroRows, pastRows] = await Promise.all([
+    igdb<IgdbGame[]>("games", playstationClassicsBody()),
+    igdb<IgdbGame[]>("games", playstationClassicsPastBody()),
+  ]);
+  const games = mixPlaystationGames(
+    mapCoveredGames(retroRows),
+    mapCoveredGames(pastRows),
+    12,
+  );
   if (games.length < 6) {
     const fallback = await lookupIgdbByTitles(PLAYSTATION_CLASSICS_FALLBACK_TITLES);
+    const seen = new Set(games.map((game) => game.id));
     for (const g of fallback) {
       if (g.coverUrl && !seen.has(g.id)) {
         seen.add(g.id);

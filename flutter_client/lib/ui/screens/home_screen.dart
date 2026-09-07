@@ -59,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
     }
     if (_because == null && wantRecs) {
       final seeds = pickBecauseSeeds(_library);
-      _because = api.cachedBecause([for (final seed in seeds) seed.catalogId]);
+      _because = api.cachedBecause(seeds);
     }
     final hasCache =
         _library.isNotEmpty || _featuredRails.isNotEmpty || _because != null;
@@ -95,11 +95,9 @@ class _HomeScreenState extends State<HomeScreen> with AuthReadyLoad {
       FeaturedRail? because = _because;
       if (wantRecs) {
         final seeds = pickBecauseSeeds(library);
-        if (seeds.length >= 2) {
+        if (seeds.isNotEmpty) {
           try {
-            because = await api.getBecauseRail(
-              [for (final seed in seeds) seed.catalogId],
-            );
+            because = await api.getBecauseRail(seeds);
           } catch (_) {
             because ??= null;
           }
