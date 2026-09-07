@@ -543,6 +543,7 @@ export function ProfileEditor({ onSaved }: { onSaved?: () => void }) {
     canonicalizeAvatar(profile.data?.image),
   );
   const [saving, setSaving] = useState(false);
+  const [picking, setPicking] = useState(false);
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -567,16 +568,34 @@ export function ProfileEditor({ onSaved }: { onSaved?: () => void }) {
     }
   }
 
-  return (
-    <div className="space-y-5">
-      <div>
-        <p className="text-sm font-medium">Avatar</p>
-        <div className="mt-3">
-          <AvatarPicker value={image} onSaved={setImage} />
-        </div>
-      </div>
-      <label className="block text-sm text-muted">
+  const identity = (
+    <section className="rounded-[1.75rem] bg-elevated p-6 text-center">
+      <ThemeAvatar
+        src={image || profile.data?.image}
+        name={name || profile.data?.name || "Player"}
+        className="mx-auto size-24"
+      />
+      <p className="mt-4 text-xl font-semibold">{name || profile.data?.name || "Player"}</p>
+      {profile.data?.email ? (
+        <p className="mt-1 text-sm text-muted">{profile.data.email}</p>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => setPicking(true)}
+        className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-full bg-subtle text-sm font-medium"
+      >
+        Change avatar
+      </button>
+    </section>
+  );
+
+  const nameCard = (
+    <section className="rounded-[1.75rem] bg-elevated p-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">
         Display name
+      </p>
+      <label className="mt-3 block text-sm text-muted">
+        Name
         <Input
           className="mt-1.5"
           value={name}
@@ -584,22 +603,72 @@ export function ProfileEditor({ onSaved }: { onSaved?: () => void }) {
           onChange={(e) => setName(e.target.value)}
         />
       </label>
-      <Button disabled={saving} onClick={() => void save()}>
+      <Button className="mt-3 w-full" disabled={saving} onClick={() => void save()}>
         {saving ? "Saving…" : "Save profile"}
       </Button>
-      <div className="border-t border-border pt-4">
-        <p className="text-sm font-medium">Password</p>
-        {profile.data && !profile.data.hasPassword ? (
-          <p className="mt-2 text-sm text-muted">
-            You signed in with Google, so there is no password to change here.
-          </p>
-        ) : (
-          <div className="mt-3">
-            <PasswordEditor />
-          </div>
-        )}
+    </section>
+  );
+
+  const passwordCard = (
+    <section className="rounded-[1.75rem] bg-elevated p-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">
+        Password
+      </p>
+      {profile.data && !profile.data.hasPassword ? (
+        <p className="mt-3 text-sm text-muted">
+          You signed in with Google, so there is no password to change here.
+        </p>
+      ) : (
+        <div className="mt-3">
+          <PasswordEditor />
+        </div>
+      )}
+    </section>
+  );
+
+  return (
+    <>
+      <div className="grid items-start gap-4 min-[720px]:grid-cols-[20rem_minmax(0,1fr)]">
+        {identity}
+        <div className="space-y-4">
+          {nameCard}
+          {passwordCard}
+        </div>
       </div>
-    </div>
+      {picking ? (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/55 p-4"
+          onClick={() => setPicking(false)}
+        >
+          <div
+            className="max-h-[min(40rem,92vh)] w-full max-w-lg overflow-y-auto rounded-3xl bg-elevated p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="avatar-title"
+          >
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 id="avatar-title" className="text-lg font-medium">
+                Choose avatar
+              </h2>
+              <button
+                type="button"
+                className="text-sm text-muted hover:text-fg"
+                onClick={() => setPicking(false)}
+              >
+                Done
+              </button>
+            </div>
+            <AvatarPicker
+              value={image}
+              onSaved={(next) => {
+                setImage(next);
+                setPicking(false);
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 

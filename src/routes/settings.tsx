@@ -4,6 +4,7 @@ import {
   Archive,
   ChevronLeft,
   ChevronRight,
+  HeartPulse,
   LayoutGrid,
   Palette,
   UserRound,
@@ -30,6 +31,7 @@ import {
 } from "@/lib/library-backup";
 import { Button } from "@/components/ui/button";
 import { ProfileEditor } from "@/components/profile-editor";
+import { SyncHealthPane } from "@/components/sync-health";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -41,7 +43,7 @@ const MODES: { id: ThemeMode; label: string; hint: string }[] = [
   { id: "system", label: "System", hint: "Follow device" },
 ];
 
-type Page = "home" | "appearance" | "order-home" | "order-discover" | "backup" | "account";
+type Page = "home" | "appearance" | "order-home" | "order-discover" | "backup" | "health" | "account";
 
 const PAGES: {
   id: Exclude<Page, "home">;
@@ -74,6 +76,12 @@ const PAGES: {
     icon: Archive,
   },
   {
+    id: "health",
+    label: "Sync & Health",
+    hint: "PS5 session and trophy synchronization",
+    icon: HeartPulse,
+  },
+  {
     id: "account",
     label: "Account",
     hint: "Name, avatar, and password",
@@ -86,7 +94,12 @@ function SettingsPage() {
   const current = PAGES.find((item) => item.id === page);
 
   return (
-    <div className="mx-auto max-w-xl pb-8">
+    <div
+      className={cn(
+        "mx-auto pb-8",
+        page === "health" || page === "account" ? "max-w-5xl" : "max-w-xl",
+      )}
+    >
       {page === "home" ? (
         <>
           <h1 className="text-2xl font-medium tracking-tight">Settings</h1>
@@ -136,6 +149,7 @@ function SettingsPage() {
               <HomeLayoutEditor surface="discover" />
             ) : null}
             {page === "backup" ? <BackupPane /> : null}
+            {page === "health" ? <SyncHealthPane /> : null}
             {page === "account" ? <AccountPane /> : null}
           </div>
         </>
@@ -422,9 +436,5 @@ function AccountPane() {
       </section>
     );
   }
-  return (
-    <section className="rounded-2xl bg-elevated p-5">
-      <ProfileEditor />
-    </section>
-  );
+  return <ProfileEditor />;
 }

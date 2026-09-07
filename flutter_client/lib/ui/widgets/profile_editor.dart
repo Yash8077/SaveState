@@ -176,23 +176,216 @@ class _ProfileEditorState extends State<ProfileEditor> {
         child: Center(child: M3Loading()),
       );
     }
+
+    final auth = context.watch<AuthController>();
+    final wide = MediaQuery.sizeOf(context).width >= 720;
+    final identity = _identityCard(cs, auth);
+    final nameCard = _nameCard(cs);
+    final passwordCard = _passwordCard(cs);
+
+    if (wide) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 320, child: identity),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              children: [
+                nameCard,
+                const SizedBox(height: 12),
+                passwordCard,
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Avatar',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: cs.onSurfaceVariant,
-          ),
-        ),
+        identity,
         const SizedBox(height: 12),
-        GridView.builder(
+        nameCard,
+        const SizedBox(height: 12),
+        passwordCard,
+      ],
+    );
+  }
+
+  InputDecoration _field(ColorScheme cs, String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: cs.surfaceContainerHighest,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: cs.primary, width: 1.5),
+      ),
+    );
+  }
+
+  Widget _identityCard(ColorScheme cs, AuthController auth) {
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: cs.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+        child: Column(
+          children: [
+            UserAvatar(
+              image: _image ?? auth.user?.image,
+              name: _name.text.isEmpty ? auth.user?.name : _name.text,
+              size: 96,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              _name.text.trim().isEmpty
+                  ? (auth.user?.name ?? 'Player')
+                  : _name.text.trim(),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            ),
+            if ((auth.user?.email ?? '').isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                auth.user!.email,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: cs.onSurfaceVariant),
+              ),
+            ],
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonal(
+                onPressed: _openAvatarPicker,
+                child: const Text('Change avatar'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _nameCard(ColorScheme cs) {
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: cs.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'DISPLAY NAME',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _name,
+              maxLength: 40,
+              textInputAction: TextInputAction.done,
+              decoration: _field(cs, 'Name'),
+            ),
+            const SizedBox(height: 4),
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: Text(_saving ? 'Saving…' : 'Save profile'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _passwordCard(ColorScheme cs) {
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: cs.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'PASSWORD',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (!_hasPassword)
+              Text(
+                'You signed in with Google, so there is no password to change here.',
+                style: TextStyle(color: cs.onSurfaceVariant, height: 1.4),
+              )
+            else ...[
+              TextField(
+                controller: _current,
+                obscureText: true,
+                decoration: _field(cs, 'Current password'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _next,
+                obscureText: true,
+                decoration: _field(cs, 'New password'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _confirm,
+                obscureText: true,
+                decoration: _field(cs, 'Confirm new password'),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.tonal(
+                onPressed: _passwordBusy ? null : _savePassword,
+                child: Text(_passwordBusy ? 'Updating…' : 'Update password'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openAvatarPicker() async {
+    final cs = Theme.of(context).colorScheme;
+    await _presentSheet(
+      context,
+      title: 'Choose avatar',
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        child: GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: _avatarSrcs.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 88,
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
           ),
@@ -201,7 +394,10 @@ class _ProfileEditorState extends State<ProfileEditor> {
             final selected = canonicalizeAvatar(_image) == src;
             return InkWell(
               customBorder: const CircleBorder(),
-              onTap: () => setState(() => _image = src),
+              onTap: () {
+                setState(() => _image = src);
+                Navigator.pop(context);
+              },
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -212,74 +408,13 @@ class _ProfileEditorState extends State<ProfileEditor> {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(2),
-                  child: UserAvatar(image: src, name: 'Avatar', size: 64),
+                  child: UserAvatar(image: src, name: 'Avatar', size: 72),
                 ),
               ),
             );
           },
         ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _name,
-          maxLength: 40,
-          decoration: const InputDecoration(
-            labelText: 'Display name',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 8),
-        FilledButton(
-          onPressed: _saving ? null : _save,
-          child: Text(_saving ? 'Saving…' : 'Save profile'),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'Password',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: cs.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (!_hasPassword)
-          Text(
-            'You signed in with Google, so there is no password to change here.',
-            style: TextStyle(color: cs.onSurfaceVariant),
-          )
-        else ...[
-          TextField(
-            controller: _current,
-            obscureText: true,
-            decoration: const InputDecoration(
-              labelText: 'Current password',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _next,
-            obscureText: true,
-            decoration: const InputDecoration(
-              labelText: 'New password',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _confirm,
-            obscureText: true,
-            decoration: const InputDecoration(
-              labelText: 'Confirm new password',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          FilledButton.tonal(
-            onPressed: _passwordBusy ? null : _savePassword,
-            child: Text(_passwordBusy ? 'Updating…' : 'Update password'),
-          ),
-        ],
-      ],
+      ),
     );
   }
 }

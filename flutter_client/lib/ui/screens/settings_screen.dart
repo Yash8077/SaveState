@@ -10,6 +10,7 @@ import '../../services/api_client.dart';
 import '../../state/auth_controller.dart';
 import '../../state/home_layout_controller.dart';
 import '../../state/theme_controller.dart';
+import '../widgets/pill_nav.dart';
 import '../widgets/profile_editor.dart';
 import '../widgets/save_state_mark.dart';
 import 'sync_health_page.dart';
@@ -366,9 +367,21 @@ class _AccountPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Account')),
       body: auth.isSignedIn
-          ? const SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 32),
-              child: ProfileEditor(),
+          ? LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    8,
+                    16,
+                    32 + floatingPillClearance(context),
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: const ProfileEditor(),
+                  ),
+                );
+              },
             )
           : Center(
               child: FilledButton(

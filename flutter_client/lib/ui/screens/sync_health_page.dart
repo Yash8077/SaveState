@@ -1,9 +1,12 @@
+import 'package:expressive_refresh/expressive_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/api_client.dart';
 import '../../services/sync_health_api.dart';
 import '../../state/auth_controller.dart';
+import '../widgets/m3_progress.dart';
+import '../widgets/pill_nav.dart';
 
 class SyncHealthPage extends StatefulWidget {
   const SyncHealthPage({super.key});
@@ -13,9 +16,6 @@ class SyncHealthPage extends StatefulWidget {
 }
 
 class _SyncHealthPageState extends State<SyncHealthPage> {
-  static const _origin = 'https://save-state-jade.vercel.app';
-  static const _timeout = Duration(seconds: 10);
-
   bool _loading = true;
   bool _refreshing = false;
   String? _error;
@@ -26,12 +26,6 @@ class _SyncHealthPageState extends State<SyncHealthPage> {
     super.initState();
     _load();
   }
-
-  Map<String, String> _headers(String? token) => {
-        'Accept': 'application/json',
-        'Origin': _origin,
-        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-      };
 
   Future<void> _load({bool refresh = false}) async {
     if (refresh) {
@@ -108,64 +102,149 @@ class _SyncHealthPageState extends State<SyncHealthPage> {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
-  Widget _statusRow(
-    BuildContext context, {
-    required String label,
-    required Object? value,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    final color = _statusColor(context, value);
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(Icons.circle, size: 10, color: color),
-      title: const SizedBox.shrink(),
-      subtitle: Text(label, style: TextStyle(color: cs.onSurfaceVariant)),
-      trailing: Text(
-        _statusLabel(value),
-        style: TextStyle(fontWeight: FontWeight.w700, color: color),
+  Widget _pill(BuildContext context, Object? raw) {
+    final color = _statusColor(context, raw);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        _statusLabel(raw),
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+        ),
       ),
     );
   }
 
-  Widget _infoRow(String label, Object? value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 150,
-            child: Text(
-              label,
+  Widget _hero(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final activity = _data?['activity'];
+    final trophies = _data?['trophies'];
+    final device = _data?['device'];
+    final statuses = [
+      if (activity is Map) activity['status']?.toString(),
+      if (trophies is Map) trophies['status']?.toString(),
+    ];
+    final raw = statuses.contains('failed')
+        ? 'failed'
+        : statuses.contains('syncing')
+            ? 'syncing'
+            : statuses.contains('synced')
+                ? 'synced'
+                : 'never_synced';
+    final title = switch (raw) {
+      'synced' => 'All caught up',
+      'syncing' => 'Sync in progress',
+      'failed' => 'Needs attention',
+      _ => 'Not synced yet',
+    };
+    final hint = device is Map
+        ? 'Last seen ${_when(device['lastSeenAt'])}'
+        : 'Connect a PS5 payload to start logging play.';
+
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: cs.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              raw == 'failed'
+                  ? Icons.error_outline_rounded
+                  : Icons.monitor_heart_outlined,
+              color: _statusColor(context, raw),
+              size: 28,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(hint, style: TextStyle(color: cs.onSurfaceVariant)),
+            const SizedBox(height: 14),
+            _pill(context, raw),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _deviceCard(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final device = _data?['device'];
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: cs.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'PS5 DEVICE',
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+                color: cs.onSurfaceVariant,
               ),
             ),
-          ),
-          Expanded(
-            child: Text(
-              value == null || value.toString().isEmpty ? '—' : value.toString(),
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            if (device is! Map)
+              Text(
+                'No device linked yet.',
+                style: TextStyle(color: cs.onSurfaceVariant),
+              )
+            else ...[
+              Text(
+                device['name']?.toString() ?? 'PS5',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Last seen ${_when(device['lastSeenAt'])}',
+                style: TextStyle(color: cs.onSurfaceVariant),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _syncCard(
+  Widget _syncTile(
     BuildContext context, {
     required String title,
     required IconData icon,
     required Map<String, dynamic> data,
-    required String syncedLabel,
+    List<Widget> extra = const [],
   }) {
     final cs = Theme.of(context).colorScheme;
     final error = data['lastError']?.toString();
     return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: cs.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -173,37 +252,47 @@ class _SyncHealthPageState extends State<SyncHealthPage> {
               children: [
                 CircleAvatar(
                   backgroundColor: cs.primaryContainer,
-                  foregroundColor: cs.primary,
+                  foregroundColor: cs.onPrimaryContainer,
                   child: Icon(icon, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
+                _pill(context, data['status']),
               ],
             ),
-            const SizedBox(height: 10),
-            _statusRow(
-              context,
-              label: 'Current status',
-              value: data['status'],
+            const SizedBox(height: 14),
+            Text(
+              'Last success ${_when(data['lastSyncedAt'])}',
+              style: TextStyle(color: cs.onSurfaceVariant),
             ),
-            const Divider(height: 1),
-            _infoRow('Last attempt', _when(data['lastAttemptAt'])),
-            _infoRow(syncedLabel, _when(data['lastSyncedAt'])),
+            Text(
+              'Last attempt ${_when(data['lastAttemptAt'])}',
+              style: TextStyle(color: cs.onSurfaceVariant),
+            ),
+            if (extra.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Row(
+                children: extra
+                    .map((child) => Expanded(child: child))
+                    .toList(),
+              ),
+            ],
             if (error != null && error.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: cs.errorContainer,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
                   error,
@@ -217,12 +306,52 @@ class _SyncHealthPageState extends State<SyncHealthPage> {
     );
   }
 
+  Widget _count(BuildContext context, String label, Object? value) {
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        Text(
+          value == null ? '0' : value.toString(),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final device = _data?['device'];
     final activity = _data?['activity'];
     final trophies = _data?['trophies'];
+    final wide = MediaQuery.sizeOf(context).width >= 720;
+
+    final activityTile = activity is Map
+        ? _syncTile(
+            context,
+            title: 'PS5 Activity',
+            icon: Icons.history_rounded,
+            data: Map<String, dynamic>.from(activity),
+          )
+        : const SizedBox.shrink();
+    final trophyTile = trophies is Map
+        ? _syncTile(
+            context,
+            title: 'Trophies',
+            icon: Icons.emoji_events_outlined,
+            data: Map<String, dynamic>.from(trophies),
+            extra: [
+              _count(context, 'Synced', trophies['syncedSets']),
+              _count(context, 'Failed', trophies['failedSets']),
+              _count(context, 'Syncing', trophies['syncingSets']),
+              _count(context, 'Pending', trophies['pendingSets']),
+            ],
+          )
+        : const SizedBox.shrink();
 
     return Scaffold(
       appBar: AppBar(
@@ -233,8 +362,8 @@ class _SyncHealthPageState extends State<SyncHealthPage> {
             onPressed: _refreshing ? null : () => _load(refresh: true),
             icon: _refreshing
                 ? const SizedBox(
-                    width: 20,
-                    height: 20,
+                    width: 18,
+                    height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.refresh_rounded),
@@ -242,7 +371,7 @@ class _SyncHealthPageState extends State<SyncHealthPage> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: M3Loading())
           : _error != null
               ? Center(
                   child: Padding(
@@ -266,88 +395,53 @@ class _SyncHealthPageState extends State<SyncHealthPage> {
                     ),
                   ),
                 )
-              : RefreshIndicator(
+              : ExpressiveRefreshIndicator(
                   onRefresh: () => _load(refresh: true),
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                    children: [
-                      if (device is Map) ...[
-                        Card(
-                          color: cs.surfaceContainerHighest,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'PS5 device',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 8),
-                                _infoRow('Device', device['name']),
-                                _infoRow('Last seen', _when(device['lastSeenAt'])),
-                              ],
+                  child: wide
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(
+                              width: 360,
+                              child: ListView(
+                                padding: const EdgeInsets.fromLTRB(16, 8, 8, 24),
+                                children: [
+                                  _hero(context),
+                                  const SizedBox(height: 12),
+                                  _deviceCard(context),
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                      Text(
-                        'DATA SYNCHRONIZATION',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: .8,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (activity is Map)
-                        _syncCard(
-                          context,
-                          title: 'PS5 Activity',
-                          icon: Icons.history_rounded,
-                          data: Map<String, dynamic>.from(activity),
-                          syncedLabel: 'Last successful sync',
-                        ),
-                      if (trophies is Map)
-                        _syncCard(
-                          context,
-                          title: 'Trophies',
-                          icon: Icons.emoji_events_outlined,
-                          data: Map<String, dynamic>.from(trophies),
-                          syncedLabel: 'Last successful sync',
-                        ),
-                      if (trophies is Map) ...[
-                        const SizedBox(height: 4),
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Trophy sync sets',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 8),
-                                _infoRow('Synced sets', trophies['syncedSets']),
-                                _infoRow('Failed sets', trophies['failedSets']),
-                                _infoRow('Syncing sets', trophies['syncingSets']),
-                                _infoRow('Pending sets', trophies['pendingSets']),
-                              ],
+                            Expanded(
+                              child: ListView(
+                                padding: const EdgeInsets.fromLTRB(8, 8, 16, 24),
+                                children: [
+                                  activityTile,
+                                  const SizedBox(height: 12),
+                                  trophyTile,
+                                ],
+                              ),
                             ),
+                          ],
+                        )
+                      : ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            8,
+                            16,
+                            32 + floatingPillClearance(context),
                           ),
+                          children: [
+                            _hero(context),
+                            const SizedBox(height: 12),
+                            _deviceCard(context),
+                            const SizedBox(height: 12),
+                            activityTile,
+                            const SizedBox(height: 12),
+                            trophyTile,
+                          ],
                         ),
-                      ],
-                    ],
-                  ),
                 ),
     );
   }
