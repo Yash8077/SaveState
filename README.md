@@ -1,5 +1,5 @@
 SaveState shared artwork resolution
-
+ 
 Baseline verified: 32666a7a5108cf8a9cded6ff9f479d9aebec6781
 
 This bundle contains complete replacement files, not patches.
