@@ -56,8 +56,8 @@ class ApiClient {
   static const _featuredDiskKey = 'cache_featured_v1';
   static const _libraryDiskKey = 'cache_library_v1';
   static const _becauseDiskKey = 'cache_because_v1';
-  static const _detailsDiskKey = 'cache_details_v19';
-  static const _relatedDiskKey = 'cache_related_v19';
+  static const _detailsDiskKey = 'cache_details_v20';
+  static const _relatedDiskKey = 'cache_related_v20';
   SharedPreferences? _prefs;
   bool _hydrated = false;
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
@@ -242,7 +242,7 @@ class ApiClient {
       try {
         final decoded = await _send(
           'GET',
-          _u('/api/catalog/game', {'id': catalogId, 'rel': '19'}),
+          _u('/api/catalog/game', {'id': catalogId, 'rel': '20'}),
         );
         if (decoded is Map<String, dynamic>) {
           final details = _withCachedRelated(
@@ -271,7 +271,7 @@ class ApiClient {
       try {
         final decoded = await _send(
           'GET',
-          _u('/api/catalog/game/related', {'id': catalogId, 'rel': '19'}),
+          _u('/api/catalog/game/related', {'id': catalogId, 'rel': '20'}),
         );
         final rails = decoded is List
             ? [

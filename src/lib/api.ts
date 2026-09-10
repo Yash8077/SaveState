@@ -15,7 +15,7 @@ import type {
   LibrarySnapshot,
 } from "@/lib/types";
 
-export const CATALOG_GAME_REL = "rel-19";
+export const CATALOG_GAME_REL = "rel-20";
 export const CATALOG_GAME_STALE_MS = 24 * 60 * 60_000;
 export const RELATED_STALE_MS = 7 * 24 * 60 * 60_000;
 export const FEATURED_REL = "rel-20";
@@ -48,14 +48,14 @@ export function searchGames(q: string, signal?: AbortSignal): Promise<CatalogGam
 
 export function getCatalogGame(id: string, signal?: AbortSignal): Promise<CatalogDetails | null> {
   return catalogGet<CatalogDetails | null>(
-    `/api/catalog/game?id=${encodeURIComponent(id)}&rel=19`,
+    `/api/catalog/game?id=${encodeURIComponent(id)}&rel=20`,
     signal,
   );
 }
 
 export function getCatalogRelated(id: string, signal?: AbortSignal): Promise<FeaturedRail[]> {
   return catalogGet<FeaturedRail[]>(
-    `/api/catalog/game/related?id=${encodeURIComponent(id)}&rel=19`,
+    `/api/catalog/game/related?id=${encodeURIComponent(id)}&rel=20`,
     signal,
   );
 }

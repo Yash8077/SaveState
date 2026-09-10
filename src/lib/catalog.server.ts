@@ -33,6 +33,12 @@ import type { CatalogProvider } from "./catalog-provider.ts";
 import { upgradeSteamCapsule } from "./utils.ts";
 import { withSteamLibraryArt } from "./steam-assets.server.ts";
 import { fetchWikiDetails, parseWikiTitle, searchWikipedia } from "./wikipedia.server.ts";
+import {
+  CATALOG_DETAILS_TTL_MS,
+  CATALOG_RELATED_TTL_MS,
+  readCatalogCache,
+  writeCatalogCache,
+} from "./catalog-cache.server.ts";
 
 const UA =
   "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0.0.0 Mobile Safari/537.36";
@@ -78,8 +84,8 @@ type SteamAppData = {
 let featuredCache: { at: number; rails: FeaturedRail[] } | null = null;
 const FEATURED_TTL_MS = 30 * 60 * 1000;
 const SEARCH_TTL_MS = 10 * 60 * 1000;
-const DETAILS_TTL_MS = 30 * 60 * 1000;
-const DETAILS_CACHE_VER = "rel-19";
+const DETAILS_TTL_MS = CATALOG_DETAILS_TTL_MS;
+const DETAILS_CACHE_VER = "rel-20";
 const FETCH_MS = 4000;
 const searchCache = new Map<string, { at: number; games: CatalogGame[] }>();
 const detailsCache = new Map<
@@ -88,7 +94,7 @@ const detailsCache = new Map<
 >();
 const searchInflight = new Map<string, Promise<CatalogGame[]>>();
 const detailsInflight = new Map<string, Promise<CatalogDetails | null>>();
-const RELATED_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const RELATED_TTL_MS = CATALOG_RELATED_TTL_MS;
 const relatedCache = new Map<string, { at: number; rails: FeaturedRail[] }>();
 const relatedInflight = new Map<string, Promise<FeaturedRail[]>>();
 let featuredInflight: Promise<FeaturedRail[]> | null = null;
@@ -746,28 +752,45 @@ export async function fetchCatalogDetails(
 
   const pending = detailsInflight.get(key);
   if (hit) {
-    if (!pending) {
-      const run = runDetails(catalogId)
-        .then((data) => {
-          trimCache(detailsCache, 200);
-          const merged = attachRelated(catalogId, data);
-          detailsCache.set(key, { at: Date.now(), data: merged });
-          return merged;
-        })
-        .finally(() => {
-          detailsInflight.delete(key);
-        });
-      detailsInflight.set(key, run);
-    }
+    if (!pending) void refreshDetails(catalogId);
     return attachRelated(catalogId, hit.data);
   }
-  if (pending) return pending;
 
+  const stored = await readCatalogCache<CatalogDetails>({
+    kind: "details",
+    ver: DETAILS_CACHE_VER,
+    catalogId,
+    ttlMs: DETAILS_TTL_MS,
+  });
+  if (stored) {
+    detailsCache.set(key, { at: stored.at, data: stored.data });
+    if (!stored.fresh && !pending) void refreshDetails(catalogId);
+    return attachRelated(catalogId, stored.data);
+  }
+  if (pending) return pending;
+  return refreshDetails(catalogId);
+}
+
+function rememberDetails(catalogId: string, data: CatalogDetails | null) {
+  const key = `${DETAILS_CACHE_VER}:${catalogId}`;
+  trimCache(detailsCache, 200);
+  detailsCache.set(key, { at: Date.now(), data });
+  if (data) {
+    void writeCatalogCache({
+      kind: "details",
+      ver: DETAILS_CACHE_VER,
+      catalogId,
+      payload: data,
+    });
+  }
+}
+
+function refreshDetails(catalogId: string): Promise<CatalogDetails | null> {
+  const key = `${DETAILS_CACHE_VER}:${catalogId}`;
   const run = runDetails(catalogId)
     .then((data) => {
-      trimCache(detailsCache, 200);
       const merged = attachRelated(catalogId, data);
-      detailsCache.set(key, { at: Date.now(), data: merged });
+      rememberDetails(catalogId, merged);
       return merged;
     })
     .finally(() => {
@@ -778,6 +801,23 @@ export async function fetchCatalogDetails(
 }
 
 function rememberRelatedOnDetails(catalogId: string, rails: FeaturedRail[]) {
+  const key = `${DETAILS_CACHE_VER}:${catalogId}`;
+  const hit = detailsCache.get(key);
+  if (!hit?.data) return;
+  const merged = { ...hit.data, related: rails, relatedPending: false };
+  detailsCache.set(key, {
+    at: hit.at,
+    data: merged,
+  });
+  void writeCatalogCache({
+    kind: "details",
+    ver: DETAILS_CACHE_VER,
+    catalogId,
+    payload: merged,
+  });
+}
+
+function applyRelatedToDetailsMemory(catalogId: string, rails: FeaturedRail[]) {
   const key = `${DETAILS_CACHE_VER}:${catalogId}`;
   const hit = detailsCache.get(key);
   if (!hit?.data) return;
@@ -839,12 +879,40 @@ export async function fetchCatalogRelated(
   const now = Date.now();
   if (hit && now - hit.at < RELATED_TTL_MS) return hit.rails;
   const pending = relatedInflight.get(key);
+  if (hit) {
+    if (!pending) void refreshRelated(catalogId);
+    return hit.rails;
+  }
+
+  const stored = await readCatalogCache<FeaturedRail[]>({
+    kind: "related",
+    ver: DETAILS_CACHE_VER,
+    catalogId,
+    ttlMs: RELATED_TTL_MS,
+  });
+  if (stored) {
+    relatedCache.set(key, { at: stored.at, rails: stored.data });
+    applyRelatedToDetailsMemory(catalogId, stored.data);
+    if (!stored.fresh && !pending) void refreshRelated(catalogId);
+    return stored.data;
+  }
   if (pending) return pending;
+  return refreshRelated(catalogId);
+}
+
+function refreshRelated(catalogId: string): Promise<FeaturedRail[]> {
+  const key = `${DETAILS_CACHE_VER}:${catalogId}`;
   const run = runRelated(catalogId)
     .then((rails) => {
       trimCache(relatedCache, 200);
       relatedCache.set(key, { at: Date.now(), rails });
       rememberRelatedOnDetails(catalogId, rails);
+      void writeCatalogCache({
+        kind: "related",
+        ver: DETAILS_CACHE_VER,
+        catalogId,
+        payload: rails,
+      });
       return rails;
     })
     .finally(() => {
