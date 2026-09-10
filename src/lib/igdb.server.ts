@@ -534,7 +534,7 @@ export type WikidataRailDeps = {
     prequelSlug?: string | null;
     sequelSlug?: string | null;
   }>;
-  cards: (query: {
+  cards?: (query: {
     ids: number[];
     slugs: string[];
   }) => Promise<WikidataCardIndex>;
@@ -780,7 +780,7 @@ export const CARD_FIELDS =
   "name, cover.image_id, first_release_date, total_rating, aggregated_rating, rating, aggregated_rating_count, hypes";
 const REL_NEST =
   "name, cover.image_id, first_release_date, category";
-export const DETAIL_FIELDS = `${CARD_FIELDS}, platforms.abbreviation, platforms.name, genres.name, slug, summary, url, screenshots.image_id, involved_companies.company.name, involved_companies.developer, involved_companies.publisher, websites.url, websites.category, collection.id, collection.name, collections.id, collections.name, similar_games.${REL_NEST}, parent_game.${REL_NEST}, version_parent.${REL_NEST}, dlcs.${REL_NEST}, expansions.${REL_NEST}, expanded_games.${REL_NEST}, remakes.${REL_NEST}, remasters.${REL_NEST}, standalone_expansions.${REL_NEST}, franchise.name, franchise.games.${REL_NEST}, franchises.name, franchises.games.${REL_NEST}`;
+export const DETAIL_FIELDS = `${CARD_FIELDS}, platforms.abbreviation, platforms.name, genres.name, slug, summary, url, screenshots.image_id, involved_companies.company.name, involved_companies.developer, involved_companies.publisher, websites.url, websites.category, collection.id, collection.name, collection.games.${REL_NEST}, collections.id, collections.name, collections.games.${REL_NEST}, similar_games.${REL_NEST}, parent_game.${REL_NEST}, version_parent.${REL_NEST}, dlcs.${REL_NEST}, expansions.${REL_NEST}, expanded_games.${REL_NEST}, remakes.${REL_NEST}, remasters.${REL_NEST}, standalone_expansions.${REL_NEST}, franchise.name, franchise.games.${REL_NEST}, franchises.name, franchises.games.${REL_NEST}`;
 
 /** IGDB `external_games.category` for Steam store apps. */
 export const IGDB_STEAM_CATEGORY = 1;
@@ -962,7 +962,23 @@ export async function fetchIgdbDetails(
   );
   const game = rows?.[0];
   if (!game) return null;
-  const filled = await hydrateSimilarGames(await hydrateCollections(game));
+  const emptyRelations = {
+    prequelIgdbId: null as number | null,
+    sequelIgdbId: null as number | null,
+    prequelSlug: null as string | null,
+    sequelSlug: null as string | null,
+  };
+  const relationsP = game.id
+    ? fetchWikidataRelations(game.id, fetch, game.slug).catch(() => emptyRelations)
+    : Promise.resolve(null);
+  const [withCollections, withSimilar] = await Promise.all([
+    hydrateCollections(game),
+    hydrateSimilarGames(game),
+  ]);
+  const filled = {
+    ...withCollections,
+    similar_games: withSimilar.similar_games ?? withCollections.similar_games,
+  };
   const base = toGame(filled);
   if (!base) return null;
   const shots = (filled.screenshots ?? [])
@@ -973,7 +989,9 @@ export async function fetchIgdbDetails(
     filled.websites?.find((w) => w.category === 1)?.url || filled.url || null;
   const release = filled.first_release_date ?? 0;
   const related = await hydrateRelatedCovers(
-    await withWikidataFallback(filled, relatedRails(filled)),
+    await withWikidataFallback(filled, relatedRails(filled), {
+      relations: async () => (await relationsP) ?? emptyRelations,
+    }),
   );
   return {
     ...base,

@@ -6,7 +6,7 @@ export type WikidataRelations = {
 };
 
 const SPARQL_URL = "https://query.wikidata.org/sparql";
-const FETCH_MS = 4000;
+const FETCH_MS = 2000;
 export const WIKIDATA_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const UA = "SaveState/1.0 (https://github.com/Yash8077/SaveState)";
 const EMPTY: WikidataRelations = {
@@ -122,7 +122,9 @@ async function queryWikidata(
   slug: string | null | undefined,
   fetchImpl: typeof fetch,
 ): Promise<WikidataRelations> {
-  const run = async (query: string): Promise<WikidataRelations> => {
+  const run = async (
+    query: string,
+  ): Promise<{ ok: boolean; data: WikidataRelations }> => {
     try {
       const res = await fetchImpl(SPARQL_URL, {
         method: "POST",
@@ -134,19 +136,20 @@ async function queryWikidata(
         body: new URLSearchParams({ query }),
         signal: AbortSignal.timeout(FETCH_MS),
       });
-      if (!res.ok) return { ...EMPTY };
+      if (!res.ok) return { ok: false, data: { ...EMPTY } };
       const data: unknown = await res.json();
-      return parseSparqlRelations(data);
+      return { ok: true, data: parseSparqlRelations(data) };
     } catch {
-      return { ...EMPTY };
+      return { ok: false, data: { ...EMPTY } };
     }
   };
 
   if (safeIgdbSlug(slug)) {
     const bySlug = await run(wikidataSparql(igdbId, slug));
-    if (hasRelation(bySlug)) return bySlug;
+    if (bySlug.ok || hasRelation(bySlug.data)) return bySlug.data;
   }
-  return run(wikidataSparql(igdbId));
+  const byId = await run(wikidataSparql(igdbId));
+  return byId.data;
 }
 
 function memGet(igdbId: number): WikidataRelations | null {

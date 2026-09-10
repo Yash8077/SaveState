@@ -78,7 +78,7 @@ let featuredCache: { at: number; rails: FeaturedRail[] } | null = null;
 const FEATURED_TTL_MS = 30 * 60 * 1000;
 const SEARCH_TTL_MS = 10 * 60 * 1000;
 const DETAILS_TTL_MS = 30 * 60 * 1000;
-const DETAILS_CACHE_VER = "rel-14";
+const DETAILS_CACHE_VER = "rel-18";
 const FETCH_MS = 4000;
 const searchCache = new Map<string, { at: number; games: CatalogGame[] }>();
 const detailsCache = new Map<
@@ -612,46 +612,19 @@ export async function searchCatalog(
 
 async function relatedForSteamGame(opts: {
   steamId: number;
-  title: string;
   dlcIds: number[];
 }): Promise<FeaturedRail[]> {
   const catalogId = steamCatalogId(opts.steamId);
-  if (!isIgdbReady()) return seedRelated(catalogId);
-
-  let rails: FeaturedRail[] = [];
+  if (!opts.dlcIds.length || !isIgdbReady()) return seedRelated(catalogId);
   try {
-    const igdbId = await lookupIgdbIdBySteamId(opts.steamId);
-    let details: CatalogDetails | null = null;
-    if (igdbId) {
-      details = await fetchIgdbDetails(igdbCatalogId(igdbId));
+    const dlcGames = await lookupIgdbBySteamIds(opts.dlcIds);
+    if (dlcGames.length) {
+      return [{ id: "dlc", title: "DLC & expansions", games: dlcGames }];
     }
-    if (!details?.related?.length && opts.title.trim().length >= 2) {
-      const hits = await searchIgdb(opts.title);
-      const match = pickBestTitleMatch(opts.title, hits);
-      if (match) details = await fetchIgdbDetails(match.id);
-    }
-    if (details?.related?.length) rails = details.related;
   } catch {
-    rails = [];
+    /* Steam DLC enrichment is best-effort */
   }
-
-  const hasDlc = rails.some((rail) => rail.id === "dlc" && rail.games.length > 0);
-  if (!hasDlc && opts.dlcIds.length) {
-    try {
-      const dlcGames = await lookupIgdbBySteamIds(opts.dlcIds);
-      if (dlcGames.length) {
-        rails = [
-          ...rails,
-          { id: "dlc", title: "DLC & expansions", games: dlcGames },
-        ];
-      }
-    } catch {
-      /* Steam DLC enrichment is best-effort */
-    }
-  }
-
-  if (!rails.length) return seedRelated(catalogId);
-  return rails;
+  return seedRelated(catalogId);
 }
 
 export async function fetchSteamDetails(
@@ -675,7 +648,6 @@ export async function fetchSteamDetails(
   const dlcIds = (app.dlc ?? []).filter((id) => Number.isFinite(id) && id > 0);
   const related = await relatedForSteamGame({
     steamId,
-    title: app.name ?? "",
     dlcIds,
   });
   const painted = (
@@ -742,6 +714,18 @@ async function runDetails(catalogId: string): Promise<CatalogDetails | null> {
       return await fetchWikiDetails(catalogId);
     } catch {
       return null;
+    }
+  }
+  const steamId = parseSteamId(catalogId);
+  if (steamId && isIgdbReady()) {
+    try {
+      const igdbId = await lookupIgdbIdBySteamId(steamId);
+      if (igdbId) {
+        const details = await fetchIgdbDetails(igdbCatalogId(igdbId));
+        if (details) return details;
+      }
+    } catch {
+      /* Steam store page is the fallback */
     }
   }
   return fetchSteamDetails(catalogId);
@@ -1121,7 +1105,7 @@ export function catalogJson(data: unknown, maxAgeSec: number): Response {
   return new Response(JSON.stringify(data), {
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "cache-control": `public, max-age=${maxAgeSec}, stale-while-revalidate=${maxAgeSec * 6}`,
+      "cache-control": `public, max-age=${maxAgeSec}, s-maxage=${maxAgeSec}, stale-while-revalidate=${maxAgeSec * 6}`,
     },
   });
 }

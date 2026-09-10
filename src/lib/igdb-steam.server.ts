@@ -3,6 +3,9 @@ import { slimCatalogGame } from "./catalog-seed.ts";
 import { igdbQuery, toGame, type IgdbGame } from "./igdb.server.ts";
 
 const IGDB_STEAM_CATEGORY = 1;
+const STEAM_MAP_HIT_MS = 30 * 24 * 60 * 60 * 1000;
+const STEAM_MAP_MISS_MS = 30 * 60 * 1000;
+const steamIdCache = new Map<number, { at: number; id: number | null }>();
 
 type ExternalGame = {
   uid?: string;
@@ -30,17 +33,28 @@ export async function lookupIgdbIdBySteamId(
   steamId: number,
 ): Promise<number | null> {
   if (!Number.isFinite(steamId) || steamId <= 0) return null;
+  const key = Math.trunc(steamId);
+  const cached = steamIdCache.get(key);
+  if (cached) {
+    const ttl = cached.id == null ? STEAM_MAP_MISS_MS : STEAM_MAP_HIT_MS;
+    if (Date.now() - cached.at < ttl) return cached.id;
+    steamIdCache.delete(key);
+  }
   try {
     const rows = await igdbLookup<ExternalGame[]>(
       "external_games",
       `fields game, uid;
-       where uid = ${quote(String(Math.trunc(steamId)))} & category = ${IGDB_STEAM_CATEGORY};
+       where uid = ${quote(String(key))} & category = ${IGDB_STEAM_CATEGORY};
        limit 8;`,
     );
     for (const row of rows ?? []) {
       const id = steamGameId(row);
-      if (id) return id;
+      if (id) {
+        steamIdCache.set(key, { at: Date.now(), id });
+        return id;
+      }
     }
+    steamIdCache.set(key, { at: Date.now(), id: null });
   } catch {
     return null;
   }

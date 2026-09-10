@@ -146,8 +146,10 @@ describe("IGDB field selection", () => {
     assert.match(DETAIL_FIELDS, /screenshots\.image_id/);
     assert.match(DETAIL_FIELDS, /similar_games\./);
     assert.match(DETAIL_FIELDS, /collection\.id/);
+    assert.match(DETAIL_FIELDS, /collection\.games\./);
     assert.match(DETAIL_FIELDS, /collections\.id/);
     assert.match(DETAIL_FIELDS, /collections\.name/);
+    assert.match(DETAIL_FIELDS, /collections\.games\./);
     assert.match(DETAIL_FIELDS, /parent_game\./);
     assert.doesNotMatch(CARD_FIELDS, /summary/);
     assert.doesNotMatch(CARD_FIELDS, /involved_companies/);

@@ -206,4 +206,25 @@ describe("fetchWikidataRelations", () => {
     });
     assert.equal(called, 0);
   });
+
+  it("does not run the slower id lookup when a slug query already returned", async () => {
+    let called = 0;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      called += 1;
+      const body = decodeURIComponent(String(init?.body ?? "").replace(/\+/g, " "));
+      assert.match(body, /P5794 "sonic-x-shadow-generations"/);
+      assert.doesNotMatch(body, /P9043 "300123"/);
+      return jsonResponse({ results: { bindings: [] } });
+    };
+    assert.deepEqual(
+      await fetchWikidataRelations(300123, fetchImpl, "sonic-x-shadow-generations"),
+      {
+        prequelIgdbId: null,
+        sequelIgdbId: null,
+        prequelSlug: null,
+        sequelSlug: null,
+      },
+    );
+    assert.equal(called, 1);
+  });
 });
