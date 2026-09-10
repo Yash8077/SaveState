@@ -12,6 +12,7 @@ import {
   igdbCatalogId,
   mapSearchHits,
   relatedRails,
+  needsRelatedHydration,
   searchNeedle,
   toGame,
   withWikidataFallback,
@@ -317,6 +318,42 @@ describe("related rails", () => {
       collections: [{ id: 12, games: [{ id: 80 }, { id: 81 }] }],
     });
     assert.equal(rails.find((r) => r.id === "prequel"), undefined);
+  });
+
+  it("flags related hydration when series members are id-only", () => {
+    assert.equal(
+      needsRelatedHydration({
+        id: 1942,
+        name: "The Witcher 3",
+        collections: [{ id: 12, games: [{ id: 80 }, { id: 81 }] }],
+      }),
+      true,
+    );
+    assert.equal(
+      needsRelatedHydration({
+        id: 2,
+        name: "Middle",
+        first_release_date: 100,
+        collection: {
+          name: "The Saga",
+          games: [
+            { id: 1, name: "Prequel", first_release_date: 50, cover: { image_id: "a" } },
+            { id: 2, name: "Middle", first_release_date: 100, cover: { image_id: "b" } },
+            { id: 3, name: "Sequel", first_release_date: 200, cover: { image_id: "c" } },
+          ],
+        },
+        similar_games: [{ id: 9, name: "Like it", cover: { image_id: "s" } }],
+      }),
+      false,
+    );
+    assert.equal(
+      needsRelatedHydration({
+        id: 2,
+        name: "Middle",
+        similar_games: [{ id: 9 }, { id: 10, name: "Like it" }],
+      }),
+      true,
+    );
   });
 });
 

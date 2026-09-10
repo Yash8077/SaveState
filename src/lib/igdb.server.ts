@@ -897,24 +897,24 @@ function namedSeriesGames(game: IgdbGame): boolean {
   return seriesSource(game).games.some((row) => Boolean(row.name));
 }
 
-async function hydrateCollections(game: IgdbGame): Promise<IgdbGame> {
-  if (namedSeriesGames(game)) return game;
+export function needsRelatedHydration(game: IgdbGame): boolean {
+  if (!namedSeriesGames(game) && collectionIds(game).length > 0) return true;
+  const similar = asGames(game.similar_games);
+  if (
+    similar.some(
+      (row) => Boolean(row.id) && (!row.name || !coverImageId(row.cover)),
+    )
+  ) {
+    return true;
+  }
+  const rails = relatedRails(game);
+  if (relatedIdsMissingArt(rails).length > 0) return true;
+  return needsPrequelSequelFallback(rails);
+}
+
+async function fillCollectionsFromGamesQuery(game: IgdbGame): Promise<IgdbGame> {
   const ids = collectionIds(game);
   if (!ids.length) return game;
-
-  try {
-    const groups = await igdb<IgdbGroup[]>(
-      "collections",
-      `fields name, games.name, games.cover.image_id, games.first_release_date, games.category;
-       where id = (${ids.join(",")}); limit 10;`,
-    );
-    if ((groups ?? []).some((group) => asGames(group.games).some((row) => row.name))) {
-      return { ...game, collections: groups };
-    }
-  } catch {
-    /* fall through to a games-by-collection query */
-  }
-
   try {
     const rows = await igdb<IgdbGame[]>(
       "games",
@@ -934,6 +934,85 @@ async function hydrateCollections(game: IgdbGame): Promise<IgdbGame> {
   }
 }
 
+async function hydrateCollections(game: IgdbGame): Promise<IgdbGame> {
+  if (namedSeriesGames(game)) return game;
+  const ids = collectionIds(game);
+  if (!ids.length) return game;
+
+  try {
+    const groups = await igdb<IgdbGroup[]>(
+      "collections",
+      `fields name, games.name, games.cover.image_id, games.first_release_date, games.category;
+       where id = (${ids.join(",")}); limit 10;`,
+    );
+    if ((groups ?? []).some((group) => asGames(group.games).some((row) => row.name))) {
+      return { ...game, collections: groups };
+    }
+  } catch {
+    /* fall through to a games-by-collection query */
+  }
+
+  return fillCollectionsFromGamesQuery(game);
+}
+
+async function hydrateSeriesAndSimilar(game: IgdbGame): Promise<IgdbGame> {
+  const needCol = !namedSeriesGames(game) && collectionIds(game).length > 0;
+  const similar = asGames(game.similar_games);
+  const similarIds = similar
+    .map((row) => row.id)
+    .filter((id): id is number => typeof id === "number" && Number.isFinite(id));
+  const needSim =
+    similarIds.length > 0 &&
+    similar.some((row) => !row.name || !coverImageId(row.cover));
+  if (!needCol && !needSim) return game;
+  if (needCol && !needSim) return hydrateCollections(game);
+  if (!needCol && needSim) return hydrateSimilarGames(game);
+
+  const colIds = collectionIds(game);
+  try {
+    const rows = await igdb<Array<{ name?: string; result?: unknown[] }>>(
+      "multiquery",
+      `query collections "series" {
+  fields name, games.name, games.cover.image_id, games.first_release_date, games.category;
+  where id = (${colIds.join(",")});
+  limit 10;
+};
+query games "similar" {
+  fields name, cover.image_id, screenshots.image_id, first_release_date;
+  where id = (${similarIds.slice(0, 20).join(",")});
+  limit 20;
+};
+`,
+    );
+    let next = { ...game };
+    for (const row of rows ?? []) {
+      if (row.name === "series") {
+        const groups = (row.result ?? []) as IgdbGroup[];
+        if (groups.some((group) => asGames(group.games).some((item) => item.name))) {
+          next = { ...next, collections: groups };
+        }
+      }
+      if (row.name === "similar") {
+        const games = (row.result ?? []) as IgdbGame[];
+        if (games.length) next = { ...next, similar_games: games };
+      }
+    }
+    if (needCol && !namedSeriesGames(next)) {
+      return fillCollectionsFromGamesQuery(next);
+    }
+    return next;
+  } catch {
+    const [withCollections, withSimilar] = await Promise.all([
+      hydrateCollections(game),
+      hydrateSimilarGames(game),
+    ]);
+    return {
+      ...withCollections,
+      similar_games: withSimilar.similar_games ?? withCollections.similar_games,
+    };
+  }
+}
+
 export async function searchIgdb(query: string): Promise<CatalogGame[]> {
   const q = searchNeedle(query);
   if (q.length < 2) return [];
@@ -950,11 +1029,18 @@ export async function searchIgdb(query: string): Promise<CatalogGame[]> {
   return mapSearchHits(rows);
 }
 
-export async function fetchIgdbDetails(
-  catalogId: string,
-): Promise<CatalogDetails | null> {
-  const id = parseIgdbId(catalogId);
-  if (!id) return null;
+const coreIgdbGames = new Map<number, { at: number; game: IgdbGame }>();
+const CORE_GAME_TTL_MS = 10 * 60 * 1000;
+
+function rememberIgdbGame(game: IgdbGame) {
+  if (typeof game.id !== "number") return;
+  coreIgdbGames.set(game.id, { at: Date.now(), game });
+  if (coreIgdbGames.size > 80) coreIgdbGames.delete(coreIgdbGames.keys().next().value!);
+}
+
+async function loadIgdbGame(id: number): Promise<IgdbGame | null> {
+  const hit = coreIgdbGames.get(id);
+  if (hit && Date.now() - hit.at < CORE_GAME_TTL_MS) return hit.game;
   const rows = await igdb<IgdbGame[]>(
     "games",
     `fields ${DETAIL_FIELDS};
@@ -962,6 +1048,59 @@ export async function fetchIgdbDetails(
   );
   const game = rows?.[0];
   if (!game) return null;
+  rememberIgdbGame(game);
+  return game;
+}
+
+function catalogDetailsFromGame(
+  game: IgdbGame,
+  related: FeaturedRail[],
+  relatedPending: boolean,
+): CatalogDetails | null {
+  const base = toGame(game);
+  if (!base) return null;
+  const shots = (game.screenshots ?? [])
+    .map((s) => img(s.image_id, "screenshot_med"))
+    .filter((src): src is string => Boolean(src))
+    .slice(0, 8);
+  const site =
+    game.websites?.find((w) => w.category === 1)?.url || game.url || null;
+  const release = game.first_release_date ?? 0;
+  return {
+    ...base,
+    summary: game.summary ?? "",
+    releaseDate: unixDate(game.first_release_date),
+    comingSoon: Boolean(release && release * 1000 > Date.now()),
+    genres: names(game.genres),
+    developers: companies(game.involved_companies, "developer"),
+    publishers: companies(game.involved_companies, "publisher"),
+    screenshots: shots,
+    website: site,
+    headerUrl: shots[0] || base.headerUrl,
+    related,
+    relatedPending,
+  };
+}
+
+export async function fetchIgdbDetails(
+  catalogId: string,
+): Promise<CatalogDetails | null> {
+  const id = parseIgdbId(catalogId);
+  if (!id) return null;
+  const game = await loadIgdbGame(id);
+  if (!game) return null;
+  const pending = needsRelatedHydration(game);
+  const related = dropCoverlessSimilar(relatedRails(game));
+  return catalogDetailsFromGame(game, related, pending);
+}
+
+export async function fetchIgdbRelatedRails(
+  catalogId: string,
+): Promise<FeaturedRail[]> {
+  const id = parseIgdbId(catalogId);
+  if (!id) return [];
+  const game = await loadIgdbGame(id);
+  if (!game) return [];
   const emptyRelations = {
     prequelIgdbId: null as number | null,
     sequelIgdbId: null as number | null,
@@ -971,41 +1110,13 @@ export async function fetchIgdbDetails(
   const relationsP = game.id
     ? fetchWikidataRelations(game.id, fetch, game.slug).catch(() => emptyRelations)
     : Promise.resolve(null);
-  const [withCollections, withSimilar] = await Promise.all([
-    hydrateCollections(game),
-    hydrateSimilarGames(game),
-  ]);
-  const filled = {
-    ...withCollections,
-    similar_games: withSimilar.similar_games ?? withCollections.similar_games,
-  };
-  const base = toGame(filled);
-  if (!base) return null;
-  const shots = (filled.screenshots ?? [])
-    .map((s) => img(s.image_id, "screenshot_med"))
-    .filter((src): src is string => Boolean(src))
-    .slice(0, 8);
-  const site =
-    filled.websites?.find((w) => w.category === 1)?.url || filled.url || null;
-  const release = filled.first_release_date ?? 0;
-  const related = await hydrateRelatedCovers(
+  const filled = await hydrateSeriesAndSimilar(game);
+  rememberIgdbGame(filled);
+  return hydrateRelatedCovers(
     await withWikidataFallback(filled, relatedRails(filled), {
       relations: async () => (await relationsP) ?? emptyRelations,
     }),
   );
-  return {
-    ...base,
-    summary: filled.summary ?? "",
-    releaseDate: unixDate(filled.first_release_date),
-    comingSoon: Boolean(release && release * 1000 > Date.now()),
-    genres: names(filled.genres),
-    developers: companies(filled.involved_companies, "developer"),
-    publishers: companies(filled.involved_companies, "publisher"),
-    screenshots: shots,
-    website: site,
-    headerUrl: shots[0] || base.headerUrl,
-    related,
-  };
 }
 
 type MultiRow = { name?: string; result?: IgdbGame[] };

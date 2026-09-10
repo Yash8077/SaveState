@@ -10,6 +10,7 @@ import {
 } from "./catalog-seed.ts";
 import {
   fetchIgdbDetails,
+  fetchIgdbRelatedRails,
   fetchIgdbPlaystation,
   fetchIgdbPlaystationUpcoming,
   fetchIgdbPlaystationClassics,
@@ -78,7 +79,7 @@ let featuredCache: { at: number; rails: FeaturedRail[] } | null = null;
 const FEATURED_TTL_MS = 30 * 60 * 1000;
 const SEARCH_TTL_MS = 10 * 60 * 1000;
 const DETAILS_TTL_MS = 30 * 60 * 1000;
-const DETAILS_CACHE_VER = "rel-18";
+const DETAILS_CACHE_VER = "rel-19";
 const FETCH_MS = 4000;
 const searchCache = new Map<string, { at: number; games: CatalogGame[] }>();
 const detailsCache = new Map<
@@ -87,6 +88,9 @@ const detailsCache = new Map<
 >();
 const searchInflight = new Map<string, Promise<CatalogGame[]>>();
 const detailsInflight = new Map<string, Promise<CatalogDetails | null>>();
+const RELATED_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const relatedCache = new Map<string, { at: number; rails: FeaturedRail[] }>();
+const relatedInflight = new Map<string, Promise<FeaturedRail[]>>();
 let featuredInflight: Promise<FeaturedRail[]> | null = null;
 
 async function steamGet(url: string): Promise<unknown> {
@@ -685,6 +689,7 @@ export async function fetchSteamDetails(
     screenshots,
     website: app.website ?? null,
     related,
+    relatedPending: false,
   };
 }
 
@@ -737,7 +742,7 @@ export async function fetchCatalogDetails(
   const key = `${DETAILS_CACHE_VER}:${catalogId}`;
   const hit = detailsCache.get(key);
   const now = Date.now();
-  if (hit && now - hit.at < DETAILS_TTL_MS) return hit.data;
+  if (hit && now - hit.at < DETAILS_TTL_MS) return attachRelated(catalogId, hit.data);
 
   const pending = detailsInflight.get(key);
   if (hit) {
@@ -745,28 +750,107 @@ export async function fetchCatalogDetails(
       const run = runDetails(catalogId)
         .then((data) => {
           trimCache(detailsCache, 200);
-          detailsCache.set(key, { at: Date.now(), data });
-          return data;
+          const merged = attachRelated(catalogId, data);
+          detailsCache.set(key, { at: Date.now(), data: merged });
+          return merged;
         })
         .finally(() => {
           detailsInflight.delete(key);
         });
       detailsInflight.set(key, run);
     }
-    return hit.data;
+    return attachRelated(catalogId, hit.data);
   }
   if (pending) return pending;
 
   const run = runDetails(catalogId)
     .then((data) => {
       trimCache(detailsCache, 200);
-      detailsCache.set(key, { at: Date.now(), data });
-      return data;
+      const merged = attachRelated(catalogId, data);
+      detailsCache.set(key, { at: Date.now(), data: merged });
+      return merged;
     })
     .finally(() => {
       detailsInflight.delete(key);
     });
   detailsInflight.set(key, run);
+  return run;
+}
+
+function rememberRelatedOnDetails(catalogId: string, rails: FeaturedRail[]) {
+  const key = `${DETAILS_CACHE_VER}:${catalogId}`;
+  const hit = detailsCache.get(key);
+  if (!hit?.data) return;
+  detailsCache.set(key, {
+    at: hit.at,
+    data: { ...hit.data, related: rails, relatedPending: false },
+  });
+}
+
+function attachRelated(
+  catalogId: string,
+  data: CatalogDetails | null,
+): CatalogDetails | null {
+  if (!data) return data;
+  const related = relatedCache.get(`${DETAILS_CACHE_VER}:${catalogId}`);
+  if (!related || Date.now() - related.at >= RELATED_TTL_MS) return data;
+  return { ...data, related: related.rails, relatedPending: false };
+}
+
+async function runRelated(catalogId: string): Promise<FeaturedRail[]> {
+  if (catalogId.startsWith("igdb_")) {
+    try {
+      return await fetchIgdbRelatedRails(catalogId);
+    } catch {
+      return [];
+    }
+  }
+  if (catalogId.startsWith("wiki_")) {
+    const title = parseWikiTitle(catalogId);
+    if (title && isIgdbReady()) {
+      try {
+        const hits = await lookupIgdbByTitles([title]);
+        const match = pickBestTitleMatch(title, hits);
+        if (match) return await fetchIgdbRelatedRails(match.id);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }
+  const steamId = parseSteamId(catalogId);
+  if (steamId && isIgdbReady()) {
+    try {
+      const igdbId = await lookupIgdbIdBySteamId(steamId);
+      if (igdbId) return await fetchIgdbRelatedRails(igdbCatalogId(igdbId));
+    } catch {
+      return [];
+    }
+  }
+  const cached = detailsCache.get(`${DETAILS_CACHE_VER}:${catalogId}`)?.data;
+  return cached?.related ?? [];
+}
+
+export async function fetchCatalogRelated(
+  catalogId: string,
+): Promise<FeaturedRail[]> {
+  const key = `${DETAILS_CACHE_VER}:${catalogId}`;
+  const hit = relatedCache.get(key);
+  const now = Date.now();
+  if (hit && now - hit.at < RELATED_TTL_MS) return hit.rails;
+  const pending = relatedInflight.get(key);
+  if (pending) return pending;
+  const run = runRelated(catalogId)
+    .then((rails) => {
+      trimCache(relatedCache, 200);
+      relatedCache.set(key, { at: Date.now(), rails });
+      rememberRelatedOnDetails(catalogId, rails);
+      return rails;
+    })
+    .finally(() => {
+      relatedInflight.delete(key);
+    });
+  relatedInflight.set(key, run);
   return run;
 }
 

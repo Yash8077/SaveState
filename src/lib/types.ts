@@ -47,6 +47,7 @@ export type CatalogDetails = CatalogGame & {
   screenshots: string[];
   website: string | null;
   related: FeaturedRail[];
+  relatedPending?: boolean;
 };
 
 export type GameEntry = {

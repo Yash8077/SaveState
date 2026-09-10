@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -29,6 +31,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   GameEntry? _entry;
   bool _isLoading = true;
   bool _refreshing = false;
+  bool _relatedLoading = false;
   String? _error;
   bool _synopsisOpen = false;
   bool _saving = false;
@@ -49,6 +52,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       _game = CatalogDetails.fromPreview(preview);
       _isLoading = false;
       _refreshing = true;
+      _relatedLoading = true;
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -125,25 +129,55 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           _error = 'Game details could not be found.';
           _isLoading = false;
           _refreshing = false;
+          _relatedLoading = false;
         });
         return;
       }
 
       _syncLogFields(entry);
+      var game = details;
+      if (game != null && game.relatedPending) {
+        final cachedRelated = api.cachedRelated(widget.id);
+        if (cachedRelated != null) {
+          game = game.copyWith(related: cachedRelated, relatedPending: false);
+        }
+      }
       setState(() {
-        if (details != null) _game = details;
+        if (game != null) _game = game;
         _entry = entry;
         _trophyProgress = trophyProgress;
         _isLoading = false;
         _refreshing = false;
+        _relatedLoading = game?.relatedPending == true;
       });
+      if (game?.relatedPending == true) {
+        unawaited(_loadRelated(api));
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         if (_game == null) _error = e.toString();
         _isLoading = false;
         _refreshing = false;
+        _relatedLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadRelated(ApiClient api) async {
+    try {
+      final rails = await api.getGameRelated(widget.id);
+      if (!mounted) return;
+      setState(() {
+        final current = _game;
+        if (current != null) {
+          _game = current.copyWith(related: rails, relatedPending: false);
+        }
+        _relatedLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _relatedLoading = false);
     }
   }
 
@@ -595,6 +629,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   title: 'Prequels, sequels & DLC',
                   ids: _RelationsRail.sequelDlcIds,
                 ),
+              )
+            else if (_relatedLoading)
+              const SliverToBoxAdapter(
+                child: _RelationsSkeleton(title: 'Prequels, sequels & DLC'),
               ),
             SliverToBoxAdapter(
               child: Padding(
@@ -743,6 +781,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   title: 'Similar games',
                   ids: _RelationsRail.relatedIds,
                 ),
+              )
+            else if (_relatedLoading)
+              const SliverToBoxAdapter(
+                child: _RelationsSkeleton(title: 'Similar games'),
               ),
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],
@@ -1040,6 +1082,69 @@ class _RelatedItem {
   final String badge;
 
   const _RelatedItem(this.game, this.badge);
+}
+
+class _RelationsSkeleton extends StatelessWidget {
+  final String title;
+
+  const _RelationsSkeleton({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 196,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              itemCount: 5,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (_, __) => SizedBox(
+                width: 108,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AspectRatio(
+                      aspectRatio: 2 / 3,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const SizedBox(height: 10, width: 88),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _RelationsRail extends StatelessWidget {

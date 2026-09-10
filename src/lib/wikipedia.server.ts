@@ -172,5 +172,6 @@ export async function fetchWikiDetails(
     screenshots: [],
     website: summary.content_urls?.desktop?.page ?? null,
     related: [],
+    relatedPending: false,
   };
 }

@@ -13,8 +13,11 @@ import { TrophyTierCount, trophyTiers } from "@/components/trophy-tier";
 import { useLibrary, useLibraryMutations } from "@/hooks/use-library";
 import {
   catalogGameQueryKey,
+  CATALOG_GAME_REL,
   CATALOG_GAME_STALE_MS,
+  RELATED_STALE_MS,
   getCatalogGame,
+  getCatalogRelated,
   getGameTrophyProgress,
   snapshotFromDetails,
   type GameTrophyProgressResult,
@@ -46,6 +49,18 @@ function GamePage() {
     enabled: !isCustom,
     staleTime: CATALOG_GAME_STALE_MS,
   });
+  const relatedQuery = useQuery({
+    queryKey: ["catalog-related", catalogId, CATALOG_GAME_REL],
+    queryFn: async ({ signal }) => {
+      const rails = await getCatalogRelated(catalogId, signal);
+      qc.setQueryData(catalogGameQueryKey(catalogId), (old) =>
+        old ? { ...old, related: rails, relatedPending: false } : old,
+      );
+      return rails;
+    },
+    enabled: !isCustom && details.data?.relatedPending === true,
+    staleTime: RELATED_STALE_MS,
+  });
 
   const trophyProgress = useQuery({
     queryKey: ["game-trophy-progress", catalogId],
@@ -66,10 +81,19 @@ function GamePage() {
   const developers = (entry?.developers?.length ? entry.developers : catalog?.developers) ?? [];
   const publishers = (entry?.publishers?.length ? entry.publishers : catalog?.publishers) ?? [];
   const screenshots = (entry?.screenshots?.length ? entry.screenshots : catalog?.screenshots) ?? [];
-  const relatedRails = catalog?.related?.length ? catalog.related : seedRelated(catalogId);
+  const relatedLoading =
+    !isCustom &&
+    (details.isLoading ||
+      (details.data?.relatedPending === true && relatedQuery.isPending));
+  const relatedRails =
+    relatedQuery.data ??
+    (catalog?.related?.length
+      ? catalog.related
+      : relatedLoading
+        ? []
+        : seedRelated(catalogId));
   const sequelDlc = flattenRelated(relatedRails, SEQUEL_DLC_RAIL_IDS);
   const relatedSimilar = flattenRelated(relatedRails, RELATED_RAIL_IDS);
-  const relatedLoading = details.isLoading && !isCustom;
   const releaseDate = entry?.releaseDate ?? catalog?.releaseDate;
   const metacritic = entry?.metacritic ?? catalog?.metacritic;
   const banner = headerUrl || coverUrl;

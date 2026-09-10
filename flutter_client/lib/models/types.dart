@@ -194,6 +194,7 @@ class CatalogDetails extends CatalogGame {
   final List<String> screenshots;
   final String? website;
   final List<FeaturedRail> related;
+  final bool relatedPending;
 
   const CatalogDetails({
     required super.id,
@@ -213,6 +214,7 @@ class CatalogDetails extends CatalogGame {
     this.screenshots = const [],
     this.website,
     this.related = const [],
+    this.relatedPending = false,
   });
 
   factory CatalogDetails.fromJson(Map<String, dynamic> json) {
@@ -252,6 +254,7 @@ class CatalogDetails extends CatalogGame {
               ?.map((e) => FeaturedRail.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      relatedPending: json['relatedPending'] as bool? ?? false,
     );
   }
 
@@ -281,8 +284,51 @@ class CatalogDetails extends CatalogGame {
       'screenshots': screenshots,
       'website': website,
       'related': related.map((e) => e.toJson()).toList(),
+      'relatedPending': relatedPending,
     });
     return map;
+  }
+
+  CatalogDetails copyWith({
+    String? id,
+    int? steamId,
+    String? title,
+    String? coverUrl,
+    String? headerUrl,
+    String? capsuleUrl,
+    List<String>? platforms,
+    int? metacritic,
+    String? summary,
+    String? releaseDate,
+    bool? comingSoon,
+    List<String>? genres,
+    List<String>? developers,
+    List<String>? publishers,
+    List<String>? screenshots,
+    String? website,
+    List<FeaturedRail>? related,
+    bool? relatedPending,
+  }) {
+    return CatalogDetails(
+      id: id ?? this.id,
+      steamId: steamId ?? this.steamId,
+      title: title ?? this.title,
+      coverUrl: coverUrl ?? this.coverUrl,
+      headerUrl: headerUrl ?? this.headerUrl,
+      capsuleUrl: capsuleUrl ?? this.capsuleUrl,
+      platforms: platforms ?? this.platforms,
+      metacritic: metacritic ?? this.metacritic,
+      summary: summary ?? this.summary,
+      releaseDate: releaseDate ?? this.releaseDate,
+      comingSoon: comingSoon ?? this.comingSoon,
+      genres: genres ?? this.genres,
+      developers: developers ?? this.developers,
+      publishers: publishers ?? this.publishers,
+      screenshots: screenshots ?? this.screenshots,
+      website: website ?? this.website,
+      related: related ?? this.related,
+      relatedPending: relatedPending ?? this.relatedPending,
+    );
   }
 }
 

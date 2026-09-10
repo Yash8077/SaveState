@@ -29,7 +29,10 @@ class ApiClient {
   final http.Client _client;
   String? sessionToken;
   final Map<String, CatalogDetails> _detailsCache = {};
+  final Map<String, DateTime> _detailsAt = {};
   final Map<String, Future<CatalogDetails?>> _detailsInflight = {};
+  final Map<String, ({DateTime at, List<FeaturedRail> rails})> _relatedCache = {};
+  final Map<String, Future<List<FeaturedRail>>> _relatedInflight = {};
   List<GameEntry>? _libraryCache;
   DateTime? _libraryAt;
   List<FeaturedRail>? _featuredCache;
@@ -48,9 +51,13 @@ class ApiClient {
   static const _activityTtl = Duration(minutes: 2);
   static const _trophyTtl = Duration(minutes: 2);
   static const _httpTimeout = Duration(seconds: 10);
+  static const _detailsTtl = Duration(hours: 24);
+  static const _relatedTtl = Duration(days: 7);
   static const _featuredDiskKey = 'cache_featured_v1';
   static const _libraryDiskKey = 'cache_library_v1';
   static const _becauseDiskKey = 'cache_because_v1';
+  static const _detailsDiskKey = 'cache_details_v19';
+  static const _relatedDiskKey = 'cache_related_v19';
   SharedPreferences? _prefs;
   bool _hydrated = false;
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
@@ -66,6 +73,13 @@ class ApiClient {
     return _becauseCache[key]?.rail;
   }
 
+  List<FeaturedRail>? cachedRelated(String catalogId) {
+    final cached = _relatedCache[catalogId];
+    if (cached == null) return null;
+    if (DateTime.now().difference(cached.at) >= _relatedTtl) return null;
+    return cached.rails;
+  }
+
   Future<void> hydrate() async {
     if (_hydrated) return; _hydrated = true;
     try { _prefs = await SharedPreferences.getInstance(); } catch (_) { return; }
@@ -75,11 +89,77 @@ class ApiClient {
     if (libraryRaw != null) { try { final decoded = jsonDecode(libraryRaw); if (decoded is List) { _libraryCache = [for (final row in decoded) if (row is Map) GameEntry.fromJson(Map<String, dynamic>.from(row))]; _libraryAt = DateTime.now().subtract(const Duration(days: 1)); } } catch (_) {} }
     final becauseRaw = _prefs?.getString(_becauseDiskKey);
     if (becauseRaw != null) { try { final decoded = jsonDecode(becauseRaw); if (decoded is Map) { final key = decoded['key']?.toString() ?? ''; final rail = decoded['rail']; if (key.isNotEmpty && rail is Map) _becauseCache[key] = (at: DateTime.now().subtract(const Duration(days: 1)), rail: FeaturedRail.fromJson(Map<String, dynamic>.from(rail))); } } catch (_) {} }
+    _hydrateTimedMap(_prefs?.getString(_detailsDiskKey), _detailsTtl, (id, at, row) {
+      _detailsCache[id] = CatalogDetails.fromJson(row);
+      _detailsAt[id] = at;
+    });
+    _hydrateTimedMap(_prefs?.getString(_relatedDiskKey), _relatedTtl, (id, at, row) {
+      final rails = row['rails'];
+      if (rails is! List) return;
+      _relatedCache[id] = (
+        at: at,
+        rails: [
+          for (final item in rails)
+            if (item is Map) FeaturedRail.fromJson(Map<String, dynamic>.from(item)),
+        ],
+      );
+    });
+  }
+
+  void _hydrateTimedMap(
+    String? raw,
+    Duration ttl,
+    void Function(String id, DateTime at, Map<String, dynamic> row) apply,
+  ) {
+    if (raw == null) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      final now = DateTime.now();
+      for (final entry in decoded.entries) {
+        final row = entry.value;
+        if (row is! Map) continue;
+        final atMs = (row['at'] as num?)?.toInt();
+        if (atMs == null) continue;
+        final at = DateTime.fromMillisecondsSinceEpoch(atMs);
+        if (now.difference(at) >= ttl) continue;
+        apply(entry.key.toString(), at, Map<String, dynamic>.from(row));
+      }
+    } catch (_) {}
   }
 
   Future<void> _persistFeatured(List<FeaturedRail> rails) async { _prefs ??= await SharedPreferences.getInstance(); await _prefs!.setString(_featuredDiskKey, jsonEncode([for (final rail in rails) rail.toJson()])); }
   Future<void> _persistLibrary(List<GameEntry> items) async { _prefs ??= await SharedPreferences.getInstance(); await _prefs!.setString(_libraryDiskKey, jsonEncode([for (final item in items) item.toJson()])); }
   Future<void> _persistBecause(String key, FeaturedRail rail) async { _prefs ??= await SharedPreferences.getInstance(); await _prefs!.setString(_becauseDiskKey, jsonEncode({'key': key, 'rail': rail.toJson()})); }
+  Future<void> _persistDetails() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    final ids = _detailsAt.keys.toList()
+      ..sort((a, b) => _detailsAt[b]!.compareTo(_detailsAt[a]!));
+    final out = <String, dynamic>{};
+    for (final id in ids.take(40)) {
+      final at = _detailsAt[id];
+      final data = _detailsCache[id];
+      if (at == null || data == null) continue;
+      out[id] = {'at': at.millisecondsSinceEpoch, ...data.toJson()};
+    }
+    await _prefs!.setString(_detailsDiskKey, jsonEncode(out));
+  }
+
+  Future<void> _persistRelated() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    final ids = _relatedCache.keys.toList()
+      ..sort((a, b) => _relatedCache[b]!.at.compareTo(_relatedCache[a]!.at));
+    final out = <String, dynamic>{};
+    for (final id in ids.take(40)) {
+      final cached = _relatedCache[id];
+      if (cached == null) continue;
+      out[id] = {
+        'at': cached.at.millisecondsSinceEpoch,
+        'rails': [for (final rail in cached.rails) rail.toJson()],
+      };
+    }
+    await _prefs!.setString(_relatedDiskKey, jsonEncode(out));
+  }
   Map<String, String> _headers({bool json = false}) { final h = <String, String>{'Accept': 'application/json', 'Origin': origin}; if (json) h['Content-Type'] = 'application/json'; final token = sessionToken; if (token != null && token.isNotEmpty) h['Authorization'] = 'Bearer $token'; return h; }
   Uri _u(String path, [Map<String, String>? q]) => Uri.parse('$origin$path').replace(queryParameters: q);
 
@@ -129,8 +209,108 @@ class ApiClient {
     _becauseInflight[key] = future;
     return future;
   }
-  Future<CatalogDetails?> getGameDetails(String catalogId) async { final cached = _detailsCache[catalogId]; if (cached != null) return cached; final pending = _detailsInflight[catalogId]; if (pending != null) return pending; final future = () async { try { final decoded = await _send('GET', _u('/api/catalog/game', {'id': catalogId, 'rel': '14'})); if (decoded is Map<String, dynamic>) { final details = CatalogDetails.fromJson(decoded); _detailsCache[catalogId] = details; if (_detailsCache.length > 80) _detailsCache.remove(_detailsCache.keys.first); return details; } return null; } finally { _detailsInflight.remove(catalogId); } }(); _detailsInflight[catalogId] = future; return future; }
-  void prefetchGameDetails(String catalogId) { if (catalogId.isEmpty) return; if (_detailsCache.containsKey(catalogId) || _detailsInflight.containsKey(catalogId)) return; unawaited(getGameDetails(catalogId)); }
+  CatalogDetails _withCachedRelated(String catalogId, CatalogDetails details) {
+    if (!details.relatedPending) return details;
+    final related = cachedRelated(catalogId);
+    if (related == null) return details;
+    final merged = details.copyWith(related: related, relatedPending: false);
+    _detailsCache[catalogId] = merged;
+    return merged;
+  }
+
+  void _rememberDetails(String catalogId, CatalogDetails details) {
+    _detailsCache[catalogId] = details;
+    _detailsAt[catalogId] = DateTime.now();
+    if (_detailsCache.length > 80) {
+      final oldest = _detailsCache.keys.first;
+      _detailsCache.remove(oldest);
+      _detailsAt.remove(oldest);
+    }
+    unawaited(_persistDetails());
+  }
+
+  Future<CatalogDetails?> getGameDetails(String catalogId) async {
+    final cached = _detailsCache[catalogId];
+    final cachedAt = _detailsAt[catalogId];
+    if (cached != null &&
+        (cachedAt == null || DateTime.now().difference(cachedAt) < _detailsTtl)) {
+      return _withCachedRelated(catalogId, cached);
+    }
+    final pending = _detailsInflight[catalogId];
+    if (pending != null) return pending;
+    final future = () async {
+      try {
+        final decoded = await _send(
+          'GET',
+          _u('/api/catalog/game', {'id': catalogId, 'rel': '19'}),
+        );
+        if (decoded is Map<String, dynamic>) {
+          final details = _withCachedRelated(
+            catalogId,
+            CatalogDetails.fromJson(decoded),
+          );
+          _rememberDetails(catalogId, details);
+          if (details.relatedPending) unawaited(getGameRelated(catalogId));
+          return details;
+        }
+        return null;
+      } finally {
+        _detailsInflight.remove(catalogId);
+      }
+    }();
+    _detailsInflight[catalogId] = future;
+    return future;
+  }
+
+  Future<List<FeaturedRail>> getGameRelated(String catalogId) async {
+    final cached = cachedRelated(catalogId);
+    if (cached != null) return cached;
+    final pending = _relatedInflight[catalogId];
+    if (pending != null) return pending;
+    final future = () async {
+      try {
+        final decoded = await _send(
+          'GET',
+          _u('/api/catalog/game/related', {'id': catalogId, 'rel': '19'}),
+        );
+        final rails = decoded is List
+            ? [
+                for (final row in decoded)
+                  if (row is Map)
+                    FeaturedRail.fromJson(Map<String, dynamic>.from(row)),
+              ]
+            : const <FeaturedRail>[];
+        _relatedCache[catalogId] = (at: DateTime.now(), rails: rails);
+        if (_relatedCache.length > 80) {
+          _relatedCache.remove(_relatedCache.keys.first);
+        }
+        final details = _detailsCache[catalogId];
+        if (details != null) {
+          _rememberDetails(
+            catalogId,
+            details.copyWith(related: rails, relatedPending: false),
+          );
+        }
+        unawaited(_persistRelated());
+        return rails;
+      } finally {
+        _relatedInflight.remove(catalogId);
+      }
+    }();
+    _relatedInflight[catalogId] = future;
+    return future;
+  }
+
+  void prefetchGameDetails(String catalogId) {
+    if (catalogId.isEmpty) return;
+    final cached = _detailsCache[catalogId];
+    if (cached != null) {
+      if (cached.relatedPending) unawaited(getGameRelated(catalogId));
+      return;
+    }
+    if (_detailsInflight.containsKey(catalogId)) return;
+    unawaited(getGameDetails(catalogId));
+  }
   Future<List<GameEntry>> getLibrary({bool force = false}) async { if (!force && _libraryCache != null && _libraryAt != null && DateTime.now().difference(_libraryAt!) < _libraryTtl) return _libraryCache!; final decoded = await _send('GET', _u('/api/library')); List<GameEntry> items = const []; if (decoded is List) items = decoded.map((e) => GameEntry.fromJson(e as Map<String, dynamic>)).toList(); else if (decoded is Map && decoded['items'] is List) items = (decoded['items'] as List).map((e) => GameEntry.fromJson(e as Map<String, dynamic>)).toList(); _libraryCache = items; _libraryAt = DateTime.now(); unawaited(_persistLibrary(items)); return items; }
   void _invalidateLibrary() { _libraryCache = null; _libraryAt = null; unawaited(_prefs?.remove(_libraryDiskKey)); }
   Future<Map<String, dynamic>> getActivity({bool force = false, String? month}) async {

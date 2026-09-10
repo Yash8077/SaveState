@@ -17,21 +17,33 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StatsRouteImport } from './routes/stats'
+import { Route as TrophiesRouteImport } from './routes/trophies'
+import { Route as ApiActivityRouteImport } from './routes/api/activity'
 import { Route as ApiBackupRouteImport } from './routes/api/backup'
 import { Route as ApiConfigRouteImport } from './routes/api/config'
 import { Route as ApiLibraryRouteImport } from './routes/api/library'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
 import { Route as GameCatalogIdRouteImport } from './routes/game.$catalogId'
+import { Route as TrophiesCatalogIdRouteImport } from './routes/trophies.$catalogId'
+import { Route as ApiActivityDeviceRouteImport } from './routes/api/activity/device'
+import { Route as ApiActivityIngestRouteImport } from './routes/api/activity/ingest'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiCatalogArtRouteImport } from './routes/api/catalog.art'
 import { Route as ApiCatalogBecauseRouteImport } from './routes/api/catalog.because'
 import { Route as ApiCatalogFeaturedRouteImport } from './routes/api/catalog.featured'
 import { Route as ApiCatalogGameRouteImport } from './routes/api/catalog.game'
+import { Route as ApiCatalogGameRelatedRouteImport } from './routes/api/catalog.game.related'
 import { Route as ApiCatalogSearchRouteImport } from './routes/api/catalog.search'
+import { Route as ApiCronPlaystationTitlesRouteImport } from './routes/api/cron/playstation-titles'
 import { Route as ApiGoogleNativeRouteImport } from './routes/api/google.native'
 import { Route as ApiGoogleStartRouteImport } from './routes/api/google.start'
 import { Route as ApiLibraryIdRouteImport } from './routes/api/library.$id'
 import { Route as ApiProfilePasswordRouteImport } from './routes/api/profile.password'
+import { Route as ApiSyncStatusRouteImport } from './routes/api/sync/status'
+import { Route as ApiTrophiesCatalogRouteImport } from './routes/api/trophies/catalog'
+import { Route as ApiTrophiesGameRouteImport } from './routes/api/trophies/game'
+import { Route as ApiTrophiesListRouteImport } from './routes/api/trophies/list'
+import { Route as ApiTrophiesSyncRouteImport } from './routes/api/trophies/sync'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -73,6 +85,16 @@ const StatsRoute = StatsRouteImport.update({
   path: '/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TrophiesRoute = TrophiesRouteImport.update({
+  id: '/trophies',
+  path: '/trophies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiActivityRoute = ApiActivityRouteImport.update({
+  id: '/api/activity',
+  path: '/api/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBackupRoute = ApiBackupRouteImport.update({
   id: '/api/backup',
   path: '/api/backup',
@@ -97,6 +119,21 @@ const GameCatalogIdRoute = GameCatalogIdRouteImport.update({
   id: '/game/$catalogId',
   path: '/game/$catalogId',
   getParentRoute: () => rootRouteImport,
+} as any)
+const TrophiesCatalogIdRoute = TrophiesCatalogIdRouteImport.update({
+  id: '/$catalogId',
+  path: '/$catalogId',
+  getParentRoute: () => TrophiesRoute,
+} as any)
+const ApiActivityDeviceRoute = ApiActivityDeviceRouteImport.update({
+  id: '/device',
+  path: '/device',
+  getParentRoute: () => ApiActivityRoute,
+} as any)
+const ApiActivityIngestRoute = ApiActivityIngestRouteImport.update({
+  id: '/ingest',
+  path: '/ingest',
+  getParentRoute: () => ApiActivityRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -123,11 +160,22 @@ const ApiCatalogGameRoute = ApiCatalogGameRouteImport.update({
   path: '/api/catalog/game',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCatalogGameRelatedRoute = ApiCatalogGameRelatedRouteImport.update({
+  id: '/api/catalog/game/related',
+  path: '/api/catalog/game/related',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCatalogSearchRoute = ApiCatalogSearchRouteImport.update({
   id: '/api/catalog/search',
   path: '/api/catalog/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronPlaystationTitlesRoute =
+  ApiCronPlaystationTitlesRouteImport.update({
+    id: '/api/cron/playstation-titles',
+    path: '/api/cron/playstation-titles',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiGoogleNativeRoute = ApiGoogleNativeRouteImport.update({
   id: '/api/google/native',
   path: '/api/google/native',
@@ -148,6 +196,31 @@ const ApiProfilePasswordRoute = ApiProfilePasswordRouteImport.update({
   path: '/password',
   getParentRoute: () => ApiProfileRoute,
 } as any)
+const ApiSyncStatusRoute = ApiSyncStatusRouteImport.update({
+  id: '/api/sync/status',
+  path: '/api/sync/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTrophiesCatalogRoute = ApiTrophiesCatalogRouteImport.update({
+  id: '/api/trophies/catalog',
+  path: '/api/trophies/catalog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTrophiesGameRoute = ApiTrophiesGameRouteImport.update({
+  id: '/api/trophies/game',
+  path: '/api/trophies/game',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTrophiesListRoute = ApiTrophiesListRouteImport.update({
+  id: '/api/trophies/list',
+  path: '/api/trophies/list',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTrophiesSyncRoute = ApiTrophiesSyncRouteImport.update({
+  id: '/api/trophies/sync',
+  path: '/api/trophies/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -158,21 +231,33 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
+  '/trophies': typeof TrophiesRouteWithChildren
+  '/api/activity': typeof ApiActivityRouteWithChildren
   '/api/backup': typeof ApiBackupRoute
   '/api/config': typeof ApiConfigRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
   '/api/profile': typeof ApiProfileRouteWithChildren
   '/game/$catalogId': typeof GameCatalogIdRoute
+  '/trophies/$catalogId': typeof TrophiesCatalogIdRoute
+  '/api/activity/device': typeof ApiActivityDeviceRoute
+  '/api/activity/ingest': typeof ApiActivityIngestRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/catalog/art': typeof ApiCatalogArtRoute
   '/api/catalog/because': typeof ApiCatalogBecauseRoute
   '/api/catalog/featured': typeof ApiCatalogFeaturedRoute
   '/api/catalog/game': typeof ApiCatalogGameRoute
+  '/api/catalog/game/related': typeof ApiCatalogGameRelatedRoute
   '/api/catalog/search': typeof ApiCatalogSearchRoute
+  '/api/cron/playstation-titles': typeof ApiCronPlaystationTitlesRoute
   '/api/google/native': typeof ApiGoogleNativeRoute
   '/api/google/start': typeof ApiGoogleStartRoute
   '/api/library/$id': typeof ApiLibraryIdRoute
   '/api/profile/password': typeof ApiProfilePasswordRoute
+  '/api/sync/status': typeof ApiSyncStatusRoute
+  '/api/trophies/catalog': typeof ApiTrophiesCatalogRoute
+  '/api/trophies/game': typeof ApiTrophiesGameRoute
+  '/api/trophies/list': typeof ApiTrophiesListRoute
+  '/api/trophies/sync': typeof ApiTrophiesSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -183,21 +268,33 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
+  '/trophies': typeof TrophiesRouteWithChildren
+  '/api/activity': typeof ApiActivityRouteWithChildren
   '/api/backup': typeof ApiBackupRoute
   '/api/config': typeof ApiConfigRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
   '/api/profile': typeof ApiProfileRouteWithChildren
   '/game/$catalogId': typeof GameCatalogIdRoute
+  '/trophies/$catalogId': typeof TrophiesCatalogIdRoute
+  '/api/activity/device': typeof ApiActivityDeviceRoute
+  '/api/activity/ingest': typeof ApiActivityIngestRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/catalog/art': typeof ApiCatalogArtRoute
   '/api/catalog/because': typeof ApiCatalogBecauseRoute
   '/api/catalog/featured': typeof ApiCatalogFeaturedRoute
   '/api/catalog/game': typeof ApiCatalogGameRoute
+  '/api/catalog/game/related': typeof ApiCatalogGameRelatedRoute
   '/api/catalog/search': typeof ApiCatalogSearchRoute
+  '/api/cron/playstation-titles': typeof ApiCronPlaystationTitlesRoute
   '/api/google/native': typeof ApiGoogleNativeRoute
   '/api/google/start': typeof ApiGoogleStartRoute
   '/api/library/$id': typeof ApiLibraryIdRoute
   '/api/profile/password': typeof ApiProfilePasswordRoute
+  '/api/sync/status': typeof ApiSyncStatusRoute
+  '/api/trophies/catalog': typeof ApiTrophiesCatalogRoute
+  '/api/trophies/game': typeof ApiTrophiesGameRoute
+  '/api/trophies/list': typeof ApiTrophiesListRoute
+  '/api/trophies/sync': typeof ApiTrophiesSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -209,21 +306,33 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
+  '/trophies': typeof TrophiesRouteWithChildren
+  '/api/activity': typeof ApiActivityRouteWithChildren
   '/api/backup': typeof ApiBackupRoute
   '/api/config': typeof ApiConfigRoute
   '/api/library': typeof ApiLibraryRouteWithChildren
   '/api/profile': typeof ApiProfileRouteWithChildren
   '/game/$catalogId': typeof GameCatalogIdRoute
+  '/trophies/$catalogId': typeof TrophiesCatalogIdRoute
+  '/api/activity/device': typeof ApiActivityDeviceRoute
+  '/api/activity/ingest': typeof ApiActivityIngestRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/catalog/art': typeof ApiCatalogArtRoute
   '/api/catalog/because': typeof ApiCatalogBecauseRoute
   '/api/catalog/featured': typeof ApiCatalogFeaturedRoute
   '/api/catalog/game': typeof ApiCatalogGameRoute
+  '/api/catalog/game/related': typeof ApiCatalogGameRelatedRoute
   '/api/catalog/search': typeof ApiCatalogSearchRoute
+  '/api/cron/playstation-titles': typeof ApiCronPlaystationTitlesRoute
   '/api/google/native': typeof ApiGoogleNativeRoute
   '/api/google/start': typeof ApiGoogleStartRoute
   '/api/library/$id': typeof ApiLibraryIdRoute
   '/api/profile/password': typeof ApiProfilePasswordRoute
+  '/api/sync/status': typeof ApiSyncStatusRoute
+  '/api/trophies/catalog': typeof ApiTrophiesCatalogRoute
+  '/api/trophies/game': typeof ApiTrophiesGameRoute
+  '/api/trophies/list': typeof ApiTrophiesListRoute
+  '/api/trophies/sync': typeof ApiTrophiesSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -236,21 +345,33 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/stats'
+    | '/trophies'
+    | '/api/activity'
     | '/api/backup'
     | '/api/config'
     | '/api/library'
     | '/api/profile'
     | '/game/$catalogId'
+    | '/trophies/$catalogId'
+    | '/api/activity/device'
+    | '/api/activity/ingest'
     | '/api/auth/$'
     | '/api/catalog/art'
     | '/api/catalog/because'
     | '/api/catalog/featured'
     | '/api/catalog/game'
+    | '/api/catalog/game/related'
     | '/api/catalog/search'
+    | '/api/cron/playstation-titles'
     | '/api/google/native'
     | '/api/google/start'
     | '/api/library/$id'
     | '/api/profile/password'
+    | '/api/sync/status'
+    | '/api/trophies/catalog'
+    | '/api/trophies/game'
+    | '/api/trophies/list'
+    | '/api/trophies/sync'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -261,21 +382,33 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/stats'
+    | '/trophies'
+    | '/api/activity'
     | '/api/backup'
     | '/api/config'
     | '/api/library'
     | '/api/profile'
     | '/game/$catalogId'
+    | '/trophies/$catalogId'
+    | '/api/activity/device'
+    | '/api/activity/ingest'
     | '/api/auth/$'
     | '/api/catalog/art'
     | '/api/catalog/because'
     | '/api/catalog/featured'
     | '/api/catalog/game'
+    | '/api/catalog/game/related'
     | '/api/catalog/search'
+    | '/api/cron/playstation-titles'
     | '/api/google/native'
     | '/api/google/start'
     | '/api/library/$id'
     | '/api/profile/password'
+    | '/api/sync/status'
+    | '/api/trophies/catalog'
+    | '/api/trophies/game'
+    | '/api/trophies/list'
+    | '/api/trophies/sync'
   id:
     | '__root__'
     | '/'
@@ -286,21 +419,33 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/stats'
+    | '/trophies'
+    | '/api/activity'
     | '/api/backup'
     | '/api/config'
     | '/api/library'
     | '/api/profile'
     | '/game/$catalogId'
+    | '/trophies/$catalogId'
+    | '/api/activity/device'
+    | '/api/activity/ingest'
     | '/api/auth/$'
     | '/api/catalog/art'
     | '/api/catalog/because'
     | '/api/catalog/featured'
     | '/api/catalog/game'
+    | '/api/catalog/game/related'
     | '/api/catalog/search'
+    | '/api/cron/playstation-titles'
     | '/api/google/native'
     | '/api/google/start'
     | '/api/library/$id'
     | '/api/profile/password'
+    | '/api/sync/status'
+    | '/api/trophies/catalog'
+    | '/api/trophies/game'
+    | '/api/trophies/list'
+    | '/api/trophies/sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -312,6 +457,8 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
   StatsRoute: typeof StatsRoute
+  TrophiesRoute: typeof TrophiesRouteWithChildren
+  ApiActivityRoute: typeof ApiActivityRouteWithChildren
   ApiBackupRoute: typeof ApiBackupRoute
   ApiConfigRoute: typeof ApiConfigRoute
   ApiLibraryRoute: typeof ApiLibraryRouteWithChildren
@@ -322,9 +469,16 @@ export interface RootRouteChildren {
   ApiCatalogBecauseRoute: typeof ApiCatalogBecauseRoute
   ApiCatalogFeaturedRoute: typeof ApiCatalogFeaturedRoute
   ApiCatalogGameRoute: typeof ApiCatalogGameRoute
+  ApiCatalogGameRelatedRoute: typeof ApiCatalogGameRelatedRoute
   ApiCatalogSearchRoute: typeof ApiCatalogSearchRoute
+  ApiCronPlaystationTitlesRoute: typeof ApiCronPlaystationTitlesRoute
   ApiGoogleNativeRoute: typeof ApiGoogleNativeRoute
   ApiGoogleStartRoute: typeof ApiGoogleStartRoute
+  ApiSyncStatusRoute: typeof ApiSyncStatusRoute
+  ApiTrophiesCatalogRoute: typeof ApiTrophiesCatalogRoute
+  ApiTrophiesGameRoute: typeof ApiTrophiesGameRoute
+  ApiTrophiesListRoute: typeof ApiTrophiesListRoute
+  ApiTrophiesSyncRoute: typeof ApiTrophiesSyncRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -385,6 +539,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StatsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/trophies': {
+      id: '/trophies'
+      path: '/trophies'
+      fullPath: '/trophies'
+      preLoaderRoute: typeof TrophiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/activity': {
+      id: '/api/activity'
+      path: '/api/activity'
+      fullPath: '/api/activity'
+      preLoaderRoute: typeof ApiActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/backup': {
       id: '/api/backup'
       path: '/api/backup'
@@ -419,6 +587,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/game/$catalogId'
       preLoaderRoute: typeof GameCatalogIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/trophies/$catalogId': {
+      id: '/trophies/$catalogId'
+      path: '/$catalogId'
+      fullPath: '/trophies/$catalogId'
+      preLoaderRoute: typeof TrophiesCatalogIdRouteImport
+      parentRoute: typeof TrophiesRoute
+    }
+    '/api/activity/device': {
+      id: '/api/activity/device'
+      path: '/device'
+      fullPath: '/api/activity/device'
+      preLoaderRoute: typeof ApiActivityDeviceRouteImport
+      parentRoute: typeof ApiActivityRoute
+    }
+    '/api/activity/ingest': {
+      id: '/api/activity/ingest'
+      path: '/ingest'
+      fullPath: '/api/activity/ingest'
+      preLoaderRoute: typeof ApiActivityIngestRouteImport
+      parentRoute: typeof ApiActivityRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -455,11 +644,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCatalogGameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/catalog/game/related': {
+      id: '/api/catalog/game/related'
+      path: '/api/catalog/game/related'
+      fullPath: '/api/catalog/game/related'
+      preLoaderRoute: typeof ApiCatalogGameRelatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/catalog/search': {
       id: '/api/catalog/search'
       path: '/api/catalog/search'
       fullPath: '/api/catalog/search'
       preLoaderRoute: typeof ApiCatalogSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/playstation-titles': {
+      id: '/api/cron/playstation-titles'
+      path: '/api/cron/playstation-titles'
+      fullPath: '/api/cron/playstation-titles'
+      preLoaderRoute: typeof ApiCronPlaystationTitlesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/google/native': {
@@ -490,8 +693,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProfilePasswordRouteImport
       parentRoute: typeof ApiProfileRoute
     }
+    '/api/sync/status': {
+      id: '/api/sync/status'
+      path: '/api/sync/status'
+      fullPath: '/api/sync/status'
+      preLoaderRoute: typeof ApiSyncStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/trophies/catalog': {
+      id: '/api/trophies/catalog'
+      path: '/api/trophies/catalog'
+      fullPath: '/api/trophies/catalog'
+      preLoaderRoute: typeof ApiTrophiesCatalogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/trophies/game': {
+      id: '/api/trophies/game'
+      path: '/api/trophies/game'
+      fullPath: '/api/trophies/game'
+      preLoaderRoute: typeof ApiTrophiesGameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/trophies/list': {
+      id: '/api/trophies/list'
+      path: '/api/trophies/list'
+      fullPath: '/api/trophies/list'
+      preLoaderRoute: typeof ApiTrophiesListRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/trophies/sync': {
+      id: '/api/trophies/sync'
+      path: '/api/trophies/sync'
+      fullPath: '/api/trophies/sync'
+      preLoaderRoute: typeof ApiTrophiesSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
+
+interface TrophiesRouteChildren {
+  TrophiesCatalogIdRoute: typeof TrophiesCatalogIdRoute
+}
+
+const TrophiesRouteChildren: TrophiesRouteChildren = {
+  TrophiesCatalogIdRoute: TrophiesCatalogIdRoute,
+}
+
+const TrophiesRouteWithChildren = TrophiesRoute._addFileChildren(
+  TrophiesRouteChildren,
+)
+
+interface ApiActivityRouteChildren {
+  ApiActivityDeviceRoute: typeof ApiActivityDeviceRoute
+  ApiActivityIngestRoute: typeof ApiActivityIngestRoute
+}
+
+const ApiActivityRouteChildren: ApiActivityRouteChildren = {
+  ApiActivityDeviceRoute: ApiActivityDeviceRoute,
+  ApiActivityIngestRoute: ApiActivityIngestRoute,
+}
+
+const ApiActivityRouteWithChildren = ApiActivityRoute._addFileChildren(
+  ApiActivityRouteChildren,
+)
 
 interface ApiLibraryRouteChildren {
   ApiLibraryIdRoute: typeof ApiLibraryIdRoute
@@ -526,6 +790,8 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
   StatsRoute: StatsRoute,
+  TrophiesRoute: TrophiesRouteWithChildren,
+  ApiActivityRoute: ApiActivityRouteWithChildren,
   ApiBackupRoute: ApiBackupRoute,
   ApiConfigRoute: ApiConfigRoute,
   ApiLibraryRoute: ApiLibraryRouteWithChildren,
@@ -536,9 +802,16 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCatalogBecauseRoute: ApiCatalogBecauseRoute,
   ApiCatalogFeaturedRoute: ApiCatalogFeaturedRoute,
   ApiCatalogGameRoute: ApiCatalogGameRoute,
+  ApiCatalogGameRelatedRoute: ApiCatalogGameRelatedRoute,
   ApiCatalogSearchRoute: ApiCatalogSearchRoute,
+  ApiCronPlaystationTitlesRoute: ApiCronPlaystationTitlesRoute,
   ApiGoogleNativeRoute: ApiGoogleNativeRoute,
   ApiGoogleStartRoute: ApiGoogleStartRoute,
+  ApiSyncStatusRoute: ApiSyncStatusRoute,
+  ApiTrophiesCatalogRoute: ApiTrophiesCatalogRoute,
+  ApiTrophiesGameRoute: ApiTrophiesGameRoute,
+  ApiTrophiesListRoute: ApiTrophiesListRoute,
+  ApiTrophiesSyncRoute: ApiTrophiesSyncRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
