@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   flattenRelated,
+  hasRelatedGames,
   needsPrequelSequelFallback,
   prependPrequelSequel,
   relationBadge,
@@ -82,6 +83,24 @@ describe("flattenRelated", () => {
         ["c", "Similar"],
         ["e", "Franchise"],
       ],
+    );
+  });
+});
+
+describe("hasRelatedGames", () => {
+  it("is false for empty rails or rails with no games", () => {
+    assert.equal(hasRelatedGames(undefined), false);
+    assert.equal(hasRelatedGames([]), false);
+    assert.equal(
+      hasRelatedGames([{ id: "dlc", title: "DLC", games: [] }]),
+      false,
+    );
+  });
+
+  it("is true when any rail has a game", () => {
+    assert.equal(
+      hasRelatedGames([{ id: "dlc", title: "DLC", games: [game("a", "Pack")] }]),
+      true,
     );
   });
 });

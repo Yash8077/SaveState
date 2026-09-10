@@ -85,7 +85,7 @@ let featuredCache: { at: number; rails: FeaturedRail[] } | null = null;
 const FEATURED_TTL_MS = 30 * 60 * 1000;
 const SEARCH_TTL_MS = 10 * 60 * 1000;
 const DETAILS_TTL_MS = CATALOG_DETAILS_TTL_MS;
-const DETAILS_CACHE_VER = "rel-20";
+const DETAILS_CACHE_VER = "rel-21";
 const FETCH_MS = 4000;
 const searchCache = new Map<string, { at: number; games: CatalogGame[] }>();
 const detailsCache = new Map<
@@ -839,33 +839,21 @@ function attachRelated(
 
 async function runRelated(catalogId: string): Promise<FeaturedRail[]> {
   if (catalogId.startsWith("igdb_")) {
-    try {
-      return await fetchIgdbRelatedRails(catalogId);
-    } catch {
-      return [];
-    }
+    return await fetchIgdbRelatedRails(catalogId);
   }
   if (catalogId.startsWith("wiki_")) {
     const title = parseWikiTitle(catalogId);
     if (title && isIgdbReady()) {
-      try {
-        const hits = await lookupIgdbByTitles([title]);
-        const match = pickBestTitleMatch(title, hits);
-        if (match) return await fetchIgdbRelatedRails(match.id);
-      } catch {
-        return [];
-      }
+      const hits = await lookupIgdbByTitles([title]);
+      const match = pickBestTitleMatch(title, hits);
+      if (match) return await fetchIgdbRelatedRails(match.id);
     }
     return [];
   }
   const steamId = parseSteamId(catalogId);
   if (steamId && isIgdbReady()) {
-    try {
-      const igdbId = await lookupIgdbIdBySteamId(steamId);
-      if (igdbId) return await fetchIgdbRelatedRails(igdbCatalogId(igdbId));
-    } catch {
-      return [];
-    }
+    const igdbId = await lookupIgdbIdBySteamId(steamId);
+    if (igdbId) return await fetchIgdbRelatedRails(igdbCatalogId(igdbId));
   }
   const cached = detailsCache.get(`${DETAILS_CACHE_VER}:${catalogId}`)?.data;
   return cached?.related ?? [];

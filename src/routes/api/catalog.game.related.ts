@@ -13,8 +13,18 @@ export const Route = createFileRoute("/api/catalog/game/related")({
         const { catalogJson, fetchCatalogRelated } = await import(
           "@/lib/catalog.server"
         );
-        const rails = id ? await fetchCatalogRelated(id) : [];
-        return catalogJson(rails, 604800);
+        try {
+          const rails = id ? await fetchCatalogRelated(id) : [];
+          return catalogJson(rails, rails.length ? 604800 : 120);
+        } catch {
+          return new Response("[]", {
+            status: 503,
+            headers: {
+              "content-type": "application/json; charset=utf-8",
+              "cache-control": "no-store",
+            },
+          });
+        }
       },
     },
   },

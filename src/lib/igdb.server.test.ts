@@ -14,6 +14,7 @@ import {
   relatedRails,
   needsRelatedHydration,
   searchNeedle,
+  nestFields,
   toGame,
   withWikidataFallback,
   applyRelatedArt,
@@ -151,8 +152,17 @@ describe("IGDB field selection", () => {
     assert.match(DETAIL_FIELDS, /collections\.id/);
     assert.match(DETAIL_FIELDS, /collections\.name/);
     assert.match(DETAIL_FIELDS, /collections\.games\./);
-    assert.match(DETAIL_FIELDS, /parent_game\./);
-    assert.doesNotMatch(CARD_FIELDS, /summary/);
+    assert.match(DETAIL_FIELDS, /collection\.games\.cover\.image_id/);
+    assert.match(DETAIL_FIELDS, /collection\.games\.first_release_date/);
+    assert.match(DETAIL_FIELDS, /collections\.games\.cover\.image_id/);
+    assert.match(DETAIL_FIELDS, /dlcs\.cover\.image_id/);
+    assert.match(DETAIL_FIELDS, /dlcs\.first_release_date/);
+    assert.match(DETAIL_FIELDS, /similar_games\.cover\.image_id/);
+    assert.doesNotMatch(DETAIL_FIELDS, /games\.name, cover\.image_id/);
+    assert.equal(
+      nestFields("dlcs"),
+      "dlcs.name, dlcs.cover.image_id, dlcs.first_release_date, dlcs.category",
+    );
     assert.doesNotMatch(CARD_FIELDS, /involved_companies/);
     assert.ok(DETAIL_FIELDS.startsWith(CARD_FIELDS));
   });
@@ -320,6 +330,28 @@ describe("related rails", () => {
     assert.equal(rails.find((r) => r.id === "prequel"), undefined);
   });
 
+  it("does not split undated collection members into prequel or sequel", () => {
+    const rails = relatedRails({
+      id: 2,
+      name: "Middle",
+      first_release_date: 100,
+      collection: {
+        name: "The Saga",
+        games: [
+          { id: 1, name: "Prequel" },
+          { id: 2, name: "Middle" },
+          { id: 3, name: "Sequel" },
+        ],
+      },
+    });
+    assert.equal(rails.find((r) => r.id === "prequel"), undefined);
+    assert.equal(rails.find((r) => r.id === "sequel"), undefined);
+    assert.deepEqual(
+      rails.find((r) => r.id === "series")?.games.map((g) => g.title),
+      ["Prequel", "Sequel"],
+    );
+  });
+
   it("flags related hydration when series members are id-only", () => {
     assert.equal(
       needsRelatedHydration({
@@ -351,6 +383,23 @@ describe("related rails", () => {
         id: 2,
         name: "Middle",
         similar_games: [{ id: 9 }, { id: 10, name: "Like it" }],
+      }),
+      true,
+    );
+    assert.equal(
+      needsRelatedHydration({
+        id: 2,
+        name: "Middle",
+        first_release_date: 100,
+        collections: [
+          {
+            id: 12,
+            games: [
+              { id: 1, name: "Prequel" },
+              { id: 3, name: "Sequel" },
+            ],
+          },
+        ],
       }),
       true,
     );

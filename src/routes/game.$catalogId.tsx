@@ -24,8 +24,8 @@ import {
 } from "@/lib/api";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { seedRelated } from "@/lib/catalog-seed";
-import { flattenRelated, RELATED_RAIL_IDS, SEQUEL_DLC_RAIL_IDS } from "@/lib/related";
-import { STATUS_LABEL, type Status } from "@/lib/types";
+import { flattenRelated, hasRelatedGames, RELATED_RAIL_IDS, SEQUEL_DLC_RAIL_IDS } from "@/lib/related";
+import { STATUS_LABEL, type CatalogDetails, type Status } from "@/lib/types";
 import { cn, pickPortraitCover, ratingLabel } from "@/lib/utils";
 
 export const Route = createFileRoute("/game/$catalogId")({ component: GamePage });
@@ -53,9 +53,11 @@ function GamePage() {
     queryKey: ["catalog-related", catalogId, CATALOG_GAME_REL],
     queryFn: async ({ signal }) => {
       const rails = await getCatalogRelated(catalogId, signal);
-      qc.setQueryData(catalogGameQueryKey(catalogId), (old) =>
-        old ? { ...old, related: rails, relatedPending: false } : old,
-      );
+      qc.setQueryData<CatalogDetails | null>(catalogGameQueryKey(catalogId), (old) => {
+        if (!old) return old;
+        const nextRelated = hasRelatedGames(rails) ? rails : old.related;
+        return { ...old, related: nextRelated, relatedPending: false };
+      });
       return rails;
     },
     enabled: !isCustom && details.data?.relatedPending === true,
@@ -85,13 +87,13 @@ function GamePage() {
     !isCustom &&
     (details.isLoading ||
       (details.data?.relatedPending === true && relatedQuery.isPending));
-  const relatedRails =
-    relatedQuery.data ??
-    (catalog?.related?.length
-      ? catalog.related
+  const relatedRails = hasRelatedGames(relatedQuery.data)
+    ? relatedQuery.data!
+    : hasRelatedGames(catalog?.related)
+      ? catalog!.related
       : relatedLoading
         ? []
-        : seedRelated(catalogId));
+        : seedRelated(catalogId);
   const sequelDlc = flattenRelated(relatedRails, SEQUEL_DLC_RAIL_IDS);
   const relatedSimilar = flattenRelated(relatedRails, RELATED_RAIL_IDS);
   const releaseDate = entry?.releaseDate ?? catalog?.releaseDate;

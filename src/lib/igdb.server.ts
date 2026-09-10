@@ -778,9 +778,36 @@ export async function igdbQuery<T>(path: string, body: string): Promise<T> {
 export const SEARCH_FIELDS = "name, cover.image_id, game_type, category, parent_game, total_rating, aggregated_rating, rating";
 export const CARD_FIELDS =
   "name, cover.image_id, first_release_date, total_rating, aggregated_rating, rating, aggregated_rating_count, hypes";
-const REL_NEST =
-  "name, cover.image_id, first_release_date, category";
-export const DETAIL_FIELDS = `${CARD_FIELDS}, platforms.abbreviation, platforms.name, genres.name, slug, summary, url, screenshots.image_id, involved_companies.company.name, involved_companies.developer, involved_companies.publisher, websites.url, websites.category, collection.id, collection.name, collection.games.${REL_NEST}, collections.id, collections.name, collections.games.${REL_NEST}, similar_games.${REL_NEST}, parent_game.${REL_NEST}, version_parent.${REL_NEST}, dlcs.${REL_NEST}, expansions.${REL_NEST}, expanded_games.${REL_NEST}, remakes.${REL_NEST}, remasters.${REL_NEST}, standalone_expansions.${REL_NEST}, franchise.name, franchise.games.${REL_NEST}, franchises.name, franchises.games.${REL_NEST}`;
+const REL_FIELDS = "name, cover.image_id, first_release_date, category";
+
+/** Prefix every nested field (`dlcs.name, dlcs.cover.image_id`, not `dlcs.name, cover.image_id`). */
+export function nestFields(prefix: string, fields = REL_FIELDS): string {
+  return fields
+    .split(",")
+    .map((field) => `${prefix}.${field.trim()}`)
+    .join(", ");
+}
+
+export const DETAIL_FIELDS = [
+  CARD_FIELDS,
+  "platforms.abbreviation, platforms.name, genres.name, slug, summary, url",
+  "screenshots.image_id",
+  "involved_companies.company.name, involved_companies.developer, involved_companies.publisher",
+  "websites.url, websites.category",
+  `collection.id, collection.name, ${nestFields("collection.games")}`,
+  `collections.id, collections.name, ${nestFields("collections.games")}`,
+  nestFields("similar_games"),
+  nestFields("parent_game"),
+  nestFields("version_parent"),
+  nestFields("dlcs"),
+  nestFields("expansions"),
+  nestFields("expanded_games"),
+  nestFields("remakes"),
+  nestFields("remasters"),
+  nestFields("standalone_expansions"),
+  `franchise.name, ${nestFields("franchise.games")}`,
+  `franchises.name, ${nestFields("franchises.games")}`,
+].join(", ");
 
 /** IGDB `external_games.category` for Steam store apps. */
 export const IGDB_STEAM_CATEGORY = 1;
@@ -897,8 +924,16 @@ function namedSeriesGames(game: IgdbGame): boolean {
   return seriesSource(game).games.some((row) => Boolean(row.name));
 }
 
+function seriesSplitReady(game: IgdbGame): boolean {
+  const others = seriesSource(game).games.filter(
+    (row) => row.id !== game.id && Boolean(row.name),
+  );
+  if (!others.length) return false;
+  return others.every((row) => Boolean(row.first_release_date));
+}
+
 export function needsRelatedHydration(game: IgdbGame): boolean {
-  if (!namedSeriesGames(game) && collectionIds(game).length > 0) return true;
+  if (collectionIds(game).length > 0 && !seriesSplitReady(game)) return true;
   const similar = asGames(game.similar_games);
   if (
     similar.some(
@@ -935,7 +970,7 @@ async function fillCollectionsFromGamesQuery(game: IgdbGame): Promise<IgdbGame> 
 }
 
 async function hydrateCollections(game: IgdbGame): Promise<IgdbGame> {
-  if (namedSeriesGames(game)) return game;
+  if (seriesSplitReady(game)) return game;
   const ids = collectionIds(game);
   if (!ids.length) return game;
 
@@ -956,7 +991,7 @@ async function hydrateCollections(game: IgdbGame): Promise<IgdbGame> {
 }
 
 async function hydrateSeriesAndSimilar(game: IgdbGame): Promise<IgdbGame> {
-  const needCol = !namedSeriesGames(game) && collectionIds(game).length > 0;
+  const needCol = collectionIds(game).length > 0 && !seriesSplitReady(game);
   const similar = asGames(game.similar_games);
   const similarIds = similar
     .map((row) => row.id)

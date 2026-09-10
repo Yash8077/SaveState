@@ -171,7 +171,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       setState(() {
         final current = _game;
         if (current != null) {
-          _game = current.copyWith(related: rails, relatedPending: false);
+          final nextRelated =
+              rails.isNotEmpty || current.related.isEmpty ? rails : current.related;
+          _game = current.copyWith(related: nextRelated, relatedPending: false);
         }
         _relatedLoading = false;
       });

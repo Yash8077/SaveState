@@ -29,6 +29,10 @@ export function relationBadge(railId: string, railTitle: string): string {
   return RELATION_BADGE[railId] ?? railTitle;
 }
 
+export function hasRelatedGames(rails?: FeaturedRail[] | null): boolean {
+  return Boolean(rails?.some((rail) => rail.games.length > 0));
+}
+
 export function flattenRelated(
   rails: FeaturedRail[],
   ids?: readonly string[],

@@ -56,8 +56,8 @@ class ApiClient {
   static const _featuredDiskKey = 'cache_featured_v1';
   static const _libraryDiskKey = 'cache_library_v1';
   static const _becauseDiskKey = 'cache_because_v1';
-  static const _detailsDiskKey = 'cache_details_v20';
-  static const _relatedDiskKey = 'cache_related_v20';
+  static const _detailsDiskKey = 'cache_details_v21';
+  static const _relatedDiskKey = 'cache_related_v21';
   SharedPreferences? _prefs;
   bool _hydrated = false;
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
@@ -242,7 +242,7 @@ class ApiClient {
       try {
         final decoded = await _send(
           'GET',
-          _u('/api/catalog/game', {'id': catalogId, 'rel': '20'}),
+          _u('/api/catalog/game', {'id': catalogId, 'rel': '21'}),
         );
         if (decoded is Map<String, dynamic>) {
           final details = _withCachedRelated(
@@ -271,7 +271,7 @@ class ApiClient {
       try {
         final decoded = await _send(
           'GET',
-          _u('/api/catalog/game/related', {'id': catalogId, 'rel': '20'}),
+          _u('/api/catalog/game/related', {'id': catalogId, 'rel': '21'}),
         );
         final rails = decoded is List
             ? [
@@ -286,9 +286,11 @@ class ApiClient {
         }
         final details = _detailsCache[catalogId];
         if (details != null) {
+          final nextRelated =
+              rails.isNotEmpty || details.related.isEmpty ? rails : details.related;
           _rememberDetails(
             catalogId,
-            details.copyWith(related: rails, relatedPending: false),
+            details.copyWith(related: nextRelated, relatedPending: false),
           );
         }
         unawaited(_persistRelated());
